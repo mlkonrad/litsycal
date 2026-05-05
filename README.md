@@ -1,8 +1,6 @@
-# Litsycal
+<h1>Litsycal &nbsp;<img src="litsycal-logo.svg" height="40" valign="middle"></h1>
 
 A compact calendar indicator for the GNOME panel, inspired by [Itsycal](https://github.com/sfsam/itsycal) for macOS.
-
-![Litsycal logo](litsycal-logo.svg)
 
 ![Screenshot](screenshot.png)
 
