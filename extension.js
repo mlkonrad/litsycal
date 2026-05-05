@@ -600,12 +600,9 @@ class LitsycalIndicator extends PanelMenu.Button {
         this._pinned     = false;
         this._floatingBox = null;
 
-        // When panel button clicked while pinned → unpin then open popup normally
-        this._origToggle  = this.menu.toggle.bind(this.menu);
-        this.menu.toggle  = () => {
-            if (this._pinned) { this._unpinCalendar(false); this._origToggle(); }
-            else              { this._origToggle(); }
-        };
+        this._menuOpenId = this.menu.connect('open-state-changed', (_menu, open) => {
+            if (open && this._pinned) this._unpinCalendar(false);
+        });
 
         const section = new PopupMenu.PopupMenuSection();
         const item    = new PopupMenu.PopupBaseMenuItem({
@@ -731,7 +728,7 @@ class LitsycalIndicator extends PanelMenu.Button {
             this._floatingBox.destroy();
             this._floatingBox = null;
         }
-        if (this._origToggle) this.menu.toggle = this._origToggle;
+        if (this._menuOpenId) { this.menu.disconnect(this._menuOpenId); this._menuOpenId = null; }
         if (this._timer) { GLib.source_remove(this._timer); this._timer = null; }
         for (const id of this._sids) this._settings.disconnect(id);
         super.destroy();
