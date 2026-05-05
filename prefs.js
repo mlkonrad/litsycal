@@ -204,6 +204,27 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         settings.bind('show-dow-in-badge', showDowRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         iconGroup.add(showDowRow);
 
+        const showTimeRow = new Adw.SwitchRow({title: 'Show time in icon'});
+        settings.bind('show-time', showTimeRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        iconGroup.add(showTimeRow);
+
+        const TIME_FMT_IDS    = ['24h', '12h'];
+        const TIME_FMT_LABELS = ['24-hour (13:05)', '12-hour (1:05pm)'];
+        const timeFmtRow = new Adw.ComboRow({
+            title:   'Time format',
+            model:   Gtk.StringList.new(TIME_FMT_LABELS),
+            visible: settings.get_boolean('show-time'),
+        });
+        timeFmtRow.set_selected(Math.max(0, TIME_FMT_IDS.indexOf(settings.get_string('time-format'))));
+        timeFmtRow.connect('notify::selected', () => {
+            const i = timeFmtRow.get_selected();
+            if (i < TIME_FMT_IDS.length) settings.set_string('time-format', TIME_FMT_IDS[i]);
+        });
+        settings.connect('changed::show-time', () => {
+            timeFmtRow.visible = settings.get_boolean('show-time');
+        });
+        iconGroup.add(timeFmtRow);
+
         // Datetime pattern
         const patRow = new Adw.ActionRow({
             title:    'Custom datetime pattern',
@@ -227,13 +248,18 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                                '%m  — Month number (01–12)\n' +
                                '%b  — Month abbrev (Jan, Feb…)\n' +
                                '%a  — Weekday abbrev (Mon, Tue…)\n' +
-                               '%Y  — Full year (2026)\n\n' +
+                               '%Y  — Full year (2026)\n' +
+                               '%H  — Hour, 24-hour (00–23)\n' +
+                               '%I  — Hour, 12-hour (01–12)\n' +
+                               '%M  — Minutes (00–59)\n' +
+                               '%P  — am or pm\n\n' +
                                'Examples:\n' +
                                '  %d/%m       → 03/05\n' +
-                               '  %d.%m       → 03.05\n' +
-                               '  %m/%d       → 05/03\n' +
                                '  %a %d       → Sun 03\n' +
-                               '  %d %b %Y    → 03 May 2026',
+                               '  %d %b %Y    → 03 May 2026\n' +
+                               '  %H:%M       → 13:05\n' +
+                               '  %-I:%M%P    → 1:05pm\n' +
+                               '  %d %H:%M    → 03 13:05',
                 transient_for: window,
                 modal:         true,
             });
