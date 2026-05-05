@@ -594,7 +594,7 @@ class LitsycalIndicator extends PanelMenu.Button {
 
         this._sids = [
             'badge-style','show-month-in-badge','show-dow-in-badge',
-            'hide-icon','datetime-pattern',
+            'hide-icon','datetime-pattern','show-time','time-format',
         ].map(k => settings.connect(`changed::${k}`, () => this._updateBadge()));
 
         this._pinned     = false;
@@ -675,10 +675,18 @@ class LitsycalIndicator extends PanelMenu.Button {
         const now       = GLib.DateTime.new_now_local();
         const showMonth = this._settings.get_boolean('show-month-in-badge');
         const showDow   = this._settings.get_boolean('show-dow-in-badge');
+        const showTime  = this._settings.get_boolean('show-time');
+        const timeFmt   = this._settings.get_string('time-format');
         const parts     = [];
         if (showDow)   parts.push(DOW_SHORT[now.get_day_of_week()]);
         if (showMonth) parts.push(MON_SHORT[now.get_month()]);
         parts.push(String(now.get_day_of_month()).padStart(2, '0'));
+        if (showTime) {
+            const timePart = timeFmt === '12h'
+                ? now.format('%-I:%M%P')
+                : now.format('%H:%M');
+            parts.push(timePart);
+        }
         return parts.join(' ');
     }
 
