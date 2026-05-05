@@ -4,6 +4,8 @@ A compact calendar indicator for the GNOME panel, inspired by [Itsycal](https://
 
 ![Litsycal logo](litsycal-logo.svg)
 
+![Screenshot](screenshot.png)
+
 ## About
 
 Litsycal brings the simplicity of Itsycal to Linux. Click the panel indicator to reveal a small monthly calendar. No frills, no clutter.
