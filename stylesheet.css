@@ -1,0 +1,255 @@
+/* ── Popup container ─────────────────────────────────────────────────────── */
+.litsycal-popup-item {
+    padding: 0;
+}
+
+/* ── Calendar wrapper ────────────────────────────────────────────────────── */
+.litsycal-calendar {
+    padding: 10px 8px 4px 8px;
+    min-width: 255px;
+    spacing: 2px;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.litsycal-header {
+    spacing: 2px;
+    padding-bottom: 6px;
+}
+
+.litsycal-month-lbl {
+    font-weight: bold;
+    font-size: 1em;
+}
+
+.litsycal-nav-btn {
+    padding: 2px 10px;
+    border-radius: 6px;
+    font-size: 1.1em;
+}
+
+/* "Today" colour applied via inline style from JS (follows system accent) */
+.litsycal-today-btn {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.82em;
+    border: none;
+    background: none;
+}
+
+.litsycal-today-btn:hover {
+    background-color: rgba(128, 128, 128, 0.15);
+}
+
+/* ── Day-name row ────────────────────────────────────────────────────────── */
+.litsycal-day-names {
+    spacing: 0;
+    padding-bottom: 0px;
+}
+
+/* Each day-name cell — zero spacing so highlight columns touch each other */
+.litsycal-day-name-cell {
+    padding: 2px 0 3px 0;
+}
+
+.litsycal-day-name {
+    font-size: 0.72em;
+    font-weight: bold;
+    opacity: 0.55;
+    min-width: 32px;
+    text-align: center;
+}
+
+/* ── Grid ────────────────────────────────────────────────────────────────── */
+/* spacing must match SPACING constant in _drawOverlay() in extension.js */
+.litsycal-grid {
+    spacing: 4px;
+}
+
+.litsycal-grid-row {
+    spacing: 0;
+}
+
+/* ── Day buttons ─────────────────────────────────────────────────────────── */
+/* Dark theme: white numbers. Light theme: near-black (see @media below). */
+.litsycal-day-btn {
+    min-width: 32px;
+    min-height: 26px;
+    border-radius: 50%;
+    text-align: center;
+    font-size: 0.88em;
+    color: white;
+    border: none;
+    background: none;
+    padding: 1px;
+}
+
+.litsycal-day-btn:hover {
+    background-color: rgba(255, 255, 255, 0.10);
+}
+
+/* Today and selected: background-color + color set via JS inline style */
+.litsycal-today   { border-radius: 50%; font-weight: bold; }
+.litsycal-selected { border-radius: 50%; }
+.litsycal-weekend  { color: #e06060; }
+
+/* ── Column highlight ────────────────────────────────────────────────────── */
+/* Applied to day-name cells; the grid stripe is drawn by the DrawingArea. */
+.litsycal-col-hl {
+    background-color: rgba(255, 255, 255, 0.07);
+}
+
+/* ── Overflow days (prev / next month) ───────────────────────────────────── */
+.litsycal-overflow {
+    min-width: 32px;
+    min-height: 26px;
+    text-align: center;
+    font-size: 0.88em;
+    padding: 4px 0;
+}
+
+/* ── Separator ───────────────────────────────────────────────────────────── */
+.litsycal-sep {
+    background-color: rgba(255, 255, 255, 0.12);
+    height: 1px;
+    margin: 6px 0;
+}
+
+/* ── Agenda ──────────────────────────────────────────────────────────────── */
+.litsycal-agenda {
+    padding-top: 2px;
+    padding-bottom: 2px;
+    spacing: 1px;
+    min-height: 44px;
+}
+
+.litsycal-agenda-date {
+    font-weight: bold;
+    font-size: 0.78em;
+    opacity: 0.60;
+    padding-bottom: 3px;
+}
+
+.litsycal-agenda-empty {
+    font-size: 0.82em;
+    opacity: 0.42;
+    font-style: italic;
+}
+
+.litsycal-agenda-row   { spacing: 7px; padding: 1px 0; }
+.litsycal-agenda-dot   { font-size: 0.85em; }
+.litsycal-agenda-title { font-size: 0.85em; }
+.litsycal-agenda-time  { font-size: 0.76em; opacity: 0.62; }
+
+/* ── Footer (gear button) ────────────────────────────────────────────────── */
+.litsycal-gear-icon {
+    icon-size: 16px;
+}
+
+.litsycal-footer {
+    padding: 2px 0 4px 0;
+    spacing: 2px;
+}
+
+.litsycal-footer-btn {
+    padding: 2px 4px;
+    border-radius: 6px;
+    border: none;
+    background: none;
+    opacity: 0.55;
+}
+
+.litsycal-footer-btn:hover {
+    opacity: 1.0;
+    background-color: rgba(255, 255, 255, 0.10);
+}
+
+.litsycal-footer-btn:checked {
+    opacity: 1.0;
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+.litsycal-theme-light .litsycal-footer-btn:hover    { background-color: rgba(0, 0, 0, 0.08); }
+.litsycal-theme-light .litsycal-footer-btn:checked  { background-color: rgba(0, 0, 0, 0.12); opacity: 1.0; }
+
+/* ── Panel badge ─────────────────────────────────────────────────────────── */
+.litsycal-badge {
+    font-weight: bold;
+    font-size: 0.95em;
+    min-width: 26px;
+    text-align: center;
+    padding: 1px 5px;
+    border-radius: 5px;
+    background-color: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* Badge style: dark background */
+.litsycal-badge-dark {
+    background-color: rgba(0, 0, 0, 0.80);
+    border: none;
+    color: white;
+}
+
+/* Badge style: calendar page look — light */
+.litsycal-badge-calendar {
+    background-color: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-top-width: 3px;
+    border-radius: 4px;
+    padding: 1px 5px 1px 5px;
+}
+
+/* Badge style: calendar page look — dark */
+.litsycal-badge-calendar-dark {
+    background-color: rgba(0, 0, 0, 0.80);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-top-width: 3px;
+    border-radius: 4px;
+    padding: 1px 5px 1px 5px;
+    color: white;
+}
+
+/* ── Calendar size variants ──────────────────────────────────────────────── */
+/* Small */
+.litsycal-size-sm                { min-width: 220px; }
+.litsycal-size-sm .litsycal-day-btn  { min-width: 26px; min-height: 21px; font-size: 0.78em; }
+.litsycal-size-sm .litsycal-overflow { min-width: 26px; min-height: 21px; font-size: 0.78em; }
+.litsycal-size-sm .litsycal-day-name { min-width: 28px; font-size: 0.65em; }
+.litsycal-size-sm .litsycal-day-name-cell { min-width: 26px; }
+
+/* Large */
+.litsycal-size-lg                { min-width: 315px; }
+.litsycal-size-lg .litsycal-day-btn  { min-width: 40px; min-height: 34px; font-size: 1.00em; }
+.litsycal-size-lg .litsycal-overflow { min-width: 40px; min-height: 34px; font-size: 1.00em; }
+.litsycal-size-lg .litsycal-day-name { min-width: 42px; font-size: 0.80em; }
+.litsycal-size-lg .litsycal-day-name-cell { min-width: 40px; }
+
+/* ── Light theme (JS adds .litsycal-theme-light to the calendar widget) ─────── */
+.litsycal-theme-light .litsycal-day-btn          { color: #1a1a1a; }
+.litsycal-theme-light .litsycal-col-hl           { background-color: rgba(0, 0, 0, 0.06); }
+.litsycal-theme-light .litsycal-day-btn:hover    { background-color: rgba(0, 0, 0, 0.08); }
+.litsycal-theme-light .litsycal-sep              { background-color: rgba(0, 0, 0, 0.12); }
+.litsycal-theme-light .litsycal-footer-btn:hover { background-color: rgba(0, 0, 0, 0.08); }
+.litsycal-theme-light .litsycal-weekend          { color: #cc2222; }
+.litsycal-theme-light .litsycal-month-lbl        { color: #1a1a1a; }
+.litsycal-theme-light .litsycal-nav-btn          { color: #1a1a1a; }
+.litsycal-theme-light .litsycal-day-name         { color: #1a1a1a; }
+.litsycal-theme-light .litsycal-agenda-date      { color: #1a1a1a; }
+.litsycal-theme-light .litsycal-agenda-empty     { color: #1a1a1a; }
+.litsycal-theme-light .litsycal-agenda-title     { color: #1a1a1a; }
+.litsycal-theme-light .litsycal-agenda-time      { color: #1a1a1a; }
+
+/* ── Dark theme (JS adds .litsycal-theme-dark — mirrors base defaults) ──────── */
+.litsycal-theme-dark .litsycal-day-btn           { color: white; }
+.litsycal-theme-dark .litsycal-col-hl            { background-color: rgba(255, 255, 255, 0.07); }
+.litsycal-theme-dark .litsycal-day-btn:hover     { background-color: rgba(255, 255, 255, 0.10); }
+.litsycal-theme-dark .litsycal-sep               { background-color: rgba(255, 255, 255, 0.12); }
+.litsycal-theme-dark .litsycal-footer-btn:hover  { background-color: rgba(255, 255, 255, 0.10); }
+.litsycal-theme-dark .litsycal-weekend           { color: #e06060; }
+.litsycal-theme-dark .litsycal-month-lbl         { color: white; }
+.litsycal-theme-dark .litsycal-nav-btn           { color: white; }
+.litsycal-theme-dark .litsycal-day-name          { color: white; }
+.litsycal-theme-dark .litsycal-agenda-date       { color: white; }
+.litsycal-theme-dark .litsycal-agenda-empty      { color: white; }
+.litsycal-theme-dark .litsycal-agenda-title      { color: white; }
+.litsycal-theme-dark .litsycal-agenda-time       { color: white; }

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.litsycal"
+          path="/org/gnome/shell/extensions/litsycal/">
+
+    <!-- General -->
+    <key name="first-day-of-week" type="i">
+      <default>0</default>
+      <summary>First day of the week: 0=Monday … 6=Sunday</summary>
+    </key>
+    <key name="toggle-shortcut" type="as">
+      <default>[]</default>
+      <summary>Keyboard shortcut to show/hide the calendar</summary>
+    </key>
+    <key name="check-for-updates" type="b">
+      <default>true</default>
+      <summary>Automatically check for updates</summary>
+    </key>
+    <key name="beep-on-hour" type="b">
+      <default>false</default>
+      <summary>Play a sound on the hour</summary>
+    </key>
+
+    <!-- Appearance – panel badge -->
+    <key name="badge-style" type="s">
+      <default>'number-light'</default>
+      <summary>Panel badge style</summary>
+      <description>One of: number-light, number-dark, calendar, calendar-dark</description>
+    </key>
+    <key name="show-month-in-badge" type="b">
+      <default>false</default>
+      <summary>Show abbreviated month in the badge</summary>
+    </key>
+    <key name="show-dow-in-badge" type="b">
+      <default>false</default>
+      <summary>Show day-of-week abbreviation in the badge</summary>
+    </key>
+    <key name="hide-icon" type="b">
+      <default>false</default>
+      <summary>Hide the panel badge entirely</summary>
+    </key>
+    <key name="datetime-pattern" type="s">
+      <default>''</default>
+      <summary>Custom strftime pattern for the badge (overrides other badge settings)</summary>
+    </key>
+
+    <!-- Appearance – calendar -->
+    <key name="calendar-size" type="i">
+      <default>1</default>
+      <summary>Calendar size: 0 = small, 1 = medium, 2 = large</summary>
+    </key>
+    <key name="highlight-days" type="as">
+      <default>['sa','su']</default>
+      <summary>Day abbreviations whose columns are highlighted (mo tu we th fr sa su)</summary>
+    </key>
+    <key name="theme" type="s">
+      <choices>
+        <choice value="system"/>
+        <choice value="light"/>
+        <choice value="dark"/>
+      </choices>
+      <default>'system'</default>
+      <summary>Colour theme: system, light, or dark</summary>
+    </key>
+    <key name="weekend-color-mode" type="s">
+      <default>'default'</default>
+      <summary>Weekend day colour mode: default, none, or custom</summary>
+    </key>
+    <key name="weekend-color" type="s">
+      <default>'#e06060'</default>
+      <summary>Custom weekend day colour (hex)</summary>
+    </key>
+
+  </schema>
+</schemalist>

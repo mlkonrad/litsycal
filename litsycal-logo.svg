@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+    <!-- Drop Shadow for a bit of desktop depth -->
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+        <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.15"/>
+    </filter>
+
+    <g filter="url(#shadow)">
+        <!-- Calendar Body -->
+        <rect x="80" y="104" width="352" height="352" rx="48" fill="#FFFFFF" stroke="#333333" stroke-width="24"/>
+
+        <!-- Calendar Header (Dark/monochrome) -->
+        <path d="M 80 152 C 80 125.5 101.5 104 128 104 L 384 104 C 410.5 104 432 125.5 432 152 L 432 200 L 80 200 Z" fill="#333333"/>
+        <line x1="80" y1="200" x2="432" y2="200" stroke="#333333" stroke-width="24"/>
+
+        <!-- Binder Holes & Rings -->
+        <rect x="152" y="56" width="32" height="96" rx="16" fill="#F0F0F0" stroke="#333333" stroke-width="16"/>
+        <rect x="328" y="56" width="32" height="96" rx="16" fill="#F0F0F0" stroke="#333333" stroke-width="16"/>
+
+        <!-- Tux the Penguin -->
+        <g transform="translate(0, -4)">
+            <!-- Orange Feet -->
+            <ellipse cx="206" cy="425" rx="32" ry="14" fill="#FFA000" stroke="#222222" stroke-width="6"/>
+            <ellipse cx="306" cy="425" rx="32" ry="14" fill="#FFA000" stroke="#222222" stroke-width="6"/>
+
+            <!-- Arms / Flippers -->
+            <path d="M 186 330 C 130 350, 130 420, 186 430 Z" fill="#222222"/>
+            <path d="M 326 330 C 382 350, 382 420, 326 430 Z" fill="#222222"/>
+
+            <!-- Black Body & Head -->
+            <path d="M 166 360 C 166 230, 346 230, 346 360 C 346 430, 316 440, 256 440 C 196 440, 166 430, 166 360 Z" fill="#222222"/>
+
+            <!-- White Belly & Face (Heart shape) -->
+            <path d="M 186 350 C 186 280, 256 290, 256 315 C 256 290, 326 280, 326 350 C 326 420, 296 430, 256 430 C 216 430, 186 420, 186 350 Z" fill="#FFFFFF"/>
+
+            <!-- Eyes -->
+            <ellipse cx="232" cy="300" rx="16" ry="24" fill="#FFFFFF"/>
+            <ellipse cx="280" cy="300" rx="16" ry="24" fill="#FFFFFF"/>
+
+            <!-- Pupils (Looking slightly cross-eyed/cute) -->
+            <ellipse cx="238" cy="305" rx="7" ry="11" fill="#222222"/>
+            <ellipse cx="274" cy="305" rx="7" ry="11" fill="#222222"/>
+
+            <!-- Orange Beak -->
+            <path d="M 222 325 Q 256 315 290 325 Q 256 365 222 325 Z" fill="#FFA000" stroke="#222222" stroke-width="4" stroke-linejoin="round"/>
+
+            <!-- Beak inner smile line -->
+            <path d="M 232 335 Q 256 345 280 335" fill="none" stroke="#222222" stroke-width="3" stroke-linecap="round"/>
+        </g>
+    </g>
+</svg>
