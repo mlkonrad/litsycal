@@ -693,7 +693,9 @@ class LitsycalIndicator extends PanelMenu.Button {
     _pinCalendar() {
         this._pinned = true;
 
-        const monitor = Main.layoutManager.primaryMonitor;
+        const monitor = Main.layoutManager.monitors[
+            Main.layoutManager.findIndexForActor(this)
+        ] ?? Main.layoutManager.primaryMonitor;
         const panelH  = Main.panel.get_height();
         const [btnX]  = this.get_transformed_position();
         const btnW    = this.get_width();
