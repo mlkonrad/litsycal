@@ -43,6 +43,18 @@
       <default>''</default>
       <summary>Custom strftime pattern for the badge (overrides other badge settings)</summary>
     </key>
+    <key name="show-time" type="b">
+      <default>false</default>
+      <summary>Show time in the panel badge</summary>
+    </key>
+    <key name="time-format" type="s">
+      <choices>
+        <choice value="24h"/>
+        <choice value="12h"/>
+      </choices>
+      <default>'24h'</default>
+      <summary>Time format for the panel badge: 24h or 12h</summary>
+    </key>
 
     <!-- Appearance – calendar -->
     <key name="calendar-size" type="i">
