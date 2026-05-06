@@ -22,22 +22,22 @@
 }
 
 .litsycal-nav-btn {
-    padding: 2px 10px;
-    border-radius: 6px;
-    font-size: 1.1em;
-}
-
-/* "Today" colour applied via inline style from JS (follows system accent) */
-.litsycal-today-btn {
     padding: 2px 8px;
     border-radius: 6px;
-    font-size: 0.82em;
+    font-size: 1.3em;
+    font-weight: bold;
     border: none;
     background: none;
 }
 
-.litsycal-today-btn:hover {
+.litsycal-nav-btn:hover {
     background-color: rgba(128, 128, 128, 0.15);
+}
+
+/* ● dot button — navigates to today, accent-coloured via inline style */
+.litsycal-dot-btn {
+    font-size: 0.7em;
+    padding: 2px 6px;
 }
 
 /* ── Day-name row ────────────────────────────────────────────────────────── */
