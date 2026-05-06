@@ -12,17 +12,30 @@ import Gio     from 'gi://Gio';
 import Meta    from 'gi://Meta';
 import Shell   from 'gi://Shell';
 
+import {CalendarManager} from './calendarManager.js';
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-// Locale-aware day abbreviations, Mon=0 … Sun=6 (2025-01-06 is a known Monday)
-function localeDayAbbrs() {
-    return Array.from({length: 7}, (_, i) => {
-        const s = GLib.DateTime.new_local(2025, 1, 6 + i, 0, 0, 0).format('%a');
-        return s.charAt(0).toUpperCase() + s.slice(1);
-    });
+function capitalize(s) {
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
-// Maps highlight-days setting strings → column indices (0 = Monday)
+// Format datetime pattern but capitalize locale word tokens (%a %b %A %B)
+function formatPattern(dt, pattern) {
+    let p = pattern;
+    for (const token of ['%A', '%B', '%a', '%b']) {
+        const val = dt.format(token);
+        if (val) p = p.split(token).join(capitalize(val));
+    }
+    return dt.format(p) ?? '';
+}
+
+function localeDayAbbrs() {
+    return Array.from({length: 7}, (_, i) =>
+        capitalize(GLib.DateTime.new_local(2025, 1, 6 + i, 0, 0, 0).format('%a'))
+    );
+}
+
 const DAY_COL = {mo:0, tu:1, we:2, th:3, fr:4, sa:5, su:6};
 
 // ── Accent colour ─────────────────────────────────────────────────────────────
@@ -73,14 +86,12 @@ class OutlinePainter {
         const cw   = w / 7;
         const dark = this._isDark;
 
-        // ── 1. Column highlight stripes ───────────────────────────────────────
         for (const col of this._highlightCols) {
             cr.rectangle(col * cw, 0, cw, h);
             cr.setSourceRGBA(dark ? 1 : 0, dark ? 1 : 0, dark ? 1 : 0, dark ? 0.07 : 0.06);
             cr.fill();
         }
 
-        // ── 2. Month-shape outline ────────────────────────────────────────────
         const r  = 6;
         const ch = h / numRows;
         const fc = firstCol;
@@ -89,7 +100,6 @@ class OutlinePainter {
 
         const SPACING = 4;
         const rowGap  = i => i * ch + SPACING * (i / numRows - 0.5);
-
         const C = (px, py, dx, dy) =>
             cr.curveTo(px, py, px, py, px + r*dx, py + r*dy);
 
@@ -149,10 +159,8 @@ class LitsycalCalendar extends St.BoxLayout {
         this._today    = now;
         this._selected = now;
 
-        // Outline geometry
         this._firstCol = 0; this._lastCol = 6; this._lastRow = 0; this._numRows = 1;
 
-        // Read settings
         this._firstDayOfWeek   = settings.get_int('first-day-of-week');
         this._highlightCols    = this._readHighlight();
         this._calSize          = settings.get_int('calendar-size');
@@ -161,7 +169,6 @@ class LitsycalCalendar extends St.BoxLayout {
         this._weekendColor     = settings.get_string('weekend-color');
         this._applySizeClass();
 
-        // Watch for settings changes
         this._sids = [
             settings.connect('changed::first-day-of-week', () => {
                 this._firstDayOfWeek = settings.get_int('first-day-of-week');
@@ -195,7 +202,6 @@ class LitsycalCalendar extends St.BoxLayout {
             }),
         ];
 
-        // Watch system accent + colour-scheme changes
         this._iface    = new Gio.Settings({schema: 'org.gnome.desktop.interface'});
         this._accentId = this._iface.connect('changed::accent-color', () => {
             this._accent = readAccent();
@@ -210,9 +216,9 @@ class LitsycalCalendar extends St.BoxLayout {
             for (const id of this._sids) this._settings.disconnect(id);
             this._iface.disconnect(this._accentId);
             this._iface.disconnect(this._schemeId);
+            this._calManager?.destroy();
         });
 
-        // Compute theme + create painter before building any widgets
         this._isDark  = this._computeIsDark();
         this._painter = new OutlinePainter();
         this._painter.configure(this._isDark, this._highlightCols);
@@ -220,16 +226,27 @@ class LitsycalCalendar extends St.BoxLayout {
         this._buildHeader();
         this._buildDayNameRow();
         this._buildGridContainer();
-        this._applyTheme(); // builds grid and applies theme class in one shot
+        this._applyTheme();
 
         this.add_child(new St.Widget({style_class: 'litsycal-sep'}));
 
-        this._agendaBox = new St.BoxLayout({vertical: true, style_class: 'litsycal-agenda'});
+        this._agendaBox = new St.BoxLayout({vertical: true, style_class: 'litsycal-agenda', x_expand: true});
         this.add_child(this._agendaBox);
         this._buildAgenda();
 
         this._buildFooter();
+        this._buildCreateForm();
+
+        this._calSourceIdx = 0;
+        this._calManager   = new CalendarManager(events => {
+            this._events = events;
+            this._buildGrid();
+            this._buildAgenda();
+        });
+        this._calManager.fetchMonth(this._year, this._month);
     }
+
+    // ── Settings ──────────────────────────────────────────────────────────────
 
     _readHighlight() {
         const fd = this._firstDayOfWeek;
@@ -260,11 +277,9 @@ class LitsycalCalendar extends St.BoxLayout {
 
     _applyTheme() {
         this._isDark = this._computeIsDark();
-
         this.remove_style_class_name('litsycal-theme-light');
         this.remove_style_class_name('litsycal-theme-dark');
         this.add_style_class_name(this._isDark ? 'litsycal-theme-dark' : 'litsycal-theme-light');
-
         this._painter.configure(this._isDark, this._highlightCols);
         if (this._prevBtn) this._updateHeaderColors();
         this._buildDayNameRow(true);
@@ -281,7 +296,6 @@ class LitsycalCalendar extends St.BoxLayout {
         this._prevBtn  = new St.Button({label: '‹', style_class: 'litsycal-nav-btn'});
         this._nextBtn  = new St.Button({label: '›', style_class: 'litsycal-nav-btn'});
         this._todayBtn = new St.Button({label: _('Today'), style_class: 'litsycal-today-btn'});
-
         this._monthLbl = new St.Label({style_class: 'litsycal-month-lbl', x_expand: true});
         this._monthLbl.clutter_text.set_x_align(Clutter.ActorAlign.CENTER);
 
@@ -325,15 +339,11 @@ class LitsycalCalendar extends St.BoxLayout {
         }
 
         this._dayNameRow = row;
-
-        if (rebuild) {
-            this.insert_child_at_index(row, 1);
-        } else {
-            this.add_child(row);
-        }
+        if (rebuild) this.insert_child_at_index(row, 1);
+        else         this.add_child(row);
     }
 
-    // ── Grid container (grid + overlay DrawingArea) ───────────────────────────
+    // ── Grid container ────────────────────────────────────────────────────────
 
     _buildGridContainer() {
         const overlay = new St.Widget({
@@ -357,7 +367,6 @@ class LitsycalCalendar extends St.BoxLayout {
         overlay.add_child(this._gridBox);
         overlay.add_child(this._outline);
         this.add_child(overlay);
-
         overlay.connect('notify::allocation', () => this._outline.queue_repaint());
     }
 
@@ -397,7 +406,11 @@ class LitsycalCalendar extends St.BoxLayout {
             const isWeekend = actualDay === 5 || actualDay === 6;
             row.add_child(this._makeCell(d, ds, ds===todayStr, ds===selStr, isWeekend));
             col++;
-            if (col === 7) { this._gridBox.add_child(row); row = new St.BoxLayout({style_class:'litsycal-grid-row'}); col = 0; }
+            if (col === 7) {
+                this._gridBox.add_child(row);
+                row = new St.BoxLayout({style_class: 'litsycal-grid-row'});
+                col = 0;
+            }
         }
 
         if (col > 0) {
@@ -410,13 +423,12 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     _makeOverflow(day) {
-        const lbl = new St.Label({
-            text: String(day),
-            style_class: 'litsycal-overflow',
-            x_expand: true,
-        });
+        const box = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'litsycal-cell-box'});
+        const lbl = new St.Label({text: String(day), style_class: 'litsycal-overflow', x_expand: true});
         lbl.clutter_text.set_x_align(Clutter.ActorAlign.CENTER);
-        return lbl;
+        box.add_child(lbl);
+        box.add_child(new St.BoxLayout({style_class: 'litsycal-dot-row', x_expand: true}));
+        return box;
     }
 
     _makeCell(day, ds, isToday, isSel, isWeekend) {
@@ -424,7 +436,7 @@ class LitsycalCalendar extends St.BoxLayout {
         if (isToday)    sc += ' litsycal-today';
         else if (isSel) sc += ' litsycal-selected';
 
-        const btn = new St.Button({label: String(day), style_class: sc, x_expand: true});
+        const btn = new St.Button({style_class: sc, x_expand: true});
 
         if (isToday) {
             btn.style = `background-color: ${this._accent}; color: white;`;
@@ -435,6 +447,21 @@ class LitsycalCalendar extends St.BoxLayout {
         } else if (isWeekend && this._weekendColorMode === 'default') {
             btn.add_style_class_name('litsycal-weekend');
         }
+
+        const box    = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'litsycal-cell-box'});
+        const numLbl = new St.Label({text: String(day), x_expand: true, style_class: 'litsycal-cell-num'});
+        numLbl.clutter_text.set_x_align(Clutter.ActorAlign.CENTER);
+        box.add_child(numLbl);
+
+        const dotRow = new St.BoxLayout({style_class: 'litsycal-dot-row', x_expand: true});
+        dotRow.set_x_align(Clutter.ActorAlign.CENTER);
+        for (const ev of this._events.filter(e => e.date === ds).slice(0, 3)) {
+            const dot = new St.Widget({style_class: 'litsycal-event-dot'});
+            dot.style = `background-color: ${ev.color};`;
+            dotRow.add_child(dot);
+        }
+        box.add_child(dotRow);
+        btn.set_child(box);
 
         btn.connect('clicked', () => {
             const [y, m, d] = ds.split('-').map(Number);
@@ -450,70 +477,238 @@ class LitsycalCalendar extends St.BoxLayout {
     _buildAgenda() {
         this._agendaBox.destroy_all_children();
 
-        const sel    = this._selected;
-        const selStr = dateStr(sel);
-        const evs    = this._events.filter(e => e.date === selStr);
+        const today = GLib.DateTime.new_now_local();
 
-        const dateLbl = new St.Label({
-            text: `${sel.format('%a')}, ${sel.format('%b')} ${sel.get_day_of_month()}`,
-            style_class: 'litsycal-agenda-date',
+        // Collect qualifying days first so we know which is last
+        const groups = [];
+        for (let i = 0; i < 7; i++) {
+            const day = today.add_days(i);
+            const ds  = dateStr(day);
+            const evs = this._events
+                .filter(e => e.date === ds)
+                .sort((a, b) => {
+                    if (a.allDay && !b.allDay) return -1;
+                    if (!a.allDay && b.allDay) return  1;
+                    return (a.time ?? '').localeCompare(b.time ?? '');
+                });
+            if (i === 0 || evs.length > 0)
+                groups.push({day, ds, evs, i});
+        }
+
+        groups.forEach(({day, evs, i}, g) => {
+            let dayLabel;
+            if (i === 0)      dayLabel = _('Today');
+            else if (i === 1) dayLabel = _('Tomorrow');
+            else              dayLabel = capitalize(day.format('%A'));
+
+            const header  = new St.BoxLayout({style_class: 'litsycal-agenda-header'});
+            const nameLbl = new St.Label({text: dayLabel, style_class: 'litsycal-agenda-day-name'});
+            const dateLbl = new St.Label({
+                text: `${capitalize(day.format('%b'))} ${day.get_day_of_month()}`,
+                style_class: 'litsycal-agenda-day-date',
+            });
+            header.add_child(nameLbl);
+            header.add_child(dateLbl);
+            this._agendaBox.add_child(header);
+
+            if (evs.length === 0) {
+                this._agendaBox.add_child(
+                    new St.Label({text: _('No events'), style_class: 'litsycal-agenda-empty'})
+                );
+            } else {
+                for (const ev of evs) {
+                    const row1 = new St.BoxLayout({style_class: 'litsycal-agenda-row'});
+                    const dot  = new St.Widget({style_class: 'litsycal-agenda-pill'});
+                    dot.style  = `background-color: ${ev.color};`;
+                    row1.add_child(dot);
+                    row1.add_child(new St.Label({
+                        text: ev.title, style_class: 'litsycal-agenda-title', x_expand: true,
+                    }));
+                    this._agendaBox.add_child(row1);
+
+                    const row2 = new St.BoxLayout({style_class: 'litsycal-agenda-time-row'});
+                    row2.add_child(new St.Label({
+                        text: ev.time ?? _('All day'),
+                        style_class: 'litsycal-agenda-time',
+                    }));
+                    this._agendaBox.add_child(row2);
+                }
+            }
+
+            // Separator between groups — not after last
+            if (g < groups.length - 1)
+                this._agendaBox.add_child(new St.Widget({style_class: 'litsycal-agenda-sep'}));
         });
-        this._agendaBox.add_child(dateLbl);
-
-        if (evs.length === 0) {
-            this._agendaBox.add_child(
-                new St.Label({text: _('No events'), style_class: 'litsycal-agenda-empty'})
-            );
-            return;
-        }
-        for (const ev of evs) {
-            const row   = new St.BoxLayout({style_class: 'litsycal-agenda-row'});
-            const dot   = new St.Label({text: '●', style_class: 'litsycal-agenda-dot'});
-            dot.style   = `color: ${ev.color};`;
-            row.add_child(dot);
-            row.add_child(new St.Label({text: ev.title, style_class: 'litsycal-agenda-title', x_expand: true}));
-            row.add_child(new St.Label({text: ev.time ?? _('All day'), style_class: 'litsycal-agenda-time'}));
-            this._agendaBox.add_child(row);
-        }
     }
 
-    // ── Footer with gear button ───────────────────────────────────────────────
+    // ── Footer ────────────────────────────────────────────────────────────────
 
     _buildFooter() {
-        const sep = new St.Widget({style_class: 'litsycal-sep'});
-        this.add_child(sep);
-
+        this.add_child(new St.Widget({style_class: 'litsycal-sep'}));
         const footer = new St.BoxLayout({style_class: 'litsycal-footer'});
 
-        const makeBtn = (iconName, toggle = false) => {
-            const btn = new St.Button({
-                style_class: 'litsycal-footer-btn',
-                child: new St.Icon({icon_name: iconName, style_class: 'litsycal-gear-icon'}),
-                x_expand: false,
-                toggle_mode: toggle,
-            });
-            return btn;
-        };
+        const makeIconBtn = (iconName, toggle = false) => new St.Button({
+            style_class: 'litsycal-footer-btn',
+            child: new St.Icon({icon_name: iconName, style_class: 'litsycal-gear-icon'}),
+            x_expand: false, toggle_mode: toggle,
+        });
 
-        const pinBtn = makeBtn('view-pin-symbolic', true);
+        this._addBtn = new St.Button({label: '+', style_class: 'litsycal-footer-btn litsycal-add-btn'});
+        this._addBtn.connect('clicked', () => this._showCreateForm());
+
+        const pinBtn = makeIconBtn('view-pin-symbolic', true);
         pinBtn.connect('notify::checked', () => {
             if (this._onPinToggle) this._onPinToggle(pinBtn.get_checked());
         });
 
-        const calBtn = makeBtn('x-office-calendar-symbolic');
-        calBtn.connect('clicked', () => {
-            if (this._openCalendar) this._openCalendar();
-        });
+        const calBtn = makeIconBtn('x-office-calendar-symbolic');
+        calBtn.connect('clicked', () => { if (this._openCalendar) this._openCalendar(); });
 
-        const gear = makeBtn('preferences-system-symbolic');
+        const gear = makeIconBtn('preferences-system-symbolic');
         gear.connect('clicked', () => this._openPrefs());
 
-        const spacer = new St.Widget({x_expand: true});
-        footer.add_child(spacer);
+        footer.add_child(this._addBtn);
+        footer.add_child(new St.Widget({x_expand: true}));
         footer.add_child(pinBtn);
         footer.add_child(calBtn);
         footer.add_child(gear);
         this.add_child(footer);
+    }
+
+    // ── Create form ───────────────────────────────────────────────────────────
+
+    _buildCreateForm() {
+        this._createForm = new St.BoxLayout({
+            vertical: true, style_class: 'litsycal-create-form', visible: false,
+        });
+
+        // Title
+        this._titleEntry = new St.Entry({
+            hint_text: _('Event title'), style_class: 'litsycal-create-entry', x_expand: true,
+        });
+        this._createForm.add_child(this._titleEntry);
+
+        // All-day + calendar picker row
+        const optRow = new St.BoxLayout({style_class: 'litsycal-create-row', x_expand: true});
+
+        this._allDayBtn = new St.Button({
+            label: _('All day'),
+            style_class: 'litsycal-create-toggle litsycal-create-toggle-on',
+            toggle_mode: true, checked: true,
+        });
+        this._allDayBtn.connect('notify::checked', () => {
+            const on = this._allDayBtn.get_checked();
+            this._allDayBtn.remove_style_class_name(on ? 'litsycal-create-toggle-off' : 'litsycal-create-toggle-on');
+            this._allDayBtn.add_style_class_name(on  ? 'litsycal-create-toggle-on'  : 'litsycal-create-toggle-off');
+            this._timeRow.visible = !on;
+        });
+        optRow.add_child(this._allDayBtn);
+        optRow.add_child(new St.Widget({x_expand: true}));
+
+        this._calPickerBtn = new St.Button({style_class: 'litsycal-create-cal-btn'});
+        this._calPickerBtn.connect('clicked', () => {
+            const srcs = this._calManager?.getSources() ?? [];
+            if (srcs.length === 0) return;
+            this._calSourceIdx = (this._calSourceIdx + 1) % srcs.length;
+            this._refreshCalPicker();
+        });
+        optRow.add_child(this._calPickerBtn);
+        this._createForm.add_child(optRow);
+
+        // Time row
+        this._timeRow = new St.BoxLayout({style_class: 'litsycal-create-row', visible: false});
+        this._timeRow.add_child(new St.Label({text: _('Time:'), style_class: 'litsycal-create-lbl'}));
+        this._hourEntry = new St.Entry({hint_text: 'HH', style_class: 'litsycal-create-time'});
+        this._minEntry  = new St.Entry({hint_text: 'MM', style_class: 'litsycal-create-time'});
+        this._timeRow.add_child(this._hourEntry);
+        this._timeRow.add_child(new St.Label({text: ':', style_class: 'litsycal-create-lbl'}));
+        this._timeRow.add_child(this._minEntry);
+        this._createForm.add_child(this._timeRow);
+
+        // Error
+        this._createError = new St.Label({style_class: 'litsycal-create-error', visible: false});
+        this._createForm.add_child(this._createError);
+
+        // Cancel / Create
+        const btnRow    = new St.BoxLayout({style_class: 'litsycal-create-row'});
+        const cancelBtn = new St.Button({label: _('Cancel'), style_class: 'litsycal-create-cancel'});
+        const saveBtn   = new St.Button({label: _('Create'), style_class: 'litsycal-create-save'});
+        cancelBtn.connect('clicked', () => this._hideCreateForm());
+        saveBtn.connect('clicked',   () => this._saveEvent());
+        btnRow.add_child(cancelBtn);
+        btnRow.add_child(new St.Widget({x_expand: true}));
+        btnRow.add_child(saveBtn);
+        this._createForm.add_child(btnRow);
+
+        this.add_child(this._createForm);
+    }
+
+    _refreshCalPicker() {
+        const srcs = this._calManager?.getSources() ?? [];
+        if (srcs.length === 0) {
+            this._calPickerBtn.set_label(_('No calendars'));
+            return;
+        }
+        const src = srcs[this._calSourceIdx % srcs.length];
+        const box = new St.BoxLayout({style: 'spacing: 4px;'});
+        const dot = new St.Widget({style_class: 'litsycal-event-dot'});
+        dot.style = `background-color: ${src.color};`;
+        const lbl = new St.Label({text: src.name, style_class: 'litsycal-create-cal-lbl'});
+        box.add_child(dot);
+        box.add_child(lbl);
+        this._calPickerBtn.set_child(box);
+    }
+
+    _showCreateForm() {
+        const now = GLib.DateTime.new_now_local();
+        this._titleEntry.set_text('');
+        this._hourEntry.set_text(String(now.get_hour()).padStart(2, '0'));
+        this._minEntry.set_text('00');
+        this._allDayBtn.set_checked(true);
+        this._timeRow.visible    = false;
+        this._createError.visible = false;
+        this._calSourceIdx = 0;
+        this._refreshCalPicker();
+        this._agendaBox.hide();
+        this._createForm.show();
+        this._titleEntry.grab_key_focus();
+    }
+
+    _hideCreateForm() {
+        this._createForm.hide();
+        this._agendaBox.show();
+    }
+
+    _saveEvent() {
+        const title = this._titleEntry.get_text().trim();
+        if (!title) { this._showCreateError(_('Title is required')); return; }
+
+        const srcs = this._calManager?.getSources() ?? [];
+        if (srcs.length === 0) { this._showCreateError(_('No calendars available')); return; }
+
+        const src    = srcs[this._calSourceIdx % srcs.length];
+        const allDay = this._allDayBtn.get_checked();
+        const ds     = dateStr(this._selected);
+
+        let hour = 0, min = 0;
+        if (!allDay) {
+            hour = parseInt(this._hourEntry.get_text()) || 0;
+            min  = parseInt(this._minEntry.get_text())  || 0;
+            if (hour < 0 || hour > 23 || min < 0 || min > 59) {
+                this._showCreateError(_('Invalid time'));
+                return;
+            }
+        }
+
+        this._calManager.createEvent(title, ds, allDay, hour, min, src.uid, err => {
+            if (err) { this._showCreateError(_('Failed to create event')); return; }
+            this._hideCreateForm();
+        });
+    }
+
+    _showCreateError(msg) {
+        this._createError.set_text(msg);
+        this._createError.visible = true;
     }
 
     // ── Navigation ────────────────────────────────────────────────────────────
@@ -524,6 +719,7 @@ class LitsycalCalendar extends St.BoxLayout {
         if (this._month > 12) { this._month = 1;  this._year++; }
         this._updateMonthLabel();
         this._buildGrid();
+        this._calManager?.fetchMonth(this._year, this._month);
     }
 
     _goToday() {
@@ -533,10 +729,11 @@ class LitsycalCalendar extends St.BoxLayout {
         this._updateMonthLabel();
         this._buildGrid();
         this._buildAgenda();
+        this._calManager?.fetchMonth(this._year, this._month);
     }
 
     _updateMonthLabel() {
-        const monthName = GLib.DateTime.new_local(this._year, this._month, 1, 0, 0, 0).format('%B');
+        const monthName = capitalize(GLib.DateTime.new_local(this._year, this._month, 1, 0, 0, 0).format('%B'));
         this._monthLbl.set_text(`${monthName} ${this._year}`);
     }
 });
@@ -559,14 +756,12 @@ class LitsycalIndicator extends PanelMenu.Button {
 
         this._logo = new St.Icon({
             y_align: Clutter.ActorAlign.CENTER,
-            icon_size: 20,
-            visible: false,
+            icon_size: 20, visible: false,
         });
         this._logo.set_gicon(Gio.icon_new_for_string(`${extPath}/litsycal-logo.svg`));
         this.add_child(this._logo);
 
         this._updateBadge();
-
         this._lastHour = GLib.DateTime.new_now_local().get_hour();
 
         this._timer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => {
@@ -623,28 +818,23 @@ class LitsycalIndicator extends PanelMenu.Button {
         this._badge.remove_style_class_name('litsycal-badge-dark');
         this._badge.remove_style_class_name('litsycal-badge-calendar');
         this._badge.remove_style_class_name('litsycal-badge-calendar-dark');
-        if (style === 'number-dark')    this._badge.add_style_class_name('litsycal-badge-dark');
-        if (style === 'calendar')       this._badge.add_style_class_name('litsycal-badge-calendar');
-        if (style === 'calendar-dark')  this._badge.add_style_class_name('litsycal-badge-calendar-dark');
+        if (style === 'number-dark')   this._badge.add_style_class_name('litsycal-badge-dark');
+        if (style === 'calendar')      this._badge.add_style_class_name('litsycal-badge-calendar');
+        if (style === 'calendar-dark') this._badge.add_style_class_name('litsycal-badge-calendar-dark');
 
-        let text;
-        if (pattern) {
-            text = GLib.DateTime.new_now_local().format(pattern) ?? this._defaultText();
-        } else {
-            text = this._defaultText();
-        }
-        this._badge.set_text(text);
+        const now = GLib.DateTime.new_now_local();
+        this._badge.set_text(
+            pattern ? formatPattern(now, pattern) : this._defaultText()
+        );
     }
 
     _checkHourlyBeep() {
-        const now     = GLib.DateTime.new_now_local();
-        const curHour = now.get_hour();
-        if (curHour !== this._lastHour) {
-            this._lastHour = curHour;
-            if (this._settings.get_boolean('beep-on-hour')) {
-                global.display.get_sound_player()
-                    .play_from_theme('bell', 'Hour bell', null);
-            }
+        const now = GLib.DateTime.new_now_local();
+        const h   = now.get_hour();
+        if (h !== this._lastHour) {
+            this._lastHour = h;
+            if (this._settings.get_boolean('beep-on-hour'))
+                global.display.get_sound_player().play_from_theme('bell', 'Hour bell', null);
         }
     }
 
@@ -655,28 +845,25 @@ class LitsycalIndicator extends PanelMenu.Button {
         const showTime  = this._settings.get_boolean('show-time');
         const timeFmt   = this._settings.get_string('time-format');
         const parts     = [];
-        if (showDow)   parts.push(now.format('%a'));
-        if (showMonth) parts.push(now.format('%b'));
+        if (showDow)   parts.push(capitalize(now.format('%a')));
+        if (showMonth) parts.push(capitalize(now.format('%b')));
         parts.push(String(now.get_day_of_month()).padStart(2, '0'));
-        if (showTime) {
+        if (showTime)
             parts.push(timeFmt === '12h' ? now.format('%-I:%M%P') : now.format('%H:%M'));
-        }
         return parts.join(' ');
     }
 
     _pinCalendar() {
         this._pinned = true;
-
         const monitor = Main.layoutManager.monitors[
             Main.layoutManager.findIndexForActor(this)
         ] ?? Main.layoutManager.primaryMonitor;
-        const panelH  = Main.panel.get_height();
-        const [btnX]  = this.get_transformed_position();
-        const btnW    = this.get_width();
+        const panelH = Main.panel.get_height();
+        const [btnX] = this.get_transformed_position();
+        const btnW   = this.get_width();
 
         this._floatingBox = new St.BoxLayout({vertical: true});
         Main.layoutManager.uiGroup.add_child(this._floatingBox);
-
         this._menuItem.remove_child(this._calWidget);
         this._floatingBox.add_child(this._calWidget);
 
@@ -684,7 +871,6 @@ class LitsycalIndicator extends PanelMenu.Button {
         let x = Math.round(btnX + btnW / 2 - calW / 2);
         x = Math.max(monitor.x + 4, Math.min(x, monitor.x + monitor.width - calW - 4));
         this._floatingBox.set_position(x, monitor.y + panelH + 4);
-
         this.menu.close();
     }
 
@@ -706,7 +892,7 @@ class LitsycalIndicator extends PanelMenu.Button {
             this._floatingBox = null;
         }
         if (this._menuOpenId) { this.menu.disconnect(this._menuOpenId); this._menuOpenId = null; }
-        if (this._timer) { GLib.source_remove(this._timer); this._timer = null; }
+        if (this._timer)      { GLib.source_remove(this._timer); this._timer = null; }
         for (const id of this._sids) this._settings.disconnect(id);
         super.destroy();
     }
