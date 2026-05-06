@@ -1,0 +1,293 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-05 21:03-0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/extension.js:219
+msgid "Today"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/extension.js:474
+msgid "No events"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/extension.js:487
+msgid "All day"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:18
+msgid "General"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:24
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:282
+msgid "Calendar"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:32
+msgid "First day of week"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:42
+msgid "Keyboard Shortcut"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:46
+msgid "Show / hide calendar"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:47
+msgid "Global shortcut to toggle the calendar popup"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:53
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:88
+msgid "Not set"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:66
+msgid "Record Shortcut"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:67
+msgid ""
+"Press the key combination you want to use.\n"
+"Esc = cancel  ·  Backspace = clear."
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:74
+msgid "Waiting for keypress…"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:78
+msgid "Cancel"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:118
+msgid "Startup"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:122
+msgid "Automatically check for updates"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:123
+msgid "Check for new versions in the background"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:129
+msgid "Other"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:134
+msgid "Beep on the hour"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:135
+msgid "Play a sound at the start of every hour"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:153
+msgid "Preview the sound"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:177
+msgid "Appearance"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:183
+msgid "Panel Icon"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:187
+msgid "Number — light"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:187
+msgid "Number — dark"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:187
+msgid "Calendar — light"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:187
+msgid "Calendar — dark"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:190
+msgid "Icon style"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:201
+msgid "Show month in icon"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:205
+msgid "Show day of week in icon"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:209
+msgid "Show time in icon"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:214
+msgid "24-hour (13:05)"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:214
+msgid "12-hour (1:05pm)"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:216
+msgid "Time format"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:232
+msgid "Custom datetime pattern"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:233
+msgid "Overrides other icon text when set"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:243
+msgid "Pattern help"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:247
+msgid "Datetime Pattern"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:248
+msgid ""
+"Uses strftime format codes:\n"
+"\n"
+"%d  — Day number (01–31)\n"
+"%m  — Month number (01–12)\n"
+"%b  — Month abbrev (Jan, Feb…)\n"
+"%a  — Weekday abbrev (Mon, Tue…)\n"
+"%Y  — Full year (2026)\n"
+"%H  — Hour, 24-hour (00–23)\n"
+"%I  — Hour, 12-hour (01–12)\n"
+"%M  — Minutes (00–59)\n"
+"%P  — am or pm\n"
+"\n"
+"Examples:\n"
+"  %d/%m       → 03/05\n"
+"  %a %d       → Sun 03\n"
+"  %d %b %Y    → 03 May 2026\n"
+"  %H:%M       → 13:05\n"
+"  %-I:%M%P    → 1:05pm\n"
+"  %d %H:%M    → 03 13:05"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:268
+msgid "OK"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:277
+msgid "Hide icon"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:285
+msgid "Size"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:285
+msgid "Applied on-the-fly"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:287
+msgid "S"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:305
+msgid "L"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:311
+msgid "Highlighted Days"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:312
+msgid "Tints the selected day columns across the entire calendar grid"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:316
+msgid "Highlight columns"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:342
+msgid "Theme"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:346
+msgid "System"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:346
+msgid "Light"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:346
+msgid "Dark"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:349
+msgid "Colour scheme"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:350
+msgid "System follows your GNOME appearance setting"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:361
+msgid "Weekend Days"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:365
+msgid "Default (red)"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:365
+msgid "No colour"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:365
+msgid "Custom…"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:368
+msgid "Weekend day colour"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:374
+msgid "Custom colour"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:404
+msgid "About"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:416
+msgid "Inspired by Itsycal for macOS"
+msgstr ""
+
+#: /home/hornets/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com/prefs.js:417
+msgid "Original by Moe Birch • Linux port by hornets"
+msgstr ""
