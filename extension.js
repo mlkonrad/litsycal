@@ -1,4 +1,4 @@
-import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
@@ -14,13 +14,12 @@ import Shell   from 'gi://Shell';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const MONTH_NAMES = [
-    'January','February','March','April','May','June',
-    'July','August','September','October','November','December',
-];
-const DAY_ABBR  = ['Mo','Tu','We','Th','Fr','Sa','Su'];
-const DOW_SHORT = ['','Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-const MON_SHORT = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// Locale-aware day abbreviations, Mon=0 … Sun=6 (2025-01-06 is a known Monday)
+function localeDayAbbrs() {
+    return Array.from({length: 7}, (_, i) =>
+        GLib.DateTime.new_local(2025, 1, 6 + i, 0, 0, 0).format('%a')
+    );
+}
 
 // Maps highlight-days setting strings → column indices (0 = Monday)
 const DAY_COL = {mo:0, tu:1, we:2, th:3, fr:4, sa:5, su:6};
@@ -217,7 +216,7 @@ class LitsycalCalendar extends St.BoxLayout {
 
         this._prevBtn  = new St.Button({label: '‹', style_class: 'litsycal-nav-btn'});
         this._nextBtn  = new St.Button({label: '›', style_class: 'litsycal-nav-btn'});
-        this._todayBtn = new St.Button({label: 'Today', style_class: 'litsycal-today-btn'});
+        this._todayBtn = new St.Button({label: _('Today'), style_class: 'litsycal-today-btn'});
 
         this._monthLbl = new St.Label({style_class: 'litsycal-month-lbl', x_expand: true});
         this._monthLbl.clutter_text.set_x_align(Clutter.ActorAlign.CENTER);
@@ -245,7 +244,8 @@ class LitsycalCalendar extends St.BoxLayout {
         }
 
         const fd = this._firstDayOfWeek;
-        const orderedAbbr = [...DAY_ABBR.slice(fd), ...DAY_ABBR.slice(0, fd)];
+        const dayAbbrs    = localeDayAbbrs();
+        const orderedAbbr = [...dayAbbrs.slice(fd), ...dayAbbrs.slice(0, fd)];
         const tc = this._isDark ? 'white' : '#1a1a1a';
 
         const row = new St.BoxLayout({style_class: 'litsycal-day-names'});
@@ -464,14 +464,14 @@ class LitsycalCalendar extends St.BoxLayout {
         const tc     = this._isDark ? 'white' : '#1a1a1a';
 
         const dateLbl = new St.Label({
-            text: `${DOW_SHORT[sel.get_day_of_week()]}, ${MON_SHORT[sel.get_month()]} ${sel.get_day_of_month()}`,
+            text: `${sel.format('%a')}, ${sel.format('%b')} ${sel.get_day_of_month()}`,
             style_class: 'litsycal-agenda-date',
         });
         dateLbl.style = `color: ${tc};`;
         this._agendaBox.add_child(dateLbl);
 
         if (evs.length === 0) {
-            const emptyLbl = new St.Label({text: 'No events', style_class: 'litsycal-agenda-empty'});
+            const emptyLbl = new St.Label({text: _('No events'), style_class: 'litsycal-agenda-empty'});
             emptyLbl.style = `color: ${tc};`;
             this._agendaBox.add_child(emptyLbl);
             return;
@@ -484,7 +484,7 @@ class LitsycalCalendar extends St.BoxLayout {
             const title = new St.Label({text: ev.title, style_class: 'litsycal-agenda-title', x_expand: true});
             title.style = `color: ${tc};`;
             row.add_child(title);
-            const time = new St.Label({text: ev.time ?? 'All day', style_class: 'litsycal-agenda-time'});
+            const time = new St.Label({text: ev.time ?? _('All day'), style_class: 'litsycal-agenda-time'});
             time.style = `color: ${tc};`;
             row.add_child(time);
             this._agendaBox.add_child(row);
@@ -553,7 +553,8 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     _updateMonthLabel() {
-        this._monthLbl.set_text(`${MONTH_NAMES[this._month-1]} ${this._year}`);
+        const monthName = GLib.DateTime.new_local(this._year, this._month, 1, 0, 0, 0).format('%B');
+        this._monthLbl.set_text(`${monthName} ${this._year}`);
     }
 });
 
@@ -675,8 +676,8 @@ class LitsycalIndicator extends PanelMenu.Button {
         const showTime  = this._settings.get_boolean('show-time');
         const timeFmt   = this._settings.get_string('time-format');
         const parts     = [];
-        if (showDow)   parts.push(DOW_SHORT[now.get_day_of_week()]);
-        if (showMonth) parts.push(MON_SHORT[now.get_month()]);
+        if (showDow)   parts.push(now.format('%a'));
+        if (showMonth) parts.push(now.format('%b'));
         parts.push(String(now.get_day_of_month()).padStart(2, '0'));
         if (showTime) {
             const timePart = timeFmt === '12h'
@@ -719,7 +720,7 @@ class LitsycalIndicator extends PanelMenu.Button {
         Main.layoutManager.uiGroup.remove_child(this._floatingBox);
         this._floatingBox.destroy();
         this._floatingBox = null;
-        if (andOpen) this._origToggle();
+        if (andOpen) this.menu.toggle();
     }
 
     destroy() {
