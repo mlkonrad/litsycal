@@ -1,4 +1,4 @@
-import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import Gdk from 'gi://Gdk';
@@ -15,19 +15,21 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         // GENERAL PAGE
         // ════════════════════════════════════════════════════════════════════
         const general = new Adw.PreferencesPage({
-            title:     'General',
+            title:     _('General'),
             icon_name: 'preferences-system-symbolic',
         });
         window.add(general);
 
         // ── Calendar group ─────────────────────────────────────────────────
-        const calGroup = new Adw.PreferencesGroup({title: 'Calendar'});
+        const calGroup = new Adw.PreferencesGroup({title: _('Calendar')});
         general.add(calGroup);
 
-        // First day of the week
-        const DOW_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+        // First day of the week — locale-aware names via GLib
+        const DOW_NAMES = Array.from({length: 7}, (_, i) =>
+            GLib.DateTime.new_local(2025, 1, 6 + i, 0, 0, 0).format('%A')
+        );
         const fdowRow = new Adw.ComboRow({
-            title: 'First day of week',
+            title: _('First day of week'),
             model: Gtk.StringList.new(DOW_NAMES),
         });
         fdowRow.set_selected(settings.get_int('first-day-of-week'));
@@ -37,18 +39,18 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         calGroup.add(fdowRow);
 
         // ── Keyboard shortcut group ────────────────────────────────────────
-        const kbGroup = new Adw.PreferencesGroup({title: 'Keyboard Shortcut'});
+        const kbGroup = new Adw.PreferencesGroup({title: _('Keyboard Shortcut')});
         general.add(kbGroup);
 
         const kbRow = new Adw.ActionRow({
-            title:    'Show / hide calendar',
-            subtitle: 'Global shortcut to toggle the calendar popup',
+            title:    _('Show / hide calendar'),
+            subtitle: _('Global shortcut to toggle the calendar popup'),
         });
 
         // Label that shows the current shortcut (or placeholder)
         const shortcutLabel = () => {
             const strv = settings.get_strv('toggle-shortcut');
-            if (strv.length === 0) return 'Not set';
+            if (strv.length === 0) return _('Not set');
             const [ok, kv, mods] = Gtk.accelerator_parse(strv[0]);
             return ok ? Gtk.accelerator_get_label(kv, mods) : strv[0];
         };
@@ -61,19 +63,19 @@ export default class LitsycalPrefs extends ExtensionPreferences {
 
         recordBtn.connect('clicked', () => {
             const dlg = new Adw.MessageDialog({
-                heading:       'Record Shortcut',
-                body:          'Press the key combination you want to use.\nEsc = cancel  ·  Backspace = clear.',
+                heading:       _('Record Shortcut'),
+                body:          _('Press the key combination you want to use.\nEsc = cancel  ·  Backspace = clear.'),
                 transient_for: window,
                 modal:         true,
             });
 
             const hint = new Gtk.ShortcutLabel({
                 accelerator:   settings.get_strv('toggle-shortcut')[0] ?? '',
-                disabled_text: 'Waiting for keypress…',
+                disabled_text: _('Waiting for keypress…'),
                 halign:        Gtk.Align.CENTER,
             });
             dlg.set_extra_child(hint);
-            dlg.add_response('cancel', 'Cancel');
+            dlg.add_response('cancel', _('Cancel'));
 
             const ctrl = new Gtk.EventControllerKey();
             ctrl.connect('key-pressed', (_c, keyval, _code, state) => {
@@ -83,7 +85,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                 }
                 if (keyval === Gdk.KEY_BackSpace) {
                     settings.set_strv('toggle-shortcut', []);
-                    recordBtn.set_label('Not set');
+                    recordBtn.set_label(_('Not set'));
                     dlg.close();
                     return Gdk.EVENT_STOP;
                 }
@@ -113,24 +115,24 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         kbGroup.add(kbRow);
 
         // ── Startup group ──────────────────────────────────────────────────
-        const startGroup = new Adw.PreferencesGroup({title: 'Startup'});
+        const startGroup = new Adw.PreferencesGroup({title: _('Startup')});
         general.add(startGroup);
 
         const updatesRow = new Adw.SwitchRow({
-            title:    'Automatically check for updates',
-            subtitle: 'Check for new versions in the background',
+            title:    _('Automatically check for updates'),
+            subtitle: _('Check for new versions in the background'),
         });
         settings.bind('check-for-updates', updatesRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         startGroup.add(updatesRow);
 
         // ── Other group ────────────────────────────────────────────────────
-        const otherGroup = new Adw.PreferencesGroup({title: 'Other'});
+        const otherGroup = new Adw.PreferencesGroup({title: _('Other')});
         general.add(otherGroup);
 
         // Beep on the hour row — SwitchRow + speaker preview button
         const beepRow = new Adw.ActionRow({
-            title:    'Beep on the hour',
-            subtitle: 'Play a sound at the start of every hour',
+            title:    _('Beep on the hour'),
+            subtitle: _('Play a sound at the start of every hour'),
         });
 
         const beepSwitch = new Gtk.Switch({
@@ -148,7 +150,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             icon_name:    'audio-volume-high-symbolic',
             has_frame:    false,
             valign:       Gtk.Align.CENTER,
-            tooltip_text: 'Preview the sound',
+            tooltip_text: _('Preview the sound'),
         });
         speakerBtn.connect('clicked', () => {
             const candidates = [
@@ -172,20 +174,20 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         // APPEARANCE PAGE  (options that were previously in "General")
         // ════════════════════════════════════════════════════════════════════
         const appearance = new Adw.PreferencesPage({
-            title:     'Appearance',
+            title:     _('Appearance'),
             icon_name: 'applications-graphics-symbolic',
         });
         window.add(appearance);
 
         // ── Panel icon group ───────────────────────────────────────────────
-        const iconGroup = new Adw.PreferencesGroup({title: 'Panel Icon'});
+        const iconGroup = new Adw.PreferencesGroup({title: _('Panel Icon')});
         appearance.add(iconGroup);
 
         const STYLE_IDS    = ['number-light', 'number-dark', 'calendar', 'calendar-dark'];
-        const STYLE_LABELS = ['Number — light', 'Number — dark', 'Calendar — light', 'Calendar — dark'];
+        const STYLE_LABELS = [_('Number — light'), _('Number — dark'), _('Calendar — light'), _('Calendar — dark')];
 
         const styleRow = new Adw.ComboRow({
-            title: 'Icon style',
+            title: _('Icon style'),
             model: Gtk.StringList.new(STYLE_LABELS),
         });
         const currentIdx = Math.max(0, STYLE_IDS.indexOf(settings.get_string('badge-style')));
@@ -196,22 +198,22 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         });
         iconGroup.add(styleRow);
 
-        const showMonthRow = new Adw.SwitchRow({title: 'Show month in icon'});
+        const showMonthRow = new Adw.SwitchRow({title: _('Show month in icon')});
         settings.bind('show-month-in-badge', showMonthRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         iconGroup.add(showMonthRow);
 
-        const showDowRow = new Adw.SwitchRow({title: 'Show day of week in icon'});
+        const showDowRow = new Adw.SwitchRow({title: _('Show day of week in icon')});
         settings.bind('show-dow-in-badge', showDowRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         iconGroup.add(showDowRow);
 
-        const showTimeRow = new Adw.SwitchRow({title: 'Show time in icon'});
+        const showTimeRow = new Adw.SwitchRow({title: _('Show time in icon')});
         settings.bind('show-time', showTimeRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         iconGroup.add(showTimeRow);
 
         const TIME_FMT_IDS    = ['24h', '12h'];
-        const TIME_FMT_LABELS = ['24-hour (13:05)', '12-hour (1:05pm)'];
+        const TIME_FMT_LABELS = [_('24-hour (13:05)'), _('12-hour (1:05pm)')];
         const timeFmtRow = new Adw.ComboRow({
-            title:   'Time format',
+            title:   _('Time format'),
             model:   Gtk.StringList.new(TIME_FMT_LABELS),
             visible: settings.get_boolean('show-time'),
         });
@@ -227,8 +229,8 @@ export default class LitsycalPrefs extends ExtensionPreferences {
 
         // Datetime pattern
         const patRow = new Adw.ActionRow({
-            title:    'Custom datetime pattern',
-            subtitle: 'Overrides other icon text when set',
+            title:    _('Custom datetime pattern'),
+            subtitle: _('Overrides other icon text when set'),
         });
         const patBox   = new Gtk.Box({spacing: 4, valign: Gtk.Align.CENTER});
         const patEntry = new Gtk.Entry({placeholder_text: 'e.g. %d/%m', width_chars: 12});
@@ -238,12 +240,12 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             icon_name: 'dialog-question-symbolic',
             has_frame: false,
             valign:    Gtk.Align.CENTER,
-            tooltip_text: 'Pattern help',
+            tooltip_text: _('Pattern help'),
         });
         helpBtn.connect('clicked', () => {
             const dlg = new Adw.MessageDialog({
-                heading:       'Datetime Pattern',
-                body:          'Uses strftime format codes:\n\n' +
+                heading:       _('Datetime Pattern'),
+                body:          _('Uses strftime format codes:\n\n' +
                                '%d  — Day number (01–31)\n' +
                                '%m  — Month number (01–12)\n' +
                                '%b  — Month abbrev (Jan, Feb…)\n' +
@@ -259,11 +261,11 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                                '  %d %b %Y    → 03 May 2026\n' +
                                '  %H:%M       → 13:05\n' +
                                '  %-I:%M%P    → 1:05pm\n' +
-                               '  %d %H:%M    → 03 13:05',
+                               '  %d %H:%M    → 03 13:05'),
                 transient_for: window,
                 modal:         true,
             });
-            dlg.add_response('ok', 'OK');
+            dlg.add_response('ok', _('OK'));
             dlg.set_default_response('ok');
             dlg.present();
         });
@@ -272,17 +274,17 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         patRow.add_suffix(patBox);
         iconGroup.add(patRow);
 
-        const hideRow = new Adw.SwitchRow({title: 'Hide icon'});
+        const hideRow = new Adw.SwitchRow({title: _('Hide icon')});
         settings.bind('hide-icon', hideRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         iconGroup.add(hideRow);
 
         // ── Calendar size group ────────────────────────────────────────────
-        const sizeGroup = new Adw.PreferencesGroup({title: 'Calendar'});
+        const sizeGroup = new Adw.PreferencesGroup({title: _('Calendar')});
         appearance.add(sizeGroup);
 
-        const sizeRow = new Adw.ActionRow({title: 'Size', subtitle: 'Applied on-the-fly'});
+        const sizeRow = new Adw.ActionRow({title: _('Size'), subtitle: _('Applied on-the-fly')});
         const sizeBox = new Gtk.Box({spacing: 8, valign: Gtk.Align.CENTER, hexpand: true});
-        sizeBox.append(new Gtk.Label({label: 'S', css_classes: ['dim-label']}));
+        sizeBox.append(new Gtk.Label({label: _('S'), css_classes: ['dim-label']}));
 
         const scale = new Gtk.Scale({
             orientation:   Gtk.Orientation.HORIZONTAL,
@@ -300,21 +302,24 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             settings.set_int('calendar-size', Math.round(scale.get_value()));
         });
         sizeBox.append(scale);
-        sizeBox.append(new Gtk.Label({label: 'L', css_classes: ['dim-label']}));
+        sizeBox.append(new Gtk.Label({label: _('L'), css_classes: ['dim-label']}));
         sizeRow.add_suffix(sizeBox);
         sizeGroup.add(sizeRow);
 
         // ── Highlighted days ───────────────────────────────────────────────
         const hlGroup = new Adw.PreferencesGroup({
-            title:       'Highlighted Days',
-            description: 'Tints the selected day columns across the entire calendar grid',
+            title:       _('Highlighted Days'),
+            description: _('Tints the selected day columns across the entire calendar grid'),
         });
         appearance.add(hlGroup);
 
-        const hlRow  = new Adw.ActionRow({title: 'Highlight columns'});
+        const hlRow  = new Adw.ActionRow({title: _('Highlight columns')});
         const hlBox  = new Gtk.Box({spacing: 2, valign: Gtk.Align.CENTER});
         const DAY_KEYS   = ['mo','tu','we','th','fr','sa','su'];
-        const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+        // Locale-aware single-char day labels (Mon=0 … Sun=6)
+        const DAY_LABELS = Array.from({length: 7}, (_, i) =>
+            GLib.DateTime.new_local(2025, 1, 6 + i, 0, 0, 0).format('%a').charAt(0)
+        );
         const hlSet  = new Set(settings.get_strv('highlight-days'));
 
         for (let i = 0; i < 7; i++) {
@@ -334,15 +339,15 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         hlGroup.add(hlRow);
 
         // ── Theme ──────────────────────────────────────────────────────────────
-        const themeGroup = new Adw.PreferencesGroup({title: 'Theme'});
+        const themeGroup = new Adw.PreferencesGroup({title: _('Theme')});
         appearance.add(themeGroup);
 
         const THEME_IDS    = ['system', 'light', 'dark'];
-        const THEME_LABELS = ['System', 'Light', 'Dark'];
+        const THEME_LABELS = [_('System'), _('Light'), _('Dark')];
 
         const themeRow = new Adw.ComboRow({
-            title: 'Colour scheme',
-            subtitle: 'System follows your GNOME appearance setting',
+            title:    _('Colour scheme'),
+            subtitle: _('System follows your GNOME appearance setting'),
             model: Gtk.StringList.new(THEME_LABELS),
         });
         themeRow.set_selected(Math.max(0, THEME_IDS.indexOf(settings.get_string('theme'))));
@@ -353,20 +358,20 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         themeGroup.add(themeRow);
 
         // ── Weekend colour ─────────────────────────────────────────────────────
-        const wkGroup = new Adw.PreferencesGroup({title: 'Weekend Days'});
+        const wkGroup = new Adw.PreferencesGroup({title: _('Weekend Days')});
         appearance.add(wkGroup);
 
         const WK_IDS    = ['default', 'none', 'custom'];
-        const WK_LABELS = ['Default (red)', 'No colour', 'Custom…'];
+        const WK_LABELS = [_('Default (red)'), _('No colour'), _('Custom…')];
 
         const wkModeRow = new Adw.ComboRow({
-            title: 'Weekend day colour',
+            title: _('Weekend day colour'),
             model: Gtk.StringList.new(WK_LABELS),
         });
         wkModeRow.set_selected(Math.max(0, WK_IDS.indexOf(settings.get_string('weekend-color-mode'))));
 
         const wkColorRow = new Adw.ActionRow({
-            title:   'Custom colour',
+            title:   _('Custom colour'),
             visible: settings.get_string('weekend-color-mode') === 'custom',
         });
         const colorDialog = new Gtk.ColorDialog({modal: true});
@@ -396,7 +401,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         // ABOUT PAGE
         // ════════════════════════════════════════════════════════════════════
         const about = new Adw.PreferencesPage({
-            title:     'About',
+            title:     _('About'),
             icon_name: 'help-about-symbolic',
         });
         window.add(about);
@@ -408,8 +413,8 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             subtitle: `Version ${this.metadata.version} — Calendar indicator for GNOME`,
         }));
         abGroup.add(new Adw.ActionRow({
-            title:    'Inspired by Itsycal for macOS',
-            subtitle: 'Original by Moe Birch • Linux port by hornets',
+            title:    _('Inspired by Itsycal for macOS'),
+            subtitle: _('Original by Moe Birch • Linux port by hornets'),
         }));
     }
 }
