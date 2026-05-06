@@ -423,3 +423,161 @@
     color: white;
 }
 .litsycal-create-save:hover { background-color: #2870c2; }
+
+/* ── Event panel (floating, non-modal) ───────────────────────────────────── */
+/* Background/text come from popup-menu-content (shell theme). */
+.litsycal-event-panel {
+    padding: 16px;
+    spacing: 10px;
+    min-width: 360px;
+    border-radius: 12px;
+}
+
+.litsycal-panel-title-entry {
+    font-size: 1.05em;
+    font-weight: bold;
+    border-radius: 6px;
+    padding: 6px 10px;
+}
+
+.litsycal-panel-icon-row  { spacing: 8px; }
+
+.litsycal-panel-cal-btn {
+    border-radius: 6px;
+    padding: 5px 10px;
+    border: none;
+    background-color: rgba(128,128,128,0.12);
+    text-align: left;
+}
+.litsycal-panel-cal-btn:hover { background-color: rgba(128,128,128,0.22); }
+
+.litsycal-panel-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 5px;
+    margin-top: 1px;
+}
+
+.litsycal-panel-cal-name  { font-size: 0.9em; }
+.litsycal-panel-cal-arrow { font-size: 0.75em; opacity: 0.55; }
+
+.litsycal-panel-cal-dropdown {
+    spacing: 1px;
+    padding: 4px;
+    margin-top: 2px;
+    border-radius: 8px;
+}
+
+.litsycal-panel-cal-option {
+    padding: 5px 10px;
+    border: none;
+    background: none;
+    text-align: left;
+    font-size: 0.88em;
+    border-radius: 4px;
+}
+.litsycal-panel-cal-option:hover { background-color: rgba(128,128,128,0.18); }
+
+.litsycal-panel-sep {
+    height: 1px;
+    background-color: rgba(128,128,128,0.20);
+    margin: 2px 0;
+}
+
+.litsycal-panel-row { spacing: 10px; padding: 1px 0; }
+
+.litsycal-panel-lbl {
+    font-size: 0.88em;
+    opacity: 0.65;
+    min-width: 54px;
+}
+
+.litsycal-panel-date-entry {
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.88em;
+}
+
+.litsycal-panel-time-entry {
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.88em;
+    min-width: 54px;
+    max-width: 62px;
+    text-align: center;
+}
+
+.litsycal-panel-text-entry {
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.88em;
+}
+
+.litsycal-panel-notes-entry {
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 0.88em;
+    min-height: 52px;
+}
+
+.litsycal-panel-open-btn {
+    border-radius: 6px;
+    padding: 3px 8px;
+    border: none;
+    background-color: rgba(128,128,128,0.12);
+    font-size: 0.88em;
+}
+.litsycal-panel-open-btn:hover { background-color: rgba(128,128,128,0.22); }
+
+.litsycal-panel-toggle {
+    border-radius: 6px;
+    padding: 2px 12px;
+    font-size: 0.82em;
+    border: none;
+}
+.litsycal-panel-toggle-on  { background-color: rgba(128,128,128,0.28); }
+.litsycal-panel-toggle-off { background-color: rgba(128,128,128,0.10); }
+
+.litsycal-panel-error { font-size: 0.80em; color: #e62d42; }
+
+.litsycal-panel-btn-row { spacing: 6px; padding-top: 4px; }
+
+.litsycal-panel-cancel-btn {
+    border-radius: 6px;
+    padding: 5px 14px;
+    border: none;
+    background-color: rgba(128,128,128,0.15);
+    font-size: 0.88em;
+}
+.litsycal-panel-cancel-btn:hover { background-color: rgba(128,128,128,0.25); }
+
+.litsycal-panel-save-btn {
+    border-radius: 6px;
+    padding: 5px 14px;
+    border: none;
+    background-color: #3584e4;
+    color: white;
+    font-size: 0.88em;
+    font-weight: bold;
+}
+.litsycal-panel-save-btn:hover { background-color: #2870c2; }
+
+.litsycal-panel-delete-btn {
+    border-radius: 6px;
+    padding: 5px 14px;
+    border: none;
+    background-color: rgba(230,45,66,0.15);
+    color: #e06070;
+    font-size: 0.88em;
+}
+.litsycal-panel-delete-btn:hover { background-color: rgba(230,45,66,0.28); }
+
+/* ── Agenda URL button ───────────────────────────────────────────────────── */
+.litsycal-agenda-url-btn {
+    border: none;
+    background: none;
+    padding: 1px 4px;
+    border-radius: 4px;
+    opacity: 0.55;
+}
+.litsycal-agenda-url-btn:hover { opacity: 1.0; background-color: rgba(128,128,128,0.12); }

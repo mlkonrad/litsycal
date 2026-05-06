@@ -13,6 +13,7 @@ import Meta    from 'gi://Meta';
 import Shell   from 'gi://Shell';
 
 import {CalendarManager} from './calendarManager.js';
+import {EventPanel}      from './eventDialog.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -216,6 +217,8 @@ class LitsycalCalendar extends St.BoxLayout {
         });
 
         this.connect('destroy', () => {
+            this._eventPanel?.close();
+            this._eventPanel = null;
             for (const id of this._sids) this._settings.disconnect(id);
             this._iface.disconnect(this._accentId);
             this._iface.disconnect(this._schemeId);
@@ -540,8 +543,24 @@ class LitsycalCalendar extends St.BoxLayout {
                     evtBox.add_child(row2);
 
                     evtBtn.set_child(evtBox);
-                    evtBtn.connect('clicked', () => this._openEventInCalendar(ev.uid));
-                    this._agendaBox.add_child(evtBtn);
+                    evtBtn.connect('clicked', () => this._openEventDialog(ev));
+
+                    const evtRow = new St.BoxLayout({x_expand: true});
+                    evtRow.add_child(evtBtn);
+                    if (ev.url) {
+                        const urlBtn = new St.Button({
+                            style_class: 'litsycal-agenda-url-btn',
+                            child: new St.Icon({
+                                icon_name: 'web-browser-symbolic',
+                                style_class: 'litsycal-gear-icon',
+                            }),
+                        });
+                        urlBtn.connect('clicked', () => {
+                            try { Gio.AppInfo.launch_default_for_uri(ev.url, null); } catch(_) {}
+                        });
+                        evtRow.add_child(urlBtn);
+                    }
+                    this._agendaBox.add_child(evtRow);
                 }
             }
 
@@ -564,7 +583,7 @@ class LitsycalCalendar extends St.BoxLayout {
         });
 
         this._addBtn = new St.Button({label: '+', style_class: 'litsycal-footer-btn litsycal-add-btn'});
-        this._addBtn.connect('clicked', () => { if (this._openCalendar) this._openCalendar(); });
+        this._addBtn.connect('clicked', () => this._openCreateDialog());
 
         const pinBtn = makeIconBtn('view-pin-symbolic', true);
         pinBtn.connect('notify::checked', () => {
@@ -585,36 +604,26 @@ class LitsycalCalendar extends St.BoxLayout {
         this.add_child(footer);
     }
 
-    // ── Event editing ─────────────────────────────────────────────────────────
+    // ── Event panels ──────────────────────────────────────────────────────────
 
-    _openEventInCalendar(uid) {
-        const app = Shell.AppSystem.get_default().lookup_app('org.gnome.Calendar.desktop');
-        if (!app) return;
-
-        const sendAction = () => {
-            Gio.DBus.session.call(
-                'org.gnome.Calendar', '/org/gnome/Calendar',
-                'org.gtk.Actions', 'Activate',
-                new GLib.Variant('(sava{sv})', ['open-event', [new GLib.Variant('s', uid)], {}]),
-                null, Gio.DBusCallFlags.NONE, -1, null, (_obj, res) => {
-                    try { Gio.DBus.session.call_finish(res); } catch(_) {}
-                }
-            );
-        };
-
-        // Watch for Calendar to appear on D-Bus, then send action.
-        // This avoids the SEGV crash from calling open-event during D-Bus activation.
-        const watchId = Gio.bus_watch_name(
-            Gio.BusType.SESSION,
-            'org.gnome.Calendar',
-            Gio.BusNameWatcherFlags.NONE,
-            () => {
-                Gio.bus_unwatch_name(watchId);
-                sendAction();
-            },
-            null
+    _openCreateDialog() {
+        if (!this._calManager?.isAvailable()) return;
+        this._eventPanel?.close();
+        this._onPinToggle?.(true);  // keep calendar visible while panel is open
+        this._eventPanel = new EventPanel(
+            this._calManager, null, this._selected, this,
+            () => { this._eventPanel = null; }
         );
-        app.activate();
+    }
+
+    _openEventDialog(ev) {
+        if (!this._calManager?.isAvailable()) return;
+        this._eventPanel?.close();
+        this._onPinToggle?.(true);
+        this._eventPanel = new EventPanel(
+            this._calManager, ev, null, this,
+            () => { this._eventPanel = null; }
+        );
     }
 
     // ── Navigation ────────────────────────────────────────────────────────────
@@ -760,6 +769,7 @@ class LitsycalIndicator extends PanelMenu.Button {
     }
 
     _pinCalendar() {
+        if (this._pinned) return;
         this._pinned = true;
         const monitor = Main.layoutManager.monitors[
             Main.layoutManager.findIndexForActor(this)

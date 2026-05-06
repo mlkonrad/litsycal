@@ -2,6 +2,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import St      from 'gi://St';
 import Clutter from 'gi://Clutter';
 import GLib    from 'gi://GLib';
+import Gio     from 'gi://Gio';
 
 const _ = str => GLib.dgettext('litsycal@mlkonrad.github.com', str);
 
@@ -12,30 +13,37 @@ function dateStr(dt) {
 
 export class EventPanel {
 
-    constructor(calManager, event, selectedDate, onSaved) {
-        this._calManager = calManager;
-        this._event      = event ?? null;
-        this._onSaved    = onSaved;
-        this._allDay     = event?.allDay ?? false;
-        this._selDate    = event?.date
+    constructor(calManager, event, selectedDate, anchorActor, onSaved) {
+        this._calManager  = calManager;
+        this._event       = event ?? null;
+        this._onSaved     = onSaved;
+        this._allDay      = event?.allDay ?? false;
+        this._selDate     = event?.date
             ?? (selectedDate ? dateStr(selectedDate) : dateStr(GLib.DateTime.new_now_local()));
 
-        const sources   = calManager.getSources();
-        this._sources   = sources;
-        this._selSource = event
+        const sources     = calManager.getSources();
+        this._sources     = sources;
+        this._selSource   = event
             ? (sources.find(s => s.uid === event.clientUid) ?? sources[0] ?? null)
             : (sources[0] ?? null);
 
+        // Use popup-menu-content so background/text follow the user's shell theme
         this._box = new St.BoxLayout({
             vertical: true,
-            style_class: 'litsycal-event-panel',
+            style_class: 'popup-menu-content litsycal-event-panel',
             reactive: true,
         });
 
         this._build();
 
         Main.layoutManager.uiGroup.add_child(this._box);
-        this._position();
+
+        // Defer positioning until after layout pass so actor size is known
+        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this._position(anchorActor);
+            this._titleEntry.grab_key_focus();
+            return GLib.SOURCE_REMOVE;
+        });
 
         this._clickId = global.stage.connect('button-press-event', (_stage, ev) => {
             const [x, y] = ev.get_coords();
@@ -51,20 +59,33 @@ export class EventPanel {
             }
             return Clutter.EVENT_PROPAGATE;
         });
-
-        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-            this._titleEntry.grab_key_focus();
-            return GLib.SOURCE_REMOVE;
-        });
     }
 
-    _position() {
+    _position(anchor) {
         const monitor = Main.layoutManager.primaryMonitor;
         const panelH  = Main.panel.get_height();
-        this._box.set_position(
-            monitor.x + Math.round((monitor.width  - 380) / 2),
-            monitor.y + panelH + Math.round((monitor.height - panelH) * 0.18)
-        );
+        const boxW    = this._box.get_width()  || 380;
+        const boxH    = this._box.get_height() || 360;
+
+        if (anchor) {
+            const [ax, ay] = anchor.get_transformed_position();
+            const aw = anchor.get_width();
+
+            let x = ax + aw + 10;
+            if (x + boxW > monitor.x + monitor.width - 4)
+                x = ax - boxW - 10;
+            x = Math.max(monitor.x + 4, Math.min(x, monitor.x + monitor.width - boxW - 4));
+
+            let y = ay;
+            y = Math.max(monitor.y + panelH + 4, Math.min(y, monitor.y + monitor.height - boxH - 4));
+
+            this._box.set_position(x, y);
+        } else {
+            this._box.set_position(
+                monitor.x + Math.round((monitor.width  - boxW) / 2),
+                monitor.y + panelH + Math.round((monitor.height - panelH) * 0.18)
+            );
+        }
     }
 
     _build() {
@@ -94,7 +115,7 @@ export class EventPanel {
         if (!ev) {
             this._calDropdown = new St.BoxLayout({
                 vertical: true,
-                style_class: 'litsycal-panel-cal-dropdown',
+                style_class: 'popup-menu-content litsycal-panel-cal-dropdown',
                 visible: false,
             });
             for (const src of this._sources) {
@@ -170,6 +191,48 @@ export class EventPanel {
 
         this._updateTimeVisibility();
 
+        box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
+
+        // ── URL ────────────────────────────────────────────────────────────────
+        const urlRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
+        urlRow.add_child(new St.Label({text: _('URL'), style_class: 'litsycal-panel-lbl'}));
+        this._urlEntry = new St.Entry({
+            style_class: 'litsycal-panel-text-entry',
+            hint_text: 'https://…',
+            x_expand: true,
+            can_focus: true,
+        });
+        if (ev?.url) this._urlEntry.set_text(ev.url);
+
+        this._openUrlBtn = new St.Button({
+            label: '↗',
+            style_class: 'litsycal-panel-open-btn',
+            visible: !!(ev?.url),
+        });
+        this._openUrlBtn.connect('clicked', () => this._openUrl());
+        this._urlEntry.clutter_text.connect('text-changed', () => {
+            this._openUrlBtn.visible = this._urlEntry.get_text().trim().length > 0;
+        });
+        urlRow.add_child(this._urlEntry);
+        urlRow.add_child(this._openUrlBtn);
+        box.add_child(urlRow);
+
+        // ── Notes ──────────────────────────────────────────────────────────────
+        const notesRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
+        notesRow.add_child(new St.Label({text: _('Notes'), style_class: 'litsycal-panel-lbl'}));
+        this._notesEntry = new St.Entry({
+            style_class: 'litsycal-panel-notes-entry',
+            hint_text: _('Add notes…'),
+            x_expand: true,
+            can_focus: true,
+        });
+        this._notesEntry.clutter_text.set_single_line_mode(false);
+        this._notesEntry.clutter_text.set_activatable(false);
+        this._notesEntry.clutter_text.set_line_wrap(true);
+        if (ev?.notes) this._notesEntry.set_text(ev.notes);
+        notesRow.add_child(this._notesEntry);
+        box.add_child(notesRow);
+
         // ── Error ──────────────────────────────────────────────────────────────
         this._errorLbl = new St.Label({
             style_class: 'litsycal-panel-error', text: '', visible: false,
@@ -237,6 +300,12 @@ export class EventPanel {
         this._endTimeEntry.visible   = !this._allDay;
     }
 
+    _openUrl() {
+        const url = this._urlEntry.get_text().trim();
+        if (!url) return;
+        try { Gio.AppInfo.launch_default_for_uri(url, null); } catch(_) {}
+    }
+
     _parseDate(str) {
         const m = (str ?? '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
         if (!m) return null;
@@ -278,6 +347,9 @@ export class EventPanel {
             endDate = this._parseDate(this._endDateEntry.get_text()) ?? startDate;
         }
 
+        const notes = this._notesEntry.get_text().trim() || null;
+        const url   = this._urlEntry.get_text().trim()   || null;
+
         const done = err => {
             if (err) { this._showError(err.message); return; }
             this._onSaved?.();
@@ -287,12 +359,14 @@ export class EventPanel {
         if (this._event) {
             this._calManager.updateEvent(
                 this._event.uid, this._event.clientUid,
-                {title, date: startDate, allDay: this._allDay, hour, minute, endDate, endHour, endMinute},
+                {title, date: startDate, allDay: this._allDay,
+                 hour, minute, endDate, endHour, endMinute, notes, url},
                 done
             );
         } else {
             this._calManager.createEvent(
-                title, startDate, this._allDay, hour, minute, endHour, endMinute, endDate,
+                title, startDate, this._allDay, hour, minute,
+                endHour, endMinute, endDate, notes, url,
                 this._selSource.uid, done
             );
         }

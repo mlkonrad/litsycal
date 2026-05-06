@@ -182,54 +182,113 @@ export class CalendarManager {
                     time = endStr ? `${startStr} - ${endStr}` : startStr;
                 }
 
+                let notes = null, url = null;
+                try {
+                    const ic = comp.get_icalcomponent?.();
+                    if (ic) {
+                        notes = ic.get_description?.() || null;
+                        const up = ic.get_first_property?.(ICalGLib.PropertyKind.URL_PROPERTY);
+                        url = up ? (up.get_value?.() || null) : null;
+                        if (notes === '') notes = null;
+                        if (url   === '') url   = null;
+                    }
+                } catch(_) {}
+
                 this._events.push({date, title, time, color, allDay: isAllDay,
-                                   uid: comp.get_uid(), clientUid});
+                                   uid: comp.get_uid(), clientUid, notes, url});
             } catch(_) {}
         }
 
         this._onEventsChanged(this._events);
     }
 
+    // ── iCal builder ─────────────────────────────────────────────────────────
+
+    _buildICal(uid, title, date, allDay, hour, minute, endHour, endMinute, endDate, notes, url) {
+        const pad       = n => String(n).padStart(2, '0');
+        const [y, m, d] = date.split('-').map(Number);
+        const escDesc   = s => s.replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/,/g, '\\,');
+
+        let dtLines;
+        if (allDay) {
+            dtLines = [
+                `DTSTART;VALUE=DATE:${y}${pad(m)}${pad(d)}`,
+                `DTEND;VALUE=DATE:${y}${pad(m)}${pad(d + 1)}`,
+            ];
+        } else {
+            const [ey, em2, ed2] = (endDate ?? date).split('-').map(Number);
+            dtLines = [
+                `DTSTART:${y}${pad(m)}${pad(d)}T${pad(hour)}${pad(minute)}00`,
+                `DTEND:${ey}${pad(em2)}${pad(ed2)}T${pad(endHour)}${pad(endMinute)}00`,
+            ];
+        }
+
+        return [
+            'BEGIN:VEVENT',
+            `UID:${uid}`,
+            `SUMMARY:${title}`,
+            ...dtLines,
+            ...(notes ? [`DESCRIPTION:${escDesc(notes)}`] : []),
+            ...(url   ? [`URL:${url}`]                    : []),
+            'END:VEVENT',
+        ].join('\r\n');
+    }
+
     // ── Create ────────────────────────────────────────────────────────────────
 
-    createEvent(title, date, allDay, hour, minute, sourceUid, onDone) {
+    createEvent(title, date, allDay, hour, minute, endHour, endMinute, endDate,
+                notes, url, sourceUid, onDone) {
         const entry = this._clients.get(sourceUid);
         if (!entry) { onDone?.(new Error('Calendar not connected')); return; }
 
-        const pad       = n => String(n).padStart(2, '0');
-        const [y, m, d] = date.split('-').map(Number);
-
-        let icalStr;
-        if (allDay) {
-            icalStr = [
-                'BEGIN:VEVENT',
-                `UID:${GLib.uuid_string_random()}`,
-                `SUMMARY:${title}`,
-                `DTSTART;VALUE=DATE:${y}${pad(m)}${pad(d)}`,
-                `DTEND;VALUE=DATE:${y}${pad(m)}${pad(d + 1)}`,
-                'END:VEVENT',
-            ].join('\r\n');
-        } else {
-            const eh = (hour + (minute === 0 ? 1 : 0)) % 24;
-            const em = minute === 0 ? 0 : minute;
-            icalStr = [
-                'BEGIN:VEVENT',
-                `UID:${GLib.uuid_string_random()}`,
-                `SUMMARY:${title}`,
-                `DTSTART:${y}${pad(m)}${pad(d)}T${pad(hour)}${pad(minute)}00`,
-                `DTEND:${y}${pad(m)}${pad(d)}T${pad(eh)}${pad(em)}00`,
-                'END:VEVENT',
-            ].join('\r\n');
-        }
-
+        const icalStr = this._buildICal(
+            GLib.uuid_string_random(), title, date, allDay,
+            hour, minute, endHour, endMinute, endDate, notes, url
+        );
         const ical = ICalGLib.Component.new_from_string(icalStr);
         entry.client.create_object(ical, ECal.OperationFlags.NONE, null, (_obj, res) => {
             try {
                 entry.client.create_object_finish(res);
                 onDone?.(null);
-                // View signals will auto-refresh; also force fetch as fallback
                 if (this._year !== null)
                     this._fetchFromClient(sourceUid, this._year, this._month);
+            } catch(e) { onDone?.(e); }
+        });
+    }
+
+    // ── Update ────────────────────────────────────────────────────────────────
+
+    updateEvent(uid, clientUid, props, onDone) {
+        const entry = this._clients.get(clientUid);
+        if (!entry) { onDone?.(new Error('Calendar not connected')); return; }
+
+        const {title, date, allDay, hour, minute, endDate, endHour, endMinute, notes, url} = props;
+        const icalStr = this._buildICal(
+            uid, title, date, allDay, hour, minute, endHour, endMinute, endDate, notes, url
+        );
+        const ical = ICalGLib.Component.new_from_string(icalStr);
+        entry.client.modify_object(ical, ECal.ObjModType.ALL, ECal.OperationFlags.NONE, null, (_obj, res) => {
+            try {
+                entry.client.modify_object_finish(res);
+                onDone?.(null);
+                if (this._year !== null)
+                    this._fetchFromClient(clientUid, this._year, this._month);
+            } catch(e) { onDone?.(e); }
+        });
+    }
+
+    // ── Delete ────────────────────────────────────────────────────────────────
+
+    deleteEvent(uid, clientUid, onDone) {
+        const entry = this._clients.get(clientUid);
+        if (!entry) { onDone?.(new Error('Calendar not connected')); return; }
+
+        entry.client.remove_object(uid, null, ECal.ObjModType.ALL, ECal.OperationFlags.NONE, null, (_obj, res) => {
+            try {
+                entry.client.remove_object_finish(res);
+                onDone?.(null);
+                this._events = this._events.filter(e => !(e.uid === uid && e.clientUid === clientUid));
+                this._onEventsChanged(this._events);
             } catch(e) { onDone?.(e); }
         });
     }
