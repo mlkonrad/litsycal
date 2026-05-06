@@ -116,29 +116,80 @@
 
 /* ── Agenda ──────────────────────────────────────────────────────────────── */
 .litsycal-agenda {
-    padding-top: 2px;
-    padding-bottom: 2px;
-    spacing: 1px;
-    min-height: 44px;
+    padding-top: 4px;
+    padding-bottom: 6px;
+    spacing: 0;
 }
 
-.litsycal-agenda-date {
+/* Separator between day groups */
+.litsycal-agenda-sep {
+    height: 1px;
+    margin: 5px 0;
+    background-color: rgba(128, 128, 128, 0.25);
+}
+
+/* Day header row */
+.litsycal-agenda-header {
+    padding: 2px 0 3px 0;
+    spacing: 6px;
+}
+
+.litsycal-agenda-day-name {
     font-weight: bold;
-    font-size: 0.78em;
-    opacity: 0.60;
-    padding-bottom: 3px;
+    font-size: 0.88em;
 }
 
+.litsycal-agenda-day-date {
+    font-size: 0.80em;
+    opacity: 0.50;
+}
+
+/* No events text */
 .litsycal-agenda-empty {
-    font-size: 0.82em;
-    opacity: 0.42;
+    font-size: 0.78em;
+    opacity: 0.38;
     font-style: italic;
+    padding-left: 14px;
 }
 
-.litsycal-agenda-row   { spacing: 7px; padding: 1px 0; }
-.litsycal-agenda-dot   { font-size: 0.85em; }
+/* Event row: pill + title */
+.litsycal-agenda-row {
+    spacing: 8px;
+    padding: 2px 0 0 0;
+}
+
+/* Coloured pill indicator (replaces text dot) */
+.litsycal-agenda-pill {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    margin-top: 3px;
+}
+
 .litsycal-agenda-title { font-size: 0.85em; }
-.litsycal-agenda-time  { font-size: 0.76em; opacity: 0.62; }
+
+/* Time row: indented below title */
+.litsycal-agenda-time-row {
+    padding-left: 16px;
+    padding-bottom: 1px;
+}
+
+.litsycal-agenda-time {
+    font-size: 0.76em;
+    opacity: 0.55;
+}
+
+/* Theme overrides */
+.litsycal-theme-light .litsycal-agenda-day-name { color: #1a1a1a; }
+.litsycal-theme-light .litsycal-agenda-day-date { color: #1a1a1a; }
+.litsycal-theme-light .litsycal-agenda-title    { color: #1a1a1a; }
+.litsycal-theme-light .litsycal-agenda-time     { color: rgba(0,0,0,0.50); }
+.litsycal-theme-light .litsycal-agenda-empty    { color: #1a1a1a; }
+.litsycal-theme-dark  .litsycal-agenda-day-name { color: white; }
+.litsycal-theme-dark  .litsycal-agenda-day-date { color: white; }
+.litsycal-theme-dark  .litsycal-agenda-title    { color: white; }
+.litsycal-theme-dark  .litsycal-agenda-time     { color: rgba(255,255,255,0.50); }
+.litsycal-theme-dark  .litsycal-agenda-empty    { color: white; }
 
 /* ── Footer (gear button) ────────────────────────────────────────────────── */
 .litsycal-gear-icon {
@@ -243,7 +294,7 @@
 .litsycal-theme-light .litsycal-agenda-date      { color: #1a1a1a; }
 .litsycal-theme-light .litsycal-agenda-empty     { color: #1a1a1a; }
 .litsycal-theme-light .litsycal-agenda-title     { color: #1a1a1a; }
-.litsycal-theme-light .litsycal-agenda-time      { color: #1a1a1a; }
+.litsycal-theme-light .litsycal-agenda-time      { color: rgba(0,0,0,0.50); }
 
 /* ── Dark theme (JS adds .litsycal-theme-dark — mirrors base defaults) ──────── */
 .litsycal-theme-dark  .litsycal-overflow { color: rgba(255,255,255,0.45); }
@@ -260,4 +311,104 @@
 .litsycal-theme-dark .litsycal-agenda-date       { color: white; }
 .litsycal-theme-dark .litsycal-agenda-empty      { color: white; }
 .litsycal-theme-dark .litsycal-agenda-title      { color: white; }
-.litsycal-theme-dark .litsycal-agenda-time       { color: white; }
+.litsycal-theme-dark .litsycal-agenda-time       { color: rgba(255,255,255,0.50); }
+
+/* ── Cell box (number + dot row inside each day button) ──────────────────── */
+.litsycal-cell-box  { spacing: 1px; }
+.litsycal-cell-num  { text-align: center; font-size: 0.88em; }
+
+/* ── Event dots ──────────────────────────────────────────────────────────── */
+.litsycal-dot-row {
+    spacing: 2px;
+    min-height: 6px;
+    padding-bottom: 1px;
+}
+
+.litsycal-event-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 3px;
+}
+
+/* ── Add (+) button ──────────────────────────────────────────────────────── */
+.litsycal-add-btn {
+    font-size: 1.2em;
+    font-weight: bold;
+    padding: 0 6px;
+    opacity: 0.7;
+}
+.litsycal-add-btn:hover { opacity: 1.0; }
+
+/* ── Create event form ───────────────────────────────────────────────────── */
+.litsycal-create-form {
+    padding: 4px 2px 2px 2px;
+    spacing: 6px;
+}
+
+.litsycal-create-entry {
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 0.88em;
+}
+
+.litsycal-create-row {
+    spacing: 6px;
+}
+
+.litsycal-create-lbl {
+    font-size: 0.82em;
+    opacity: 0.7;
+}
+
+.litsycal-create-time {
+    min-width: 36px;
+    max-width: 42px;
+    border-radius: 6px;
+    padding: 2px 4px;
+    font-size: 0.85em;
+    text-align: center;
+}
+
+.litsycal-create-toggle {
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 0.80em;
+    border: none;
+}
+.litsycal-create-toggle-on  { background-color: rgba(128,128,128,0.30); }
+.litsycal-create-toggle-off { background-color: rgba(128,128,128,0.10); }
+
+.litsycal-create-cal-btn {
+    border-radius: 6px;
+    padding: 2px 6px;
+    border: none;
+    background-color: rgba(128,128,128,0.15);
+}
+.litsycal-create-cal-btn:hover { background-color: rgba(128,128,128,0.25); }
+
+.litsycal-create-cal-lbl { font-size: 0.80em; }
+
+.litsycal-create-error {
+    font-size: 0.78em;
+    color: #e62d42;
+}
+
+.litsycal-create-cancel {
+    border-radius: 6px;
+    padding: 3px 10px;
+    border: none;
+    background-color: rgba(128,128,128,0.15);
+    font-size: 0.82em;
+}
+.litsycal-create-cancel:hover { background-color: rgba(128,128,128,0.25); }
+
+.litsycal-create-save {
+    border-radius: 6px;
+    padding: 3px 10px;
+    border: none;
+    font-size: 0.82em;
+    font-weight: bold;
+    background-color: #3584e4;
+    color: white;
+}
+.litsycal-create-save:hover { background-color: #2870c2; }
