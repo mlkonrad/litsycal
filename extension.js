@@ -265,7 +265,7 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     _updateHeaderColors() {
-        this._todayBtn.style = `color: ${this._accent};`;
+        this._dotBtn.style = `color: ${this._accent};`;
     }
 
     _applySizeClass() {
@@ -293,20 +293,20 @@ class LitsycalCalendar extends St.BoxLayout {
     _buildHeader() {
         const row = new St.BoxLayout({style_class: 'litsycal-header'});
 
-        this._prevBtn  = new St.Button({label: '‹', style_class: 'litsycal-nav-btn'});
-        this._nextBtn  = new St.Button({label: '›', style_class: 'litsycal-nav-btn'});
-        this._todayBtn = new St.Button({label: _('Today'), style_class: 'litsycal-today-btn'});
         this._monthLbl = new St.Label({style_class: 'litsycal-month-lbl', x_expand: true});
-        this._monthLbl.clutter_text.set_x_align(Clutter.ActorAlign.CENTER);
 
-        this._prevBtn.connect('clicked',  () => this._shiftMonth(-1));
-        this._nextBtn.connect('clicked',  () => this._shiftMonth(+1));
-        this._todayBtn.connect('clicked', () => this._goToday());
+        this._prevBtn  = new St.Button({label: '‹', style_class: 'litsycal-nav-btn'});
+        this._dotBtn   = new St.Button({label: '●', style_class: 'litsycal-nav-btn litsycal-dot-btn'});
+        this._nextBtn  = new St.Button({label: '›', style_class: 'litsycal-nav-btn'});
 
-        row.add_child(this._prevBtn);
+        this._prevBtn.connect('clicked', () => this._shiftMonth(-1));
+        this._dotBtn.connect('clicked',  () => this._goToday());
+        this._nextBtn.connect('clicked', () => this._shiftMonth(+1));
+
         row.add_child(this._monthLbl);
+        row.add_child(this._prevBtn);
+        row.add_child(this._dotBtn);
         row.add_child(this._nextBtn);
-        row.add_child(this._todayBtn);
         this.add_child(row);
 
         this._updateMonthLabel();
@@ -733,7 +733,7 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     _updateMonthLabel() {
-        const monthName = capitalize(GLib.DateTime.new_local(this._year, this._month, 1, 0, 0, 0).format('%B'));
+        const monthName = capitalize(GLib.DateTime.new_local(this._year, this._month, 1, 0, 0, 0).format('%b'));
         this._monthLbl.set_text(`${monthName} ${this._year}`);
     }
 });
