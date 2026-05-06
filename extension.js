@@ -83,55 +83,58 @@ class OutlinePainter {
     }
 
     paint(cr, w, h, numRows, firstCol, lastCol, lastRow) {
-        const cw   = w / 7;
-        const dark = this._isDark;
+        const cw    = w / 7;
+        const dark  = this._isDark;
+        const INSET = 4; // vertical breathing room so outline doesn't clip day numbers
 
         for (const col of this._highlightCols) {
-            cr.rectangle(col * cw, 0, cw, h);
+            cr.rectangle(col * cw, INSET, cw, h - 2 * INSET);
             cr.setSourceRGBA(dark ? 1 : 0, dark ? 1 : 0, dark ? 1 : 0, dark ? 0.07 : 0.06);
             cr.fill();
         }
 
         const r  = 6;
-        const ch = h / numRows;
+        const ch = (h - 2 * INSET) / numRows;
         const fc = firstCol;
         const lc = lastCol;
         const lr = lastRow;
 
         const SPACING = 4;
-        const rowGap  = i => i * ch + SPACING * (i / numRows - 0.5);
+        const rowGap  = i => i * ch + INSET + SPACING * (i / numRows - 0.5);
         const C = (px, py, dx, dy) =>
             cr.curveTo(px, py, px, py, px + r*dx, py + r*dy);
 
         const [ar, ag, ab] = dark ? [1, 1, 1] : [0, 0, 0];
-        cr.setLineWidth(1.5);
-        cr.setSourceRGBA(ar, ag, ab, dark ? 0.28 : 0.18);
+        cr.setLineWidth(2.5);
+        cr.setSourceRGBA(ar, ag, ab, dark ? 0.38 : 0.28);
 
+        const top    = INSET;
+        const bottom = (lr + 1) * ch + INSET;
         const stepY  = rowGap(lr);
         const notchY = rowGap(1);
 
-        cr.moveTo(fc*cw + r, 0);
-        cr.lineTo(7*cw - r, 0);  C(7*cw, 0, 0, +1);
+        cr.moveTo(fc*cw + r, top);
+        cr.lineTo(7*cw - r, top);  C(7*cw, top, 0, +1);
 
         if (lc < 6) {
             cr.lineTo(7*cw, stepY - r);         C(7*cw, stepY, -1, 0);
             cr.lineTo((lc+1)*cw + r, stepY);    C((lc+1)*cw, stepY, 0, +1);
-            cr.lineTo((lc+1)*cw, (lr+1)*ch-r);  C((lc+1)*cw, (lr+1)*ch, -1, 0);
+            cr.lineTo((lc+1)*cw, bottom - r);   C((lc+1)*cw, bottom, -1, 0);
         } else {
-            cr.lineTo(7*cw, (lr+1)*ch - r);     C(7*cw, (lr+1)*ch, -1, 0);
+            cr.lineTo(7*cw, bottom - r);         C(7*cw, bottom, -1, 0);
         }
 
-        cr.lineTo(r, (lr+1)*ch);  C(0, (lr+1)*ch, 0, -1);
+        cr.lineTo(r, bottom);  C(0, bottom, 0, -1);
 
         if (fc > 0) {
             cr.lineTo(0, notchY + r);     C(0, notchY, +1, 0);
             cr.lineTo(fc*cw - r, notchY); C(fc*cw, notchY, 0, -1);
-            cr.lineTo(fc*cw, r);          C(fc*cw, 0, +1, 0);
+            cr.lineTo(fc*cw, top + r);    C(fc*cw, top, +1, 0);
         } else {
-            cr.lineTo(0, r);  C(0, 0, +1, 0);
+            cr.lineTo(0, top + r);  C(0, top, +1, 0);
         }
 
-        cr.lineTo(fc*cw + r, 0);
+        cr.lineTo(fc*cw + r, top);
         cr.closePath();
         cr.stroke();
         cr.$dispose();
