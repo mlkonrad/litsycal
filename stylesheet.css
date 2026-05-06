@@ -153,6 +153,17 @@
 }
 
 /* Event row: pill + title */
+/* Clickable event wrapper — opens GNOME Calendar edit dialog */
+.litsycal-agenda-event-btn {
+    border: none;
+    background: none;
+    padding: 1px 2px;
+    border-radius: 4px;
+}
+.litsycal-agenda-event-btn:hover {
+    background-color: rgba(128, 128, 128, 0.12);
+}
+
 .litsycal-agenda-row {
     spacing: 8px;
     padding: 2px 0 0 0;
