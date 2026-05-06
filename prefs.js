@@ -25,8 +25,9 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         general.add(calGroup);
 
         // First day of the week — locale-aware names via GLib
+        const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
         const DOW_NAMES = Array.from({length: 7}, (_, i) =>
-            GLib.DateTime.new_local(2025, 1, 6 + i, 0, 0, 0).format('%A')
+            cap(GLib.DateTime.new_local(2025, 1, 6 + i, 0, 0, 0).format('%A'))
         );
         const fdowRow = new Adw.ComboRow({
             title: _('First day of week'),
