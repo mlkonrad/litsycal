@@ -415,7 +415,11 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         }));
         abGroup.add(new Adw.ActionRow({
             title:    _('Inspired by Itsycal for macOS'),
-            subtitle: _('Original by Moe Birch • Linux port by hornets'),
+            subtitle: _('Original by Sanjay Madan • Linux port by mlkonrad'),
+        }));
+        abGroup.add(new Adw.ActionRow({
+            title:    'GitHub',
+            subtitle: 'https://github.com/mlkonrad/litsycal',
         }));
     }
 }
