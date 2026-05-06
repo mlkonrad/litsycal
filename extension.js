@@ -16,9 +16,10 @@ import Shell   from 'gi://Shell';
 
 // Locale-aware day abbreviations, Mon=0 … Sun=6 (2025-01-06 is a known Monday)
 function localeDayAbbrs() {
-    return Array.from({length: 7}, (_, i) =>
-        GLib.DateTime.new_local(2025, 1, 6 + i, 0, 0, 0).format('%a')
-    );
+    return Array.from({length: 7}, (_, i) => {
+        const s = GLib.DateTime.new_local(2025, 1, 6 + i, 0, 0, 0).format('%a');
+        return s.charAt(0).toUpperCase() + s.slice(1);
+    });
 }
 
 // Maps highlight-days setting strings → column indices (0 = Monday)
@@ -60,6 +61,73 @@ function prevMonthOf(year, month) {
     return month===1 ? [year-1,12] : [year,month-1];
 }
 
+// ── Outline painter ───────────────────────────────────────────────────────────
+
+class OutlinePainter {
+    configure(isDark, highlightCols) {
+        this._isDark        = isDark;
+        this._highlightCols = highlightCols;
+    }
+
+    paint(cr, w, h, numRows, firstCol, lastCol, lastRow) {
+        const cw   = w / 7;
+        const dark = this._isDark;
+
+        // ── 1. Column highlight stripes ───────────────────────────────────────
+        for (const col of this._highlightCols) {
+            cr.rectangle(col * cw, 0, cw, h);
+            cr.setSourceRGBA(dark ? 1 : 0, dark ? 1 : 0, dark ? 1 : 0, dark ? 0.07 : 0.06);
+            cr.fill();
+        }
+
+        // ── 2. Month-shape outline ────────────────────────────────────────────
+        const r  = 6;
+        const ch = h / numRows;
+        const fc = firstCol;
+        const lc = lastCol;
+        const lr = lastRow;
+
+        const SPACING = 4;
+        const rowGap  = i => i * ch + SPACING * (i / numRows - 0.5);
+
+        const C = (px, py, dx, dy) =>
+            cr.curveTo(px, py, px, py, px + r*dx, py + r*dy);
+
+        const [ar, ag, ab] = dark ? [1, 1, 1] : [0, 0, 0];
+        cr.setLineWidth(1.5);
+        cr.setSourceRGBA(ar, ag, ab, dark ? 0.28 : 0.18);
+
+        const stepY  = rowGap(lr);
+        const notchY = rowGap(1);
+
+        cr.moveTo(fc*cw + r, 0);
+        cr.lineTo(7*cw - r, 0);  C(7*cw, 0, 0, +1);
+
+        if (lc < 6) {
+            cr.lineTo(7*cw, stepY - r);         C(7*cw, stepY, -1, 0);
+            cr.lineTo((lc+1)*cw + r, stepY);    C((lc+1)*cw, stepY, 0, +1);
+            cr.lineTo((lc+1)*cw, (lr+1)*ch-r);  C((lc+1)*cw, (lr+1)*ch, -1, 0);
+        } else {
+            cr.lineTo(7*cw, (lr+1)*ch - r);     C(7*cw, (lr+1)*ch, -1, 0);
+        }
+
+        cr.lineTo(r, (lr+1)*ch);  C(0, (lr+1)*ch, 0, -1);
+
+        if (fc > 0) {
+            cr.lineTo(0, notchY + r);     C(0, notchY, +1, 0);
+            cr.lineTo(fc*cw - r, notchY); C(fc*cw, notchY, 0, -1);
+            cr.lineTo(fc*cw, r);          C(fc*cw, 0, +1, 0);
+        } else {
+            cr.lineTo(0, r);  C(0, 0, +1, 0);
+        }
+
+        cr.lineTo(fc*cw + r, 0);
+        cr.closePath();
+        cr.stroke();
+        cr.$dispose();
+    }
+}
+
 // ── Calendar widget ───────────────────────────────────────────────────────────
 
 const LitsycalCalendar = GObject.registerClass(
@@ -98,11 +166,13 @@ class LitsycalCalendar extends St.BoxLayout {
             settings.connect('changed::first-day-of-week', () => {
                 this._firstDayOfWeek = settings.get_int('first-day-of-week');
                 this._highlightCols  = this._readHighlight();
+                this._painter.configure(this._isDark, this._highlightCols);
                 this._buildDayNameRow(true);
                 this._buildGrid();
             }),
             settings.connect('changed::highlight-days', () => {
                 this._highlightCols = this._readHighlight();
+                this._painter.configure(this._isDark, this._highlightCols);
                 this._buildDayNameRow(true);
                 this._buildGrid();
             }),
@@ -142,8 +212,10 @@ class LitsycalCalendar extends St.BoxLayout {
             this._iface.disconnect(this._schemeId);
         });
 
-        // Compute before building any widgets so all build methods can use it
-        this._isDark = this._computeIsDark();
+        // Compute theme + create painter before building any widgets
+        this._isDark  = this._computeIsDark();
+        this._painter = new OutlinePainter();
+        this._painter.configure(this._isDark, this._highlightCols);
 
         this._buildHeader();
         this._buildDayNameRow();
@@ -165,7 +237,7 @@ class LitsycalCalendar extends St.BoxLayout {
             this._settings.get_strv('highlight-days')
                 .map(d => DAY_COL[d])
                 .filter(v => v !== undefined)
-                .map(absDay => (absDay - fd + 7) % 7)  // absolute day → column index
+                .map(absDay => (absDay - fd + 7) % 7)
         );
     }
 
@@ -176,10 +248,6 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     _updateHeaderColors() {
-        const tc = this._isDark ? 'white' : '#1a1a1a';
-        this._monthLbl.style = `color: ${tc};`;
-        this._prevBtn.style  = `color: ${tc};`;
-        this._nextBtn.style  = `color: ${tc};`;
         this._todayBtn.style = `color: ${this._accent};`;
     }
 
@@ -197,11 +265,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this.remove_style_class_name('litsycal-theme-dark');
         this.add_style_class_name(this._isDark ? 'litsycal-theme-dark' : 'litsycal-theme-light');
 
-        // Calendar provides its own background so the popup shell can be transparent
-        this.style = this._isDark
-            ? 'background-color: #1e1e1e; border-radius: 8px;'
-            : 'background-color: #f2f0ed; border-radius: 8px;';
-
+        this._painter.configure(this._isDark, this._highlightCols);
         if (this._prevBtn) this._updateHeaderColors();
         this._buildDayNameRow(true);
         this._buildGrid();
@@ -243,10 +307,9 @@ class LitsycalCalendar extends St.BoxLayout {
             this._dayNameRow.destroy();
         }
 
-        const fd = this._firstDayOfWeek;
+        const fd          = this._firstDayOfWeek;
         const dayAbbrs    = localeDayAbbrs();
         const orderedAbbr = [...dayAbbrs.slice(fd), ...dayAbbrs.slice(0, fd)];
-        const tc = this._isDark ? 'white' : '#1a1a1a';
 
         const row = new St.BoxLayout({style_class: 'litsycal-day-names'});
         for (let i = 0; i < 7; i++) {
@@ -255,11 +318,8 @@ class LitsycalCalendar extends St.BoxLayout {
                 x_expand: true,
                 style_class: isHL ? 'litsycal-day-name-cell litsycal-col-hl' : 'litsycal-day-name-cell',
             });
-            if (isHL)
-                cell.style = `background-color: ${this._isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'};`;
             const lbl = new St.Label({text: orderedAbbr[i], style_class: 'litsycal-day-name'});
             lbl.clutter_text.set_x_align(Clutter.ActorAlign.CENTER);
-            lbl.style = `color: ${tc};`;
             cell.add_child(lbl);
             row.add_child(cell);
         }
@@ -290,7 +350,8 @@ class LitsycalCalendar extends St.BoxLayout {
         this._outline.connect('repaint', (area) => {
             const [w, h] = area.get_surface_size();
             if (w > 0 && h > 0 && this._numRows > 0)
-                this._drawOverlay(area.get_context(), w, h);
+                this._painter.paint(area.get_context(), w, h,
+                    this._numRows, this._firstCol, this._lastCol, this._lastRow);
         });
 
         overlay.add_child(this._gridBox);
@@ -305,11 +366,10 @@ class LitsycalCalendar extends St.BoxLayout {
     _buildGrid() {
         this._gridBox.destroy_all_children();
 
-        const fd       = this._firstDayOfWeek;  // 0=Mon … 6=Sun
-        // Convert GLib dow (1=Mon…7=Sun) to column index relative to the first day
+        const fd       = this._firstDayOfWeek;
         const glibDow  = GLib.DateTime.new_local(this._year, this._month, 1, 0, 0, 0)
-                                       .get_day_of_week() - 1; // 0=Mon…6=Sun absolute
-        const firstDow = (glibDow - fd + 7) % 7;              // column offset of day 1
+                                       .get_day_of_week() - 1;
+        const firstDow = (glibDow - fd + 7) % 7;
         const total    = daysInMonth(this._year, this._month);
 
         this._firstCol = firstDow;
@@ -327,13 +387,12 @@ class LitsycalCalendar extends St.BoxLayout {
         let col = 0;
 
         for (let i = firstDow - 1; i >= 0; i--) {
-            row.add_child(this._makeOverflow(prevTot - i, col));
+            row.add_child(this._makeOverflow(prevTot - i));
             col++;
         }
 
         for (let d = 1; d <= total; d++) {
             const ds = `${this._year}-${String(this._month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-            // Determine actual day-of-week for this column (0=Mon,5=Sat,6=Sun)
             const actualDay = (col + fd) % 7;
             const isWeekend = actualDay === 5 || actualDay === 6;
             row.add_child(this._makeCell(d, ds, ds===todayStr, ds===selStr, isWeekend));
@@ -343,20 +402,18 @@ class LitsycalCalendar extends St.BoxLayout {
 
         if (col > 0) {
             let nd = 1;
-            while (col < 7) { row.add_child(this._makeOverflow(nd++, col)); col++; }
+            while (col < 7) { row.add_child(this._makeOverflow(nd++)); col++; }
             this._gridBox.add_child(row);
         }
 
         this._outline?.queue_repaint();
     }
 
-    _makeOverflow(day, col) {
-        const tc = this._isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)';
+    _makeOverflow(day) {
         const lbl = new St.Label({
             text: String(day),
             style_class: 'litsycal-overflow',
             x_expand: true,
-            style: `color: ${tc};`,
         });
         lbl.clutter_text.set_x_align(Clutter.ActorAlign.CENTER);
         return lbl;
@@ -369,19 +426,14 @@ class LitsycalCalendar extends St.BoxLayout {
 
         const btn = new St.Button({label: String(day), style_class: sc, x_expand: true});
 
-        const tc      = this._isDark ? 'white' : '#1a1a1a';
-        const wkColor = this._isDark ? '#e06060' : '#cc2222';
-
         if (isToday) {
             btn.style = `background-color: ${this._accent}; color: white;`;
         } else if (isSel) {
-            btn.style = `background-color: ${accentAlpha(this._accent, 0.25)}; color: ${tc};`;
+            btn.style = `background-color: ${accentAlpha(this._accent, 0.25)};`;
         } else if (isWeekend && this._weekendColorMode === 'custom') {
             btn.style = `color: ${this._weekendColor};`;
         } else if (isWeekend && this._weekendColorMode === 'default') {
-            btn.style = `color: ${wkColor};`;
-        } else {
-            btn.style = `color: ${tc};`;
+            btn.add_style_class_name('litsycal-weekend');
         }
 
         btn.connect('clicked', () => {
@@ -393,66 +445,6 @@ class LitsycalCalendar extends St.BoxLayout {
         return btn;
     }
 
-    // ── DrawingArea overlay: column highlights + month outline ────────────────
-
-    _drawOverlay(cr, w, h) {
-        const cw   = w / 7;
-        const dark = this._isDark;
-
-        // ── 1. Column highlight stripes (drawn first, behind everything) ──────
-        for (const col of this._highlightCols) {
-            cr.rectangle(col * cw, 0, cw, h);
-            cr.setSourceRGBA(dark ? 1 : 0, dark ? 1 : 0, dark ? 1 : 0, dark ? 0.07 : 0.06);
-            cr.fill();
-        }
-
-        // ── 2. Month-shape outline ────────────────────────────────────────────
-        const r  = 6;
-        const ch = h / this._numRows;
-        const fc = this._firstCol;
-        const lc = this._lastCol;
-        const lr = this._lastRow;
-
-        const SPACING = 4;
-        const rowGap  = i => i * ch + SPACING * (i / this._numRows - 0.5);
-
-        const C = (px, py, dx, dy) =>
-            cr.curveTo(px, py, px, py, px + r*dx, py + r*dy);
-
-        const [ar, ag, ab] = dark ? [1, 1, 1] : [0, 0, 0];
-        cr.setLineWidth(1.5);
-        cr.setSourceRGBA(ar, ag, ab, dark ? 0.28 : 0.18);
-
-        const stepY  = rowGap(lr);
-        const notchY = rowGap(1);
-
-        cr.moveTo(fc*cw + r, 0);
-        cr.lineTo(7*cw - r, 0);  C(7*cw, 0, 0, +1);
-
-        if (lc < 6) {
-            cr.lineTo(7*cw, stepY - r);         C(7*cw, stepY, -1, 0);
-            cr.lineTo((lc+1)*cw + r, stepY);    C((lc+1)*cw, stepY, 0, +1);
-            cr.lineTo((lc+1)*cw, (lr+1)*ch-r);  C((lc+1)*cw, (lr+1)*ch, -1, 0);
-        } else {
-            cr.lineTo(7*cw, (lr+1)*ch - r);     C(7*cw, (lr+1)*ch, -1, 0);
-        }
-
-        cr.lineTo(r, (lr+1)*ch);  C(0, (lr+1)*ch, 0, -1);
-
-        if (fc > 0) {
-            cr.lineTo(0, notchY + r);   C(0, notchY, +1, 0);
-            cr.lineTo(fc*cw - r, notchY); C(fc*cw, notchY, 0, -1);
-            cr.lineTo(fc*cw, r);        C(fc*cw, 0, +1, 0);
-        } else {
-            cr.lineTo(0, r);  C(0, 0, +1, 0);
-        }
-
-        cr.lineTo(fc*cw + r, 0);
-        cr.closePath();
-        cr.stroke();
-        cr.$dispose();
-    }
-
     // ── Agenda ────────────────────────────────────────────────────────────────
 
     _buildAgenda() {
@@ -461,32 +453,26 @@ class LitsycalCalendar extends St.BoxLayout {
         const sel    = this._selected;
         const selStr = dateStr(sel);
         const evs    = this._events.filter(e => e.date === selStr);
-        const tc     = this._isDark ? 'white' : '#1a1a1a';
 
         const dateLbl = new St.Label({
             text: `${sel.format('%a')}, ${sel.format('%b')} ${sel.get_day_of_month()}`,
             style_class: 'litsycal-agenda-date',
         });
-        dateLbl.style = `color: ${tc};`;
         this._agendaBox.add_child(dateLbl);
 
         if (evs.length === 0) {
-            const emptyLbl = new St.Label({text: _('No events'), style_class: 'litsycal-agenda-empty'});
-            emptyLbl.style = `color: ${tc};`;
-            this._agendaBox.add_child(emptyLbl);
+            this._agendaBox.add_child(
+                new St.Label({text: _('No events'), style_class: 'litsycal-agenda-empty'})
+            );
             return;
         }
         for (const ev of evs) {
-            const row = new St.BoxLayout({style_class: 'litsycal-agenda-row'});
-            const dot = new St.Label({text: '●', style_class: 'litsycal-agenda-dot'});
-            dot.style = `color: ${ev.color};`;
+            const row   = new St.BoxLayout({style_class: 'litsycal-agenda-row'});
+            const dot   = new St.Label({text: '●', style_class: 'litsycal-agenda-dot'});
+            dot.style   = `color: ${ev.color};`;
             row.add_child(dot);
-            const title = new St.Label({text: ev.title, style_class: 'litsycal-agenda-title', x_expand: true});
-            title.style = `color: ${tc};`;
-            row.add_child(title);
-            const time = new St.Label({text: ev.time ?? _('All day'), style_class: 'litsycal-agenda-time'});
-            time.style = `color: ${tc};`;
-            row.add_child(time);
+            row.add_child(new St.Label({text: ev.title, style_class: 'litsycal-agenda-title', x_expand: true}));
+            row.add_child(new St.Label({text: ev.time ?? _('All day'), style_class: 'litsycal-agenda-time'}));
             this._agendaBox.add_child(row);
         }
     }
@@ -509,19 +495,16 @@ class LitsycalCalendar extends St.BoxLayout {
             return btn;
         };
 
-        // Pin button — keeps calendar open
         const pinBtn = makeBtn('view-pin-symbolic', true);
         pinBtn.connect('notify::checked', () => {
             if (this._onPinToggle) this._onPinToggle(pinBtn.get_checked());
         });
 
-        // Calendar app button — opens GNOME Calendar
         const calBtn = makeBtn('x-office-calendar-symbolic');
         calBtn.connect('clicked', () => {
             if (this._openCalendar) this._openCalendar();
         });
 
-        // Gear button — opens preferences
         const gear = makeBtn('preferences-system-symbolic');
         gear.connect('clicked', () => this._openPrefs());
 
@@ -586,7 +569,6 @@ class LitsycalIndicator extends PanelMenu.Button {
 
         this._lastHour = GLib.DateTime.new_now_local().get_hour();
 
-        // Update badge every minute; check for top-of-hour beep
         this._timer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => {
             this._updateBadge();
             this._checkHourlyBeep();
@@ -598,7 +580,7 @@ class LitsycalIndicator extends PanelMenu.Button {
             'hide-icon','datetime-pattern','show-time','time-format',
         ].map(k => settings.connect(`changed::${k}`, () => this._updateBadge()));
 
-        this._pinned     = false;
+        this._pinned      = false;
         this._floatingBox = null;
 
         this._menuOpenId = this.menu.connect('open-state-changed', (_menu, open) => {
@@ -624,7 +606,6 @@ class LitsycalIndicator extends PanelMenu.Button {
         section.addMenuItem(item);
         this.menu.addMenuItem(section);
 
-        // Strip popup shell border/background — calendar widget owns its own background
         this.menu.actor.style = 'border: none; background-color: transparent; box-shadow: none; padding: 0;';
         this.menu.box.style   = 'padding: 0; background-color: transparent; border: none;';
         try { this.menu.actor.bin.style = 'padding: 0; border: none; background-color: transparent;'; } catch (_) {}
@@ -639,7 +620,6 @@ class LitsycalIndicator extends PanelMenu.Button {
         const style   = this._settings.get_string('badge-style');
         const pattern = this._settings.get_string('datetime-pattern');
 
-        // CSS classes for badge style
         this._badge.remove_style_class_name('litsycal-badge-dark');
         this._badge.remove_style_class_name('litsycal-badge-calendar');
         this._badge.remove_style_class_name('litsycal-badge-calendar-dark');
@@ -647,7 +627,6 @@ class LitsycalIndicator extends PanelMenu.Button {
         if (style === 'calendar')       this._badge.add_style_class_name('litsycal-badge-calendar');
         if (style === 'calendar-dark')  this._badge.add_style_class_name('litsycal-badge-calendar-dark');
 
-        // Badge text
         let text;
         if (pattern) {
             text = GLib.DateTime.new_now_local().format(pattern) ?? this._defaultText();
@@ -680,10 +659,7 @@ class LitsycalIndicator extends PanelMenu.Button {
         if (showMonth) parts.push(now.format('%b'));
         parts.push(String(now.get_day_of_month()).padStart(2, '0'));
         if (showTime) {
-            const timePart = timeFmt === '12h'
-                ? now.format('%-I:%M%P')
-                : now.format('%H:%M');
-            parts.push(timePart);
+            parts.push(timeFmt === '12h' ? now.format('%-I:%M%P') : now.format('%H:%M'));
         }
         return parts.join(' ');
     }
@@ -744,7 +720,6 @@ export default class LitsycalExtension extends Extension {
         this._indicator = new LitsycalIndicator(this._settings, () => this.openPreferences(), this.path);
         Main.panel.addToStatusArea(this.uuid, this._indicator, 0, 'right');
 
-        // Global keyboard shortcut to toggle the calendar popup
         Main.wm.addKeybinding(
             'toggle-shortcut',
             this._settings,
