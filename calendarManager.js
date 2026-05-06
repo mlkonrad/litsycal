@@ -171,8 +171,16 @@ export class CalendarManager {
                 const date = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 
                 const isAllDay = tObj.is_date();
-                const time = isAllDay ? null
-                    : `${String(tObj.get_hour()).padStart(2,'0')}:${String(tObj.get_minute()).padStart(2,'0')}`;
+                let time = null;
+                if (!isAllDay) {
+                    const pad = n => String(n).padStart(2, '0');
+                    const startStr = `${pad(tObj.get_hour())}:${pad(tObj.get_minute())}`;
+                    const eObj = comp.get_dtend()?.get_value();
+                    const endStr = eObj && !eObj.is_date()
+                        ? `${pad(eObj.get_hour())}:${pad(eObj.get_minute())}`
+                        : null;
+                    time = endStr ? `${startStr} - ${endStr}` : startStr;
+                }
 
                 this._events.push({date, title, time, color, allDay: isAllDay,
                                    uid: comp.get_uid(), clientUid});
