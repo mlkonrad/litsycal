@@ -1,0 +1,223 @@
+# Brazilian Portuguese translation for Litsycal
+# Copyright (C) 2026 Marlon Konrad
+# This file is distributed under the same license as the Litsycal package.
+msgid ""
+msgstr ""
+"Project-Id-Version: Litsycal 1\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-06 00:00+0000\n"
+"PO-Revision-Date: 2026-05-06 00:00+0000\n"
+"Last-Translator: Marlon Konrad <marlonk@gmail.com>\n"
+"Language-Team: Brazilian Portuguese\n"
+"Language: pt_BR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Today"
+msgstr "Hoje"
+
+msgid "Tomorrow"
+msgstr "Amanhã"
+
+msgid "All day"
+msgstr "Dia todo"
+
+msgid "No events"
+msgstr "Sem eventos"
+
+msgid "Event title"
+msgstr "Título do evento"
+
+msgid "Time:"
+msgstr "Hora:"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Create"
+msgstr "Criar"
+
+msgid "Title is required"
+msgstr "Título é obrigatório"
+
+msgid "No calendars available"
+msgstr "Nenhum calendário disponível"
+
+msgid "Failed to create event"
+msgstr "Falha ao criar evento"
+
+msgid "Invalid time"
+msgstr "Hora inválida"
+
+msgid "General"
+msgstr "Geral"
+
+msgid "Appearance"
+msgstr "Aparência"
+
+msgid "About"
+msgstr "Sobre"
+
+msgid "Calendar"
+msgstr "Calendário"
+
+msgid "Keyboard Shortcut"
+msgstr "Atalho de teclado"
+
+msgid "Show / hide calendar"
+msgstr "Mostrar / ocultar calendário"
+
+msgid "Global shortcut to toggle the calendar popup"
+msgstr "Atalho global para alternar o calendário"
+
+msgid "Not set"
+msgstr "Não definido"
+
+msgid "Record Shortcut"
+msgstr "Gravar atalho"
+
+msgid "Press the key combination you want to use.\nEsc = cancel  ·  Backspace = clear."
+msgstr "Pressione a combinação de teclas desejada.\nEsc = cancelar  ·  Backspace = limpar."
+
+msgid "Waiting for keypress…"
+msgstr "Aguardando tecla…"
+
+msgid "Startup"
+msgstr "Inicialização"
+
+msgid "Automatically check for updates"
+msgstr "Verificar atualizações automaticamente"
+
+msgid "Check for new versions in the background"
+msgstr "Verificar novas versões em segundo plano"
+
+msgid "Other"
+msgstr "Outros"
+
+msgid "Beep on the hour"
+msgstr "Bipe na hora certa"
+
+msgid "Play a sound at the start of every hour"
+msgstr "Tocar um som no início de cada hora"
+
+msgid "Preview the sound"
+msgstr "Pré-visualizar o som"
+
+msgid "Panel Icon"
+msgstr "Ícone do painel"
+
+msgid "Icon style"
+msgstr "Estilo do ícone"
+
+msgid "Number — light"
+msgstr "Número — claro"
+
+msgid "Number — dark"
+msgstr "Número — escuro"
+
+msgid "Calendar — light"
+msgstr "Calendário — claro"
+
+msgid "Calendar — dark"
+msgstr "Calendário — escuro"
+
+msgid "Show month in icon"
+msgstr "Mostrar mês no ícone"
+
+msgid "Show day of week in icon"
+msgstr "Mostrar dia da semana no ícone"
+
+msgid "Show time in icon"
+msgstr "Mostrar hora no ícone"
+
+msgid "Time format"
+msgstr "Formato de hora"
+
+msgid "24-hour (13:05)"
+msgstr "24 horas (13:05)"
+
+msgid "12-hour (1:05pm)"
+msgstr "12 horas (1:05pm)"
+
+msgid "Custom datetime pattern"
+msgstr "Padrão personalizado de data/hora"
+
+msgid "Overrides other icon text when set"
+msgstr "Substitui o texto do ícone quando definido"
+
+msgid "Pattern help"
+msgstr "Ajuda de padrão"
+
+msgid "Hide icon"
+msgstr "Ocultar ícone"
+
+msgid "Size"
+msgstr "Tamanho"
+
+msgid "Applied on-the-fly"
+msgstr "Aplicado em tempo real"
+
+msgid "S"
+msgstr "P"
+
+msgid "L"
+msgstr "G"
+
+msgid "Highlighted Days"
+msgstr "Dias destacados"
+
+msgid "Tints the selected day columns across the entire calendar grid"
+msgstr "Colore as colunas dos dias selecionados em toda a grade"
+
+msgid "Highlight columns"
+msgstr "Destacar colunas"
+
+msgid "Theme"
+msgstr "Tema"
+
+msgid "Colour scheme"
+msgstr "Esquema de cores"
+
+msgid "System follows your GNOME appearance setting"
+msgstr "Sistema segue sua configuração de aparência do GNOME"
+
+msgid "System"
+msgstr "Sistema"
+
+msgid "Light"
+msgstr "Claro"
+
+msgid "Dark"
+msgstr "Escuro"
+
+msgid "Weekend Days"
+msgstr "Dias de fim de semana"
+
+msgid "Weekend day colour"
+msgstr "Cor dos dias de fim de semana"
+
+msgid "Default (red)"
+msgstr "Padrão (vermelho)"
+
+msgid "No colour"
+msgstr "Sem cor"
+
+msgid "Custom…"
+msgstr "Personalizado…"
+
+msgid "Custom colour"
+msgstr "Cor personalizada"
+
+msgid "Inspired by Itsycal for macOS"
+msgstr "Inspirado no Itsycal para macOS"
+
+msgid "Original by Moe Birch • Linux port by hornets"
+msgstr "Original por Moe Birch • Versão Linux por hornets"
+
+msgid "First day of week"
+msgstr "Primeiro dia da semana"
+
+msgid "OK"
+msgstr "OK"
