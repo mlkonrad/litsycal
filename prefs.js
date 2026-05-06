@@ -417,9 +417,18 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             title:    _('Inspired by Itsycal for macOS'),
             subtitle: _('Original by Sanjay Madan • Linux port by mlkonrad'),
         }));
-        abGroup.add(new Adw.ActionRow({
-            title:    'GitHub',
-            subtitle: 'https://github.com/mlkonrad/litsycal',
+        const ghRow = new Adw.ActionRow({
+            title:       'GitHub',
+            subtitle:    'https://github.com/mlkonrad/litsycal',
+            activatable: true,
+        });
+        ghRow.add_suffix(new Gtk.Image({
+            icon_name: 'adw-external-link-symbolic',
+            valign:    Gtk.Align.CENTER,
         }));
+        ghRow.connect('activated', () => {
+            Gio.AppInfo.launch_default_for_uri('https://github.com/mlkonrad/litsycal', null);
+        });
+        abGroup.add(ghRow);
     }
 }
