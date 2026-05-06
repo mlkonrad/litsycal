@@ -318,7 +318,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         const DAY_KEYS   = ['mo','tu','we','th','fr','sa','su'];
         // Locale-aware single-char day labels (Mon=0 … Sun=6)
         const DAY_LABELS = Array.from({length: 7}, (_, i) =>
-            GLib.DateTime.new_local(2025, 1, 6 + i, 0, 0, 0).format('%a').charAt(0)
+            GLib.DateTime.new_local(2025, 1, 6 + i, 0, 0, 0).format('%a').charAt(0).toUpperCase()
         );
         const hlSet  = new Set(settings.get_strv('highlight-days'));
 
