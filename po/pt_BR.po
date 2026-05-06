@@ -213,8 +213,8 @@ msgstr "Cor personalizada"
 msgid "Inspired by Itsycal for macOS"
 msgstr "Inspirado no Itsycal para macOS"
 
-msgid "Original by Moe Birch • Linux port by hornets"
-msgstr "Original por Moe Birch • Versão Linux por hornets"
+msgid "Original by Sanjay Madan • Linux port by mlkonrad"
+msgstr "Original por Sanjay Madan • Versão Linux por mlkonrad"
 
 msgid "First day of week"
 msgstr "Primeiro dia da semana"
