@@ -309,6 +309,20 @@
 .litsycal-size-sm .litsycal-day-name { min-width: 28px; font-size: 0.65em; }
 .litsycal-size-sm .litsycal-day-name-cell { min-width: 26px; }
 
+/* Small-plus (between Small and Medium) */
+.litsycal-size-sm-plus                { min-width: 238px; }
+.litsycal-size-sm-plus .litsycal-day-btn  { min-width: 29px; min-height: 24px; font-size: 0.83em; }
+.litsycal-size-sm-plus .litsycal-overflow { min-width: 29px; min-height: 24px; font-size: 0.83em; }
+.litsycal-size-sm-plus .litsycal-day-name { min-width: 30px; font-size: 0.69em; }
+.litsycal-size-sm-plus .litsycal-day-name-cell { min-width: 29px; }
+
+/* Medium-plus (between Medium and Large) */
+.litsycal-size-md-plus                { min-width: 285px; }
+.litsycal-size-md-plus .litsycal-day-btn  { min-width: 36px; min-height: 30px; font-size: 0.94em; }
+.litsycal-size-md-plus .litsycal-overflow { min-width: 36px; min-height: 30px; font-size: 0.94em; }
+.litsycal-size-md-plus .litsycal-day-name { min-width: 37px; font-size: 0.76em; }
+.litsycal-size-md-plus .litsycal-day-name-cell { min-width: 36px; }
+
 /* Large */
 .litsycal-size-lg                { min-width: 315px; }
 .litsycal-size-lg .litsycal-day-btn  { min-width: 40px; min-height: 34px; font-size: 1.00em; }
@@ -324,6 +338,24 @@
 .litsycal-size-sm .litsycal-agenda-time     { font-size: 0.66em; }
 .litsycal-size-sm .litsycal-agenda-pill     { width: 7px; height: 7px; border-radius: 3.5px; }
 .litsycal-size-sm .litsycal-agenda-time-row { padding-left: 14px; }
+
+/* Agenda text/markers scale with the same size preference (Small-plus) */
+.litsycal-size-sm-plus .litsycal-agenda-day-name { font-size: 0.83em; }
+.litsycal-size-sm-plus .litsycal-agenda-day-date { font-size: 0.75em; }
+.litsycal-size-sm-plus .litsycal-agenda-empty    { font-size: 0.73em; }
+.litsycal-size-sm-plus .litsycal-agenda-title    { font-size: 0.80em; }
+.litsycal-size-sm-plus .litsycal-agenda-time     { font-size: 0.71em; }
+.litsycal-size-sm-plus .litsycal-agenda-pill     { width: 7px; height: 7px; border-radius: 3.75px; }
+.litsycal-size-sm-plus .litsycal-agenda-time-row { padding-left: 15px; }
+
+/* Agenda text/markers scale with the same size preference (Medium-plus) */
+.litsycal-size-md-plus .litsycal-agenda-day-name { font-size: 0.94em; }
+.litsycal-size-md-plus .litsycal-agenda-day-date { font-size: 0.86em; }
+.litsycal-size-md-plus .litsycal-agenda-empty    { font-size: 0.84em; }
+.litsycal-size-md-plus .litsycal-agenda-title    { font-size: 0.91em; }
+.litsycal-size-md-plus .litsycal-agenda-time     { font-size: 0.82em; }
+.litsycal-size-md-plus .litsycal-agenda-pill     { width: 8px; height: 8px; border-radius: 4.25px; }
+.litsycal-size-md-plus .litsycal-agenda-time-row { padding-left: 17px; }
 
 /* Agenda text/markers scale with the same size preference (Large) */
 .litsycal-size-lg .litsycal-agenda-day-name { font-size: 1.00em; }

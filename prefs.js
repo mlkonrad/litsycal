@@ -321,15 +321,13 @@ export default class LitsycalPrefs extends ExtensionPreferences {
 
         const scale = new Gtk.Scale({
             orientation:   Gtk.Orientation.HORIZONTAL,
-            adjustment:    new Gtk.Adjustment({lower: 0, upper: 2, step_increment: 1}),
+            adjustment:    new Gtk.Adjustment({lower: 0, upper: 4, step_increment: 1}),
             draw_value:    false,
             round_digits:  0,
             hexpand:       true,
             width_request: 140,
         });
-        scale.add_mark(0, Gtk.PositionType.BOTTOM, null);
-        scale.add_mark(1, Gtk.PositionType.BOTTOM, null);
-        scale.add_mark(2, Gtk.PositionType.BOTTOM, null);
+        for (let i = 0; i <= 4; i++) scale.add_mark(i, Gtk.PositionType.BOTTOM, null);
         scale.set_value(settings.get_int('calendar-size'));
         scale.connect('value-changed', () => {
             settings.set_int('calendar-size', Math.round(scale.get_value()));

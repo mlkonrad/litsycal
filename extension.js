@@ -39,6 +39,10 @@ function localeDayAbbrs() {
 
 const DAY_COL = {mo:0, tu:1, we:2, th:3, fr:4, sa:5, su:6};
 
+// calendar-size index -> style class (index 2 "Medium" is the base CSS, no class needed).
+const SIZE_CLASSES = ['litsycal-size-sm', 'litsycal-size-sm-plus', null, 'litsycal-size-md-plus', 'litsycal-size-lg'];
+const SIZE_MIN_WIDTHS = [220, 238, 255, 285, 315]; // must match the widths above
+
 // ── Accent colour ─────────────────────────────────────────────────────────────
 
 const ACCENT_MAP = {
@@ -368,11 +372,13 @@ class LitsycalCalendar extends St.BoxLayout {
         this._dotBtn.style = `color: ${this._accent};`;
     }
 
+    // calendar-size: 0=S, 1=S+, 2=M (no class — the base CSS values), 3=M+, 4=L
     _applySizeClass() {
-        this.remove_style_class_name('litsycal-size-sm');
-        this.remove_style_class_name('litsycal-size-lg');
-        if (this._calSize === 0) this.add_style_class_name('litsycal-size-sm');
-        else if (this._calSize === 2) this.add_style_class_name('litsycal-size-lg');
+        for (const cls of SIZE_CLASSES) {
+            if (cls) this.remove_style_class_name(cls);
+        }
+        const cls = SIZE_CLASSES[this._calSize];
+        if (cls) this.add_style_class_name(cls);
     }
 
     _applyTheme() {
@@ -1180,9 +1186,8 @@ class LitsycalIndicator extends PanelMenu.Button {
         this._menuItem.remove_child(this._calWidget);
         this._floatingBox.add_child(this._calWidget);
 
-        const sizeMinWidths = [220, 255, 315]; // must match .litsycal-size-sm/-lg / base min-width
         const calW = this._calWidget.get_width()
-            || sizeMinWidths[this._settings.get_int('calendar-size')] || 255;
+            || SIZE_MIN_WIDTHS[this._settings.get_int('calendar-size')] || 255;
         let x = Math.round(btnX + btnW / 2 - calW / 2);
         x = Math.max(monitor.x + 4, Math.min(x, monitor.x + monitor.width - calW - 4));
         this._floatingBox.set_position(x, monitor.y + panelH + 4);

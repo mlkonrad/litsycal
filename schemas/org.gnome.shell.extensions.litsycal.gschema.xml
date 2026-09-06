@@ -70,8 +70,8 @@
 
     <!-- Appearance – calendar -->
     <key name="calendar-size" type="i">
-      <default>1</default>
-      <summary>Calendar size: 0 = small, 1 = medium, 2 = large</summary>
+      <default>2</default>
+      <summary>Calendar size: 0=S, 1=S+, 2=M, 3=M+, 4=L</summary>
     </key>
     <key name="highlight-days" type="as">
       <default>['sa','su']</default>
