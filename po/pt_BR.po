@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Litsycal 1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-06 21:04+0300\n"
+"POT-Creation-Date: 2026-09-06 21:06+0300\n"
 "PO-Revision-Date: 2026-05-06 00:00+0000\n"
 "Last-Translator: Marlon Konrad <marlonk@gmail.com>\n"
 "Language-Team: Brazilian Portuguese\n"
@@ -70,202 +70,348 @@ msgstr ""
 msgid "Preferences"
 msgstr ""
 
-#: extension.js:741
+#: extension.js:741 prefs.js:24 prefs.js:283
 msgid "Calendar"
 msgstr "Calendário"
 
-#~ msgid "Event title"
-#~ msgstr "Título do evento"
+#: prefs.js:18
+msgid "General"
+msgstr "Geral"
+
+#: prefs.js:33
+msgid "First day of week"
+msgstr "Primeiro dia da semana"
+
+#: prefs.js:43
+msgid "Keyboard Shortcut"
+msgstr "Atalho de teclado"
+
+#: prefs.js:47
+msgid "Show / hide calendar"
+msgstr "Mostrar / ocultar calendário"
+
+#: prefs.js:48
+msgid "Global shortcut to toggle the calendar popup"
+msgstr "Atalho global para alternar o calendário"
+
+#: prefs.js:54 prefs.js:89
+msgid "Not set"
+msgstr "Não definido"
+
+#: prefs.js:67
+msgid "Record Shortcut"
+msgstr "Gravar atalho"
+
+#: prefs.js:68
+msgid ""
+"Press the key combination you want to use.\n"
+"Esc = cancel  ·  Backspace = clear."
+msgstr ""
+"Pressione a combinação de teclas desejada.\n"
+"Esc = cancelar  ·  Backspace = limpar."
+
+#: prefs.js:75
+msgid "Waiting for keypress…"
+msgstr "Aguardando tecla…"
+
+#: prefs.js:79 eventDialog.js:250
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: prefs.js:119
+msgid "Startup"
+msgstr "Inicialização"
+
+#: prefs.js:123
+msgid "Automatically check for updates"
+msgstr "Verificar atualizações automaticamente"
+
+#: prefs.js:124
+msgid "Check for new versions in the background"
+msgstr "Verificar novas versões em segundo plano"
+
+#: prefs.js:130
+msgid "Other"
+msgstr "Outros"
+
+#: prefs.js:135
+msgid "Beep on the hour"
+msgstr "Bipe na hora certa"
+
+#: prefs.js:136
+msgid "Play a sound at the start of every hour"
+msgstr "Tocar um som no início de cada hora"
+
+#: prefs.js:154
+msgid "Preview the sound"
+msgstr "Pré-visualizar o som"
+
+#: prefs.js:178
+msgid "Appearance"
+msgstr "Aparência"
+
+#: prefs.js:184
+msgid "Panel Icon"
+msgstr "Ícone do painel"
+
+#: prefs.js:188
+msgid "Number — light"
+msgstr "Número — claro"
+
+#: prefs.js:188
+msgid "Number — dark"
+msgstr "Número — escuro"
+
+#: prefs.js:188
+msgid "Calendar — light"
+msgstr "Calendário — claro"
+
+#: prefs.js:188
+msgid "Calendar — dark"
+msgstr "Calendário — escuro"
+
+#: prefs.js:191
+msgid "Icon style"
+msgstr "Estilo do ícone"
+
+#: prefs.js:202
+msgid "Show month in icon"
+msgstr "Mostrar mês no ícone"
+
+#: prefs.js:206
+msgid "Show day of week in icon"
+msgstr "Mostrar dia da semana no ícone"
+
+#: prefs.js:210
+msgid "Show time in icon"
+msgstr "Mostrar hora no ícone"
+
+#: prefs.js:215
+msgid "24-hour (13:05)"
+msgstr "24 horas (13:05)"
+
+#: prefs.js:215
+msgid "12-hour (1:05pm)"
+msgstr "12 horas (1:05pm)"
+
+#: prefs.js:217
+msgid "Time format"
+msgstr "Formato de hora"
+
+#: prefs.js:233
+msgid "Custom datetime pattern"
+msgstr "Padrão personalizado de data/hora"
+
+#: prefs.js:234
+msgid "Overrides other icon text when set"
+msgstr "Substitui o texto do ícone quando definido"
+
+#: prefs.js:244
+msgid "Pattern help"
+msgstr "Ajuda de padrão"
+
+#: prefs.js:248
+#, fuzzy
+msgid "Datetime Pattern"
+msgstr "Padrão personalizado de data/hora"
+
+#: prefs.js:249
+msgid ""
+"Uses strftime format codes:\n"
+"\n"
+"%d  — Day number (01–31)\n"
+"%m  — Month number (01–12)\n"
+"%b  — Month abbrev (Jan, Feb…)\n"
+"%a  — Weekday abbrev (Mon, Tue…)\n"
+"%Y  — Full year (2026)\n"
+"%H  — Hour, 24-hour (00–23)\n"
+"%I  — Hour, 12-hour (01–12)\n"
+"%M  — Minutes (00–59)\n"
+"%P  — am or pm\n"
+"\n"
+"Examples:\n"
+"  %d/%m       → 03/05\n"
+"  %a %d       → Sun 03\n"
+"  %d %b %Y    → 03 May 2026\n"
+"  %H:%M       → 13:05\n"
+"  %-I:%M%P    → 1:05pm\n"
+"  %d %H:%M    → 03 13:05"
+msgstr ""
+
+#: prefs.js:269
+msgid "OK"
+msgstr "OK"
+
+#: prefs.js:278
+msgid "Hide icon"
+msgstr "Ocultar ícone"
+
+#: prefs.js:286
+msgid "Size"
+msgstr "Tamanho"
+
+#: prefs.js:286
+msgid "Applied on-the-fly"
+msgstr "Aplicado em tempo real"
+
+#: prefs.js:288
+msgid "S"
+msgstr "P"
+
+#: prefs.js:306
+msgid "L"
+msgstr "G"
+
+#: prefs.js:312
+msgid "Highlighted Days"
+msgstr "Dias destacados"
+
+#: prefs.js:313
+msgid "Tints the selected day columns across the entire calendar grid"
+msgstr "Colore as colunas dos dias selecionados em toda a grade"
+
+#: prefs.js:317
+msgid "Highlight columns"
+msgstr "Destacar colunas"
+
+#: prefs.js:343
+msgid "Theme"
+msgstr "Tema"
+
+#: prefs.js:347
+msgid "System"
+msgstr "Sistema"
+
+#: prefs.js:347
+msgid "Light"
+msgstr "Claro"
+
+#: prefs.js:347
+msgid "Dark"
+msgstr "Escuro"
+
+#: prefs.js:350
+msgid "Colour scheme"
+msgstr "Esquema de cores"
+
+#: prefs.js:351
+msgid "System follows your GNOME appearance setting"
+msgstr "Sistema segue sua configuração de aparência do GNOME"
+
+#: prefs.js:362
+msgid "Weekend Days"
+msgstr "Dias de fim de semana"
+
+#: prefs.js:366
+msgid "Default (red)"
+msgstr "Padrão (vermelho)"
+
+#: prefs.js:366
+msgid "No colour"
+msgstr "Sem cor"
+
+#: prefs.js:366
+msgid "Custom…"
+msgstr "Personalizado…"
+
+#: prefs.js:369
+msgid "Weekend day colour"
+msgstr "Cor dos dias de fim de semana"
+
+#: prefs.js:375
+msgid "Custom colour"
+msgstr "Cor personalizada"
+
+#: prefs.js:405
+msgid "About"
+msgstr "Sobre"
+
+#: prefs.js:417
+msgid "Inspired by Itsycal for macOS"
+msgstr "Inspirado no Itsycal para macOS"
+
+#: prefs.js:418
+msgid "Original by Sanjay Madan • Linux port by mlkonrad"
+msgstr "Original por Sanjay Madan • Versão Linux por mlkonrad"
+
+#: eventDialog.js:98
+msgid "Event title"
+msgstr "Título do evento"
+
+#: eventDialog.js:151
+msgid "All-day"
+msgstr ""
+
+#: eventDialog.js:154 eventDialog.js:289
+msgid "On"
+msgstr ""
+
+#: eventDialog.js:154 eventDialog.js:289
+msgid "Off"
+msgstr ""
+
+#: eventDialog.js:166
+msgid "Starts"
+msgstr ""
+
+#: eventDialog.js:181
+msgid "Ends"
+msgstr ""
+
+#: eventDialog.js:198
+msgid "URL"
+msgstr ""
+
+#: eventDialog.js:222
+msgid "Notes"
+msgstr ""
+
+#: eventDialog.js:225
+msgid "Add notes…"
+msgstr ""
+
+#: eventDialog.js:245
+msgid "Delete"
+msgstr ""
+
+#: eventDialog.js:252
+msgid "Save Event"
+msgstr ""
+
+#: eventDialog.js:280
+#, fuzzy
+msgid "No calendar"
+msgstr "Calendário"
+
+#: eventDialog.js:332
+#, fuzzy
+msgid "Title required"
+msgstr "Título é obrigatório"
+
+#: eventDialog.js:333
+#, fuzzy
+msgid "No calendar available"
+msgstr "Nenhum calendário disponível"
+
+#: eventDialog.js:336
+msgid "Invalid date (YYYY-MM-DD)"
+msgstr ""
+
+#: eventDialog.js:343
+#, fuzzy
+msgid "Invalid start time (HH:MM)"
+msgstr "Hora inválida"
+
+#: eventDialog.js:344
+#, fuzzy
+msgid "Invalid end time (HH:MM)"
+msgstr "Hora inválida"
 
 #~ msgid "Time:"
 #~ msgstr "Hora:"
 
-#~ msgid "Cancel"
-#~ msgstr "Cancelar"
-
 #~ msgid "Create"
 #~ msgstr "Criar"
 
-#~ msgid "Title is required"
-#~ msgstr "Título é obrigatório"
-
-#~ msgid "No calendars available"
-#~ msgstr "Nenhum calendário disponível"
-
 #~ msgid "Failed to create event"
 #~ msgstr "Falha ao criar evento"
-
-#~ msgid "Invalid time"
-#~ msgstr "Hora inválida"
-
-#~ msgid "General"
-#~ msgstr "Geral"
-
-#~ msgid "Appearance"
-#~ msgstr "Aparência"
-
-#~ msgid "About"
-#~ msgstr "Sobre"
-
-#~ msgid "Keyboard Shortcut"
-#~ msgstr "Atalho de teclado"
-
-#~ msgid "Show / hide calendar"
-#~ msgstr "Mostrar / ocultar calendário"
-
-#~ msgid "Global shortcut to toggle the calendar popup"
-#~ msgstr "Atalho global para alternar o calendário"
-
-#~ msgid "Not set"
-#~ msgstr "Não definido"
-
-#~ msgid "Record Shortcut"
-#~ msgstr "Gravar atalho"
-
-#~ msgid ""
-#~ "Press the key combination you want to use.\n"
-#~ "Esc = cancel  ·  Backspace = clear."
-#~ msgstr ""
-#~ "Pressione a combinação de teclas desejada.\n"
-#~ "Esc = cancelar  ·  Backspace = limpar."
-
-#~ msgid "Waiting for keypress…"
-#~ msgstr "Aguardando tecla…"
-
-#~ msgid "Startup"
-#~ msgstr "Inicialização"
-
-#~ msgid "Automatically check for updates"
-#~ msgstr "Verificar atualizações automaticamente"
-
-#~ msgid "Check for new versions in the background"
-#~ msgstr "Verificar novas versões em segundo plano"
-
-#~ msgid "Other"
-#~ msgstr "Outros"
-
-#~ msgid "Beep on the hour"
-#~ msgstr "Bipe na hora certa"
-
-#~ msgid "Play a sound at the start of every hour"
-#~ msgstr "Tocar um som no início de cada hora"
-
-#~ msgid "Preview the sound"
-#~ msgstr "Pré-visualizar o som"
-
-#~ msgid "Panel Icon"
-#~ msgstr "Ícone do painel"
-
-#~ msgid "Icon style"
-#~ msgstr "Estilo do ícone"
-
-#~ msgid "Number — light"
-#~ msgstr "Número — claro"
-
-#~ msgid "Number — dark"
-#~ msgstr "Número — escuro"
-
-#~ msgid "Calendar — light"
-#~ msgstr "Calendário — claro"
-
-#~ msgid "Calendar — dark"
-#~ msgstr "Calendário — escuro"
-
-#~ msgid "Show month in icon"
-#~ msgstr "Mostrar mês no ícone"
-
-#~ msgid "Show day of week in icon"
-#~ msgstr "Mostrar dia da semana no ícone"
-
-#~ msgid "Show time in icon"
-#~ msgstr "Mostrar hora no ícone"
-
-#~ msgid "Time format"
-#~ msgstr "Formato de hora"
-
-#~ msgid "24-hour (13:05)"
-#~ msgstr "24 horas (13:05)"
-
-#~ msgid "12-hour (1:05pm)"
-#~ msgstr "12 horas (1:05pm)"
-
-#~ msgid "Custom datetime pattern"
-#~ msgstr "Padrão personalizado de data/hora"
-
-#~ msgid "Overrides other icon text when set"
-#~ msgstr "Substitui o texto do ícone quando definido"
-
-#~ msgid "Pattern help"
-#~ msgstr "Ajuda de padrão"
-
-#~ msgid "Hide icon"
-#~ msgstr "Ocultar ícone"
-
-#~ msgid "Size"
-#~ msgstr "Tamanho"
-
-#~ msgid "Applied on-the-fly"
-#~ msgstr "Aplicado em tempo real"
-
-#~ msgid "S"
-#~ msgstr "P"
-
-#~ msgid "L"
-#~ msgstr "G"
-
-#~ msgid "Highlighted Days"
-#~ msgstr "Dias destacados"
-
-#~ msgid "Tints the selected day columns across the entire calendar grid"
-#~ msgstr "Colore as colunas dos dias selecionados em toda a grade"
-
-#~ msgid "Highlight columns"
-#~ msgstr "Destacar colunas"
-
-#~ msgid "Theme"
-#~ msgstr "Tema"
-
-#~ msgid "Colour scheme"
-#~ msgstr "Esquema de cores"
-
-#~ msgid "System follows your GNOME appearance setting"
-#~ msgstr "Sistema segue sua configuração de aparência do GNOME"
-
-#~ msgid "System"
-#~ msgstr "Sistema"
-
-#~ msgid "Light"
-#~ msgstr "Claro"
-
-#~ msgid "Dark"
-#~ msgstr "Escuro"
-
-#~ msgid "Weekend Days"
-#~ msgstr "Dias de fim de semana"
-
-#~ msgid "Weekend day colour"
-#~ msgstr "Cor dos dias de fim de semana"
-
-#~ msgid "Default (red)"
-#~ msgstr "Padrão (vermelho)"
-
-#~ msgid "No colour"
-#~ msgstr "Sem cor"
-
-#~ msgid "Custom…"
-#~ msgstr "Personalizado…"
-
-#~ msgid "Custom colour"
-#~ msgstr "Cor personalizada"
-
-#~ msgid "Inspired by Itsycal for macOS"
-#~ msgstr "Inspirado no Itsycal para macOS"
-
-#~ msgid "Original by Sanjay Madan • Linux port by mlkonrad"
-#~ msgstr "Original por Sanjay Madan • Versão Linux por mlkonrad"
-
-#~ msgid "First day of week"
-#~ msgstr "Primeiro dia da semana"
-
-#~ msgid "OK"
-#~ msgstr "OK"

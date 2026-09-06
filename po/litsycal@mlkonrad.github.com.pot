@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Litsycal\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-06 21:04+0300\n"
+"POT-Creation-Date: 2026-09-06 21:06+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -73,6 +73,331 @@ msgstr ""
 msgid "Preferences"
 msgstr ""
 
-#: extension.js:741
+#: extension.js:741 prefs.js:24 prefs.js:283
 msgid "Calendar"
+msgstr ""
+
+#: prefs.js:18
+msgid "General"
+msgstr ""
+
+#: prefs.js:33
+msgid "First day of week"
+msgstr ""
+
+#: prefs.js:43
+msgid "Keyboard Shortcut"
+msgstr ""
+
+#: prefs.js:47
+msgid "Show / hide calendar"
+msgstr ""
+
+#: prefs.js:48
+msgid "Global shortcut to toggle the calendar popup"
+msgstr ""
+
+#: prefs.js:54 prefs.js:89
+msgid "Not set"
+msgstr ""
+
+#: prefs.js:67
+msgid "Record Shortcut"
+msgstr ""
+
+#: prefs.js:68
+msgid ""
+"Press the key combination you want to use.\n"
+"Esc = cancel  ·  Backspace = clear."
+msgstr ""
+
+#: prefs.js:75
+msgid "Waiting for keypress…"
+msgstr ""
+
+#: prefs.js:79 eventDialog.js:250
+msgid "Cancel"
+msgstr ""
+
+#: prefs.js:119
+msgid "Startup"
+msgstr ""
+
+#: prefs.js:123
+msgid "Automatically check for updates"
+msgstr ""
+
+#: prefs.js:124
+msgid "Check for new versions in the background"
+msgstr ""
+
+#: prefs.js:130
+msgid "Other"
+msgstr ""
+
+#: prefs.js:135
+msgid "Beep on the hour"
+msgstr ""
+
+#: prefs.js:136
+msgid "Play a sound at the start of every hour"
+msgstr ""
+
+#: prefs.js:154
+msgid "Preview the sound"
+msgstr ""
+
+#: prefs.js:178
+msgid "Appearance"
+msgstr ""
+
+#: prefs.js:184
+msgid "Panel Icon"
+msgstr ""
+
+#: prefs.js:188
+msgid "Number — light"
+msgstr ""
+
+#: prefs.js:188
+msgid "Number — dark"
+msgstr ""
+
+#: prefs.js:188
+msgid "Calendar — light"
+msgstr ""
+
+#: prefs.js:188
+msgid "Calendar — dark"
+msgstr ""
+
+#: prefs.js:191
+msgid "Icon style"
+msgstr ""
+
+#: prefs.js:202
+msgid "Show month in icon"
+msgstr ""
+
+#: prefs.js:206
+msgid "Show day of week in icon"
+msgstr ""
+
+#: prefs.js:210
+msgid "Show time in icon"
+msgstr ""
+
+#: prefs.js:215
+msgid "24-hour (13:05)"
+msgstr ""
+
+#: prefs.js:215
+msgid "12-hour (1:05pm)"
+msgstr ""
+
+#: prefs.js:217
+msgid "Time format"
+msgstr ""
+
+#: prefs.js:233
+msgid "Custom datetime pattern"
+msgstr ""
+
+#: prefs.js:234
+msgid "Overrides other icon text when set"
+msgstr ""
+
+#: prefs.js:244
+msgid "Pattern help"
+msgstr ""
+
+#: prefs.js:248
+msgid "Datetime Pattern"
+msgstr ""
+
+#: prefs.js:249
+msgid ""
+"Uses strftime format codes:\n"
+"\n"
+"%d  — Day number (01–31)\n"
+"%m  — Month number (01–12)\n"
+"%b  — Month abbrev (Jan, Feb…)\n"
+"%a  — Weekday abbrev (Mon, Tue…)\n"
+"%Y  — Full year (2026)\n"
+"%H  — Hour, 24-hour (00–23)\n"
+"%I  — Hour, 12-hour (01–12)\n"
+"%M  — Minutes (00–59)\n"
+"%P  — am or pm\n"
+"\n"
+"Examples:\n"
+"  %d/%m       → 03/05\n"
+"  %a %d       → Sun 03\n"
+"  %d %b %Y    → 03 May 2026\n"
+"  %H:%M       → 13:05\n"
+"  %-I:%M%P    → 1:05pm\n"
+"  %d %H:%M    → 03 13:05"
+msgstr ""
+
+#: prefs.js:269
+msgid "OK"
+msgstr ""
+
+#: prefs.js:278
+msgid "Hide icon"
+msgstr ""
+
+#: prefs.js:286
+msgid "Size"
+msgstr ""
+
+#: prefs.js:286
+msgid "Applied on-the-fly"
+msgstr ""
+
+#: prefs.js:288
+msgid "S"
+msgstr ""
+
+#: prefs.js:306
+msgid "L"
+msgstr ""
+
+#: prefs.js:312
+msgid "Highlighted Days"
+msgstr ""
+
+#: prefs.js:313
+msgid "Tints the selected day columns across the entire calendar grid"
+msgstr ""
+
+#: prefs.js:317
+msgid "Highlight columns"
+msgstr ""
+
+#: prefs.js:343
+msgid "Theme"
+msgstr ""
+
+#: prefs.js:347
+msgid "System"
+msgstr ""
+
+#: prefs.js:347
+msgid "Light"
+msgstr ""
+
+#: prefs.js:347
+msgid "Dark"
+msgstr ""
+
+#: prefs.js:350
+msgid "Colour scheme"
+msgstr ""
+
+#: prefs.js:351
+msgid "System follows your GNOME appearance setting"
+msgstr ""
+
+#: prefs.js:362
+msgid "Weekend Days"
+msgstr ""
+
+#: prefs.js:366
+msgid "Default (red)"
+msgstr ""
+
+#: prefs.js:366
+msgid "No colour"
+msgstr ""
+
+#: prefs.js:366
+msgid "Custom…"
+msgstr ""
+
+#: prefs.js:369
+msgid "Weekend day colour"
+msgstr ""
+
+#: prefs.js:375
+msgid "Custom colour"
+msgstr ""
+
+#: prefs.js:405
+msgid "About"
+msgstr ""
+
+#: prefs.js:417
+msgid "Inspired by Itsycal for macOS"
+msgstr ""
+
+#: prefs.js:418
+msgid "Original by Sanjay Madan • Linux port by mlkonrad"
+msgstr ""
+
+#: eventDialog.js:98
+msgid "Event title"
+msgstr ""
+
+#: eventDialog.js:151
+msgid "All-day"
+msgstr ""
+
+#: eventDialog.js:154 eventDialog.js:289
+msgid "On"
+msgstr ""
+
+#: eventDialog.js:154 eventDialog.js:289
+msgid "Off"
+msgstr ""
+
+#: eventDialog.js:166
+msgid "Starts"
+msgstr ""
+
+#: eventDialog.js:181
+msgid "Ends"
+msgstr ""
+
+#: eventDialog.js:198
+msgid "URL"
+msgstr ""
+
+#: eventDialog.js:222
+msgid "Notes"
+msgstr ""
+
+#: eventDialog.js:225
+msgid "Add notes…"
+msgstr ""
+
+#: eventDialog.js:245
+msgid "Delete"
+msgstr ""
+
+#: eventDialog.js:252
+msgid "Save Event"
+msgstr ""
+
+#: eventDialog.js:280
+msgid "No calendar"
+msgstr ""
+
+#: eventDialog.js:332
+msgid "Title required"
+msgstr ""
+
+#: eventDialog.js:333
+msgid "No calendar available"
+msgstr ""
+
+#: eventDialog.js:336
+msgid "Invalid date (YYYY-MM-DD)"
+msgstr ""
+
+#: eventDialog.js:343
+msgid "Invalid start time (HH:MM)"
+msgstr ""
+
+#: eventDialog.js:344
+msgid "Invalid end time (HH:MM)"
 msgstr ""
