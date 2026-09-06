@@ -10,6 +10,7 @@ export class CalendarManager {
         this._clients   = new Map();   // uid → {client, color, name}
         this._views     = new Map();   // uid → ECalClientView (live change listener)
         this._events    = [];
+        this._byDate    = new Map();   // dateStr → Event[] (sorted, kept in sync with _events)
         this._registry  = null;
         this._year      = null;
         this._month     = null;
@@ -83,6 +84,7 @@ export class CalendarManager {
         try { entry.client.disconnect(null); } catch(_) {} // already gone; nothing actionable
         this._clients.delete(uid);
         this._events = this._events.filter(e => e.clientUid !== uid);
+        this._reindex();
         this._onEventsChanged(this._events);
     }
 
@@ -208,7 +210,30 @@ export class CalendarManager {
             }
         }
 
+        this._reindex();
         this._onEventsChanged(this._events);
+    }
+
+    // ── Index ─────────────────────────────────────────────────────────────────
+
+    _reindex() {
+        this._byDate = new Map();
+        for (const ev of this._events) {
+            let bucket = this._byDate.get(ev.date);
+            if (!bucket) { bucket = []; this._byDate.set(ev.date, bucket); }
+            bucket.push(ev);
+        }
+        for (const bucket of this._byDate.values()) {
+            bucket.sort((a, b) => {
+                if (a.allDay && !b.allDay) return -1;
+                if (!a.allDay && b.allDay) return  1;
+                return (a.time ?? '').localeCompare(b.time ?? '');
+            });
+        }
+    }
+
+    getEventsForDate(ds) {
+        return this._byDate.get(ds) ?? [];
     }
 
     // ── iCal builder ─────────────────────────────────────────────────────────
@@ -297,6 +322,7 @@ export class CalendarManager {
                 entry.client.remove_object_finish(res);
                 onDone?.(null);
                 this._events = this._events.filter(e => !(e.uid === uid && e.clientUid === clientUid));
+                this._reindex();
                 this._onEventsChanged(this._events);
             } catch(e) { onDone?.(e); }
         });

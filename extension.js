@@ -155,7 +155,6 @@ class LitsycalCalendar extends St.BoxLayout {
         this._openCalendar = openCalendar;
         this._onPinToggle  = onPinToggle;
         this._accent    = readAccent();
-        this._events    = [];
 
         const now      = GLib.DateTime.new_now_local();
         this._year     = now.get_year();
@@ -242,8 +241,7 @@ class LitsycalCalendar extends St.BoxLayout {
 
         this._buildFooter();
 
-        this._calManager = new CalendarManager(events => {
-            this._events = events;
+        this._calManager = new CalendarManager(() => {
             this._buildGrid();
             this._buildAgenda();
         });
@@ -459,7 +457,7 @@ class LitsycalCalendar extends St.BoxLayout {
 
         const dotRow = new St.BoxLayout({style_class: 'litsycal-dot-row', x_expand: true});
         dotRow.set_x_align(Clutter.ActorAlign.CENTER);
-        for (const ev of this._events.filter(e => e.date === ds).slice(0, 3)) {
+        for (const ev of this._calManager.getEventsForDate(ds).slice(0, 3)) {
             const dot = new St.Widget({style_class: 'litsycal-event-dot'});
             dot.style = `background-color: ${ev.color};`;
             dotRow.add_child(dot);
@@ -488,13 +486,7 @@ class LitsycalCalendar extends St.BoxLayout {
         for (let i = 0; i < 7; i++) {
             const day = today.add_days(i);
             const ds  = dateStr(day);
-            const evs = this._events
-                .filter(e => e.date === ds)
-                .sort((a, b) => {
-                    if (a.allDay && !b.allDay) return -1;
-                    if (!a.allDay && b.allDay) return  1;
-                    return (a.time ?? '').localeCompare(b.time ?? '');
-                });
+            const evs = this._calManager.getEventsForDate(ds);
             if (i === 0 || evs.length > 0)
                 groups.push({day, ds, evs, i});
         }
