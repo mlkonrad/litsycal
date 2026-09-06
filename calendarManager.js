@@ -5,7 +5,8 @@ import GLib        from 'gi://GLib';
 
 export class CalendarManager {
 
-    constructor(onEventsChanged) {
+    constructor(settings, onEventsChanged) {
+        this._settings  = settings;
         this._onEventsChanged = onEventsChanged;
         this._clients   = new Map();   // uid → {client, color, name}
         this._views     = new Map();   // uid → ECalClientView (live change listener)
@@ -15,6 +16,12 @@ export class CalendarManager {
         this._year      = null;
         this._month     = null;
         this._available = false;
+        this._disabled  = new Set(settings.get_strv('disabled-calendars'));
+        this._disabledCalsSettingsId = settings.connect('changed::disabled-calendars', () => {
+            this._disabled = new Set(settings.get_strv('disabled-calendars'));
+            this._reindex();
+            this._onEventsChanged(this._events);
+        });
         this._initRegistry();
     }
 
@@ -293,6 +300,7 @@ export class CalendarManager {
     _reindex() {
         this._byDate = new Map();
         for (const ev of this._events) {
+            if (this._disabled.has(ev.clientUid)) continue;
             let bucket = this._byDate.get(ev.date);
             if (!bucket) { bucket = []; this._byDate.set(ev.date, bucket); }
             bucket.push(ev);
@@ -454,12 +462,18 @@ export class CalendarManager {
     isAvailable() { return this._available; }
     getEvents()   { return this._events; }
     getSources()  {
-        return [...this._clients.entries()].map(([uid, {name, color}]) => ({uid, name, color}));
+        return [...this._clients.entries()]
+            .filter(([uid]) => !this._disabled.has(uid))
+            .map(([uid, {name, color}]) => ({uid, name, color}));
     }
 
     // ── Cleanup ───────────────────────────────────────────────────────────────
 
     destroy() {
+        if (this._disabledCalsSettingsId) {
+            this._settings.disconnect(this._disabledCalsSettingsId);
+            this._disabledCalsSettingsId = null;
+        }
         for (const uid of [...this._views.keys()]) this._stopView(uid);
         if (this._registry) {
             for (const id of [this._addedId, this._removedId, this._enabledId, this._disabledId])

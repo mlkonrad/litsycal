@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Litsycal\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-06 22:55+0300\n"
+"POT-Creation-Date: 2026-09-07 00:02+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,320 +18,67 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: extension.js:303 eventDialog.js:577
+#: extension.js:365 eventDialog.js:577
 msgid "Previous month"
 msgstr ""
 
-#: extension.js:305
+#: extension.js:367
 msgid "Go to today"
 msgstr ""
 
-#: extension.js:307 eventDialog.js:580
+#: extension.js:369 eventDialog.js:580
 msgid "Next month"
 msgstr ""
 
-#: extension.js:488 extension.js:517
+#: extension.js:574 extension.js:603
 msgid "Today"
 msgstr ""
 
-#: extension.js:492
+#: extension.js:578
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] ""
 msgstr[1] ""
 
-#: extension.js:518
+#: extension.js:604
 msgid "Tomorrow"
 msgstr ""
 
-#: extension.js:533
+#: extension.js:619
 msgid "No events"
 msgstr ""
 
-#: extension.js:553 extension.js:559
+#: extension.js:639 extension.js:645
 msgid "All day"
 msgstr ""
 
-#: extension.js:567
+#: extension.js:658 extension.js:659
+msgid "Join meeting"
+msgstr ""
+
+#: extension.js:670
 msgid "Open link"
 msgstr ""
 
-#: extension.js:602
+#: extension.js:705
 msgid "New event"
 msgstr ""
 
-#: extension.js:605
+#: extension.js:708
 msgid "Pin calendar open"
 msgstr ""
 
-#: extension.js:610
+#: extension.js:713
 msgid "Open Calendar app"
 msgstr ""
 
-#: extension.js:613
+#: extension.js:716
 msgid "Preferences"
 msgstr ""
 
-#: extension.js:743 prefs.js:24 prefs.js:283
+#: extension.js:855 prefs.js:25 prefs.js:292
 msgid "Calendar"
-msgstr ""
-
-#: prefs.js:18
-msgid "General"
-msgstr ""
-
-#: prefs.js:33
-msgid "First day of week"
-msgstr ""
-
-#: prefs.js:43
-msgid "Keyboard Shortcut"
-msgstr ""
-
-#: prefs.js:47
-msgid "Show / hide calendar"
-msgstr ""
-
-#: prefs.js:48
-msgid "Global shortcut to toggle the calendar popup"
-msgstr ""
-
-#: prefs.js:54 prefs.js:89
-msgid "Not set"
-msgstr ""
-
-#: prefs.js:67
-msgid "Record Shortcut"
-msgstr ""
-
-#: prefs.js:68
-msgid ""
-"Press the key combination you want to use.\n"
-"Esc = cancel  ·  Backspace = clear."
-msgstr ""
-
-#: prefs.js:75
-msgid "Waiting for keypress…"
-msgstr ""
-
-#: prefs.js:79 eventDialog.js:361 eventDialog.js:844
-msgid "Cancel"
-msgstr ""
-
-#: prefs.js:119
-msgid "Startup"
-msgstr ""
-
-#: prefs.js:123
-msgid "Automatically check for updates"
-msgstr ""
-
-#: prefs.js:124
-msgid "Check for new versions in the background"
-msgstr ""
-
-#: prefs.js:130
-msgid "Other"
-msgstr ""
-
-#: prefs.js:135
-msgid "Beep on the hour"
-msgstr ""
-
-#: prefs.js:136
-msgid "Play a sound at the start of every hour"
-msgstr ""
-
-#: prefs.js:154
-msgid "Preview the sound"
-msgstr ""
-
-#: prefs.js:178
-msgid "Appearance"
-msgstr ""
-
-#: prefs.js:184
-msgid "Panel Icon"
-msgstr ""
-
-#: prefs.js:188
-msgid "Number — light"
-msgstr ""
-
-#: prefs.js:188
-msgid "Number — dark"
-msgstr ""
-
-#: prefs.js:188
-msgid "Calendar — light"
-msgstr ""
-
-#: prefs.js:188
-msgid "Calendar — dark"
-msgstr ""
-
-#: prefs.js:191
-msgid "Icon style"
-msgstr ""
-
-#: prefs.js:202
-msgid "Show month in icon"
-msgstr ""
-
-#: prefs.js:206
-msgid "Show day of week in icon"
-msgstr ""
-
-#: prefs.js:210
-msgid "Show time in icon"
-msgstr ""
-
-#: prefs.js:215
-msgid "24-hour (13:05)"
-msgstr ""
-
-#: prefs.js:215
-msgid "12-hour (1:05pm)"
-msgstr ""
-
-#: prefs.js:217
-msgid "Time format"
-msgstr ""
-
-#: prefs.js:233
-msgid "Custom datetime pattern"
-msgstr ""
-
-#: prefs.js:234
-msgid "Overrides other icon text when set"
-msgstr ""
-
-#: prefs.js:244
-msgid "Pattern help"
-msgstr ""
-
-#: prefs.js:248
-msgid "Datetime Pattern"
-msgstr ""
-
-#: prefs.js:249
-msgid ""
-"Uses strftime format codes:\n"
-"\n"
-"%d  — Day number (01–31)\n"
-"%m  — Month number (01–12)\n"
-"%b  — Month abbrev (Jan, Feb…)\n"
-"%a  — Weekday abbrev (Mon, Tue…)\n"
-"%Y  — Full year (2026)\n"
-"%H  — Hour, 24-hour (00–23)\n"
-"%I  — Hour, 12-hour (01–12)\n"
-"%M  — Minutes (00–59)\n"
-"%P  — am or pm\n"
-"\n"
-"Examples:\n"
-"  %d/%m       → 03/05\n"
-"  %a %d       → Sun 03\n"
-"  %d %b %Y    → 03 May 2026\n"
-"  %H:%M       → 13:05\n"
-"  %-I:%M%P    → 1:05pm\n"
-"  %d %H:%M    → 03 13:05"
-msgstr ""
-
-#: prefs.js:269
-msgid "OK"
-msgstr ""
-
-#: prefs.js:278
-msgid "Hide icon"
-msgstr ""
-
-#: prefs.js:286
-msgid "Size"
-msgstr ""
-
-#: prefs.js:286
-msgid "Applied on-the-fly"
-msgstr ""
-
-#: prefs.js:288
-msgid "S"
-msgstr ""
-
-#: prefs.js:306
-msgid "L"
-msgstr ""
-
-#: prefs.js:312
-msgid "Highlighted Days"
-msgstr ""
-
-#: prefs.js:313
-msgid "Tints the selected day columns across the entire calendar grid"
-msgstr ""
-
-#: prefs.js:317
-msgid "Highlight columns"
-msgstr ""
-
-#: prefs.js:343
-msgid "Theme"
-msgstr ""
-
-#: prefs.js:347
-msgid "System"
-msgstr ""
-
-#: prefs.js:347
-msgid "Light"
-msgstr ""
-
-#: prefs.js:347
-msgid "Dark"
-msgstr ""
-
-#: prefs.js:350
-msgid "Colour scheme"
-msgstr ""
-
-#: prefs.js:351
-msgid "System follows your GNOME appearance setting"
-msgstr ""
-
-#: prefs.js:362
-msgid "Weekend Days"
-msgstr ""
-
-#: prefs.js:366
-msgid "Default (red)"
-msgstr ""
-
-#: prefs.js:366
-msgid "No colour"
-msgstr ""
-
-#: prefs.js:366
-msgid "Custom…"
-msgstr ""
-
-#: prefs.js:369
-msgid "Weekend day colour"
-msgstr ""
-
-#: prefs.js:375
-msgid "Custom colour"
-msgstr ""
-
-#: prefs.js:405
-msgid "About"
-msgstr ""
-
-#: prefs.js:417
-msgid "Inspired by Itsycal for macOS"
-msgstr ""
-
-#: prefs.js:418
-msgid "Original by Sanjay Madan • Linux port by mlkonrad"
 msgstr ""
 
 #: eventDialog.js:38 eventDialog.js:306
@@ -459,6 +206,10 @@ msgstr ""
 msgid "Delete"
 msgstr ""
 
+#: eventDialog.js:361 eventDialog.js:844 prefs.js:88
+msgid "Cancel"
+msgstr ""
+
 #: eventDialog.js:363
 msgid "Save Event"
 msgstr ""
@@ -501,4 +252,281 @@ msgstr ""
 
 #: eventDialog.js:842
 msgid "Delete all events"
+msgstr ""
+
+#: prefs.js:19
+msgid "General"
+msgstr ""
+
+#: prefs.js:34
+msgid "First day of week"
+msgstr ""
+
+#: prefs.js:45
+msgid "Calendars"
+msgstr ""
+
+#: prefs.js:46
+msgid "Choose which calendars appear in the popup and agenda"
+msgstr ""
+
+#: prefs.js:52
+msgid "Keyboard Shortcut"
+msgstr ""
+
+#: prefs.js:56
+msgid "Show / hide calendar"
+msgstr ""
+
+#: prefs.js:57
+msgid "Global shortcut to toggle the calendar popup"
+msgstr ""
+
+#: prefs.js:63 prefs.js:98
+msgid "Not set"
+msgstr ""
+
+#: prefs.js:76
+msgid "Record Shortcut"
+msgstr ""
+
+#: prefs.js:77
+msgid ""
+"Press the key combination you want to use.\n"
+"Esc = cancel  ·  Backspace = clear."
+msgstr ""
+
+#: prefs.js:84
+msgid "Waiting for keypress…"
+msgstr ""
+
+#: prefs.js:128
+msgid "Startup"
+msgstr ""
+
+#: prefs.js:132
+msgid "Automatically check for updates"
+msgstr ""
+
+#: prefs.js:133
+msgid "Check for new versions in the background"
+msgstr ""
+
+#: prefs.js:139
+msgid "Other"
+msgstr ""
+
+#: prefs.js:144
+msgid "Beep on the hour"
+msgstr ""
+
+#: prefs.js:145
+msgid "Play a sound at the start of every hour"
+msgstr ""
+
+#: prefs.js:163
+msgid "Preview the sound"
+msgstr ""
+
+#: prefs.js:187
+msgid "Appearance"
+msgstr ""
+
+#: prefs.js:193
+msgid "Panel Icon"
+msgstr ""
+
+#: prefs.js:197
+msgid "Number — light"
+msgstr ""
+
+#: prefs.js:197
+msgid "Number — dark"
+msgstr ""
+
+#: prefs.js:197
+msgid "Calendar — light"
+msgstr ""
+
+#: prefs.js:197
+msgid "Calendar — dark"
+msgstr ""
+
+#: prefs.js:197
+msgid "Text — no background"
+msgstr ""
+
+#: prefs.js:200
+msgid "Icon style"
+msgstr ""
+
+#: prefs.js:211
+msgid "Show month in icon"
+msgstr ""
+
+#: prefs.js:215
+msgid "Show day of week in icon"
+msgstr ""
+
+#: prefs.js:219
+msgid "Show time in icon"
+msgstr ""
+
+#: prefs.js:224
+msgid "24-hour (13:05)"
+msgstr ""
+
+#: prefs.js:224
+msgid "12-hour (1:05pm)"
+msgstr ""
+
+#: prefs.js:226
+msgid "Time format"
+msgstr ""
+
+#: prefs.js:242
+msgid "Custom datetime pattern"
+msgstr ""
+
+#: prefs.js:243
+msgid "Overrides other icon text when set"
+msgstr ""
+
+#: prefs.js:253
+msgid "Pattern help"
+msgstr ""
+
+#: prefs.js:257
+msgid "Datetime Pattern"
+msgstr ""
+
+#: prefs.js:258
+msgid ""
+"Uses strftime format codes:\n"
+"\n"
+"%d  — Day number (01–31)\n"
+"%m  — Month number (01–12)\n"
+"%b  — Month abbrev (Jan, Feb…)\n"
+"%a  — Weekday abbrev (Mon, Tue…)\n"
+"%Y  — Full year (2026)\n"
+"%H  — Hour, 24-hour (00–23)\n"
+"%I  — Hour, 12-hour (01–12)\n"
+"%M  — Minutes (00–59)\n"
+"%P  — am or pm\n"
+"\n"
+"Examples:\n"
+"  %d/%m       → 03/05\n"
+"  %a %d       → Sun 03\n"
+"  %d %b %Y    → 03 May 2026\n"
+"  %H:%M       → 13:05\n"
+"  %-I:%M%P    → 1:05pm\n"
+"  %d %H:%M    → 03 13:05"
+msgstr ""
+
+#: prefs.js:278
+msgid "OK"
+msgstr ""
+
+#: prefs.js:287
+msgid "Hide icon"
+msgstr ""
+
+#: prefs.js:295
+msgid "Size"
+msgstr ""
+
+#: prefs.js:295
+msgid "Applied on-the-fly"
+msgstr ""
+
+#: prefs.js:297
+msgid "S"
+msgstr ""
+
+#: prefs.js:315
+msgid "L"
+msgstr ""
+
+#: prefs.js:321
+msgid "Highlighted Days"
+msgstr ""
+
+#: prefs.js:322
+msgid "Tints the selected day columns across the entire calendar grid"
+msgstr ""
+
+#: prefs.js:326
+msgid "Highlight columns"
+msgstr ""
+
+#: prefs.js:352
+msgid "Theme"
+msgstr ""
+
+#: prefs.js:356
+msgid "System"
+msgstr ""
+
+#: prefs.js:356
+msgid "Light"
+msgstr ""
+
+#: prefs.js:356
+msgid "Dark"
+msgstr ""
+
+#: prefs.js:359
+msgid "Colour scheme"
+msgstr ""
+
+#: prefs.js:360
+msgid "System follows your GNOME appearance setting"
+msgstr ""
+
+#: prefs.js:371
+msgid "Weekend Days"
+msgstr ""
+
+#: prefs.js:375
+msgid "Default (red)"
+msgstr ""
+
+#: prefs.js:375
+msgid "No colour"
+msgstr ""
+
+#: prefs.js:375
+msgid "Custom…"
+msgstr ""
+
+#: prefs.js:378
+msgid "Weekend day colour"
+msgstr ""
+
+#: prefs.js:384
+msgid "Custom colour"
+msgstr ""
+
+#: prefs.js:414
+msgid "About"
+msgstr ""
+
+#: prefs.js:426
+msgid "Inspired by Itsycal for macOS"
+msgstr ""
+
+#: prefs.js:427
+msgid "Original by Sanjay Madan • Linux port by mlkonrad"
+msgstr ""
+
+#: prefs.js:448
+msgid "Loading calendars…"
+msgstr ""
+
+#: prefs.js:459 prefs.js:492
+msgid "Could not load calendars"
+msgstr ""
+
+#: prefs.js:469
+msgid "No calendars found"
 msgstr ""

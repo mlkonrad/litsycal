@@ -20,6 +20,10 @@
       <default>false</default>
       <summary>Play a sound on the hour</summary>
     </key>
+    <key name="disabled-calendars" type="as">
+      <default>[]</default>
+      <summary>UIDs of calendar sources hidden from the grid and agenda</summary>
+    </key>
 
     <!-- Appearance – panel badge -->
     <key name="badge-style" type="s">

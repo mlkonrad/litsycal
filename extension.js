@@ -75,6 +75,60 @@ function prevMonthOf(year, month) {
     return month===1 ? [year-1,12] : [year,month-1];
 }
 
+// ── Meeting link detection ───────────────────────────────────────────────────
+
+const MEETING_PATTERNS = [
+    /https?:\/\/([\w-]+\.)?zoom\.us\/[^\s<>"']+/i,
+    /https?:\/\/meet\.google\.com\/[^\s<>"']+/i,
+    /https?:\/\/teams\.(microsoft|live)\.com\/[^\s<>"']+/i,
+    /https?:\/\/([\w-]+\.)?webex\.com\/[^\s<>"']+/i,
+    /https?:\/\/([\w-]+\.)?gotomeeting\.com\/[^\s<>"']+/i,
+    /https?:\/\/chime\.aws\/[^\s<>"']+/i,
+    /https?:\/\/([\w-]+\.)?meet\.jit\.si\/[^\s<>"']+/i,
+    /https?:\/\/whereby\.com\/[^\s<>"']+/i,
+];
+
+// Scans the event's URL, location, and notes (in that order) for the first
+// link that matches a known video-call provider — organizers often paste the
+// dial-in link into notes/location rather than the dedicated URL field.
+function findMeetingUrl(ev) {
+    for (const text of [ev.url, ev.location, ev.notes]) {
+        if (!text) continue;
+        const urls = text.match(/https?:\/\/[^\s<>"']+/gi) ?? [];
+        for (const url of urls) {
+            if (MEETING_PATTERNS.some(re => re.test(url))) return url;
+        }
+    }
+    return null;
+}
+
+function eventTimeRange(ev) {
+    if (ev.allDay || !ev.time) return null;
+    const [y, m, d] = ev.date.split('-').map(Number);
+    const [startStr, endStr] = ev.time.split(' - ');
+    const [sh, sm] = startStr.split(':').map(Number);
+    const start = GLib.DateTime.new_local(y, m, d, sh, sm, 0);
+    let end;
+    if (endStr) {
+        const [eh, em] = endStr.trim().split(':').map(Number);
+        end = GLib.DateTime.new_local(y, m, d, eh, em, 0);
+        if (end.compare(start) < 0) end = end.add_days(1); // crosses midnight
+    } else {
+        end = start.add_hours(1);
+    }
+    return {start, end};
+}
+
+// Mirrors Itsycal: the join button appears from 15 minutes before an event
+// starts through its end. All-day events (and events with unparsable times)
+// are treated as joinable any time, since there's no meaningful window.
+function meetingIsJoinable(ev) {
+    const range = eventTimeRange(ev);
+    if (!range) return true;
+    const now = GLib.DateTime.new_now_local();
+    return now.compare(range.start.add_minutes(-15)) >= 0 && now.compare(range.end) <= 0;
+}
+
 // ── Outline painter ───────────────────────────────────────────────────────────
 
 class OutlinePainter {
@@ -226,7 +280,7 @@ class LitsycalCalendar extends St.BoxLayout {
 
         // Constructed before any _buildGrid()/_buildAgenda() call below, since
         // both read events via this._calManager.getEventsForDate().
-        this._calManager = new CalendarManager(() => {
+        this._calManager = new CalendarManager(settings, () => {
             this._buildGrid();
             this._buildAgenda();
         });
@@ -593,6 +647,23 @@ class LitsycalCalendar extends St.BoxLayout {
 
                     const evtRow = new St.BoxLayout({x_expand: true});
                     evtRow.add_child(evtBtn);
+
+                    const meetingUrl = findMeetingUrl(ev);
+                    if (meetingUrl && meetingIsJoinable(ev)) {
+                        // A plain St.Button styled with no border/background reads as a
+                        // link rather than a button; GNOME Shell's ClutterText here
+                        // doesn't support Pango's <a href> markup or 'activate-link'.
+                        const joinLink = new St.Button({
+                            style_class: 'litsycal-agenda-join-link',
+                            label: _('Join meeting'),
+                            accessible_name: _('Join meeting'),
+                        });
+                        joinLink.connect('clicked', () => {
+                            try { Gio.AppInfo.launch_default_for_uri(meetingUrl, null); } catch(_) {}
+                        });
+                        evtRow.add_child(joinLink);
+                    }
+
                     if (ev.url) {
                         const urlBtn = new St.Button({
                             style_class: 'litsycal-agenda-url-btn',
@@ -731,6 +802,9 @@ class LitsycalIndicator extends PanelMenu.Button {
         this._timer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => {
             this._updateBadge();
             this._checkHourlyBeep();
+            // Keep the meeting join-button window (15 min before → end) fresh
+            // while the calendar is actually visible.
+            if (this._menuIsOpen || this._pinned) this._calWidget?._buildAgenda();
             return GLib.SOURCE_CONTINUE;
         });
 
@@ -742,9 +816,14 @@ class LitsycalIndicator extends PanelMenu.Button {
         this._pinned      = false;
         this._floatingBox = null;
 
+        this._menuIsOpen = false;
         this._menuOpenId = this.menu.connect('open-state-changed', (_menu, open) => {
+            this._menuIsOpen = open;
             if (open && this._pinned) this._unpinCalendar(false);
-            if (open) this._calWidget._updateAgendaMaxHeight();
+            if (open) {
+                this._calWidget._updateAgendaMaxHeight();
+                this._calWidget._buildAgenda();
+            }
         });
 
         const section = new PopupMenu.PopupMenuSection();

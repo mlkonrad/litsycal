@@ -4,6 +4,7 @@ import Gtk from 'gi://Gtk';
 import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import EDataServer from 'gi://EDataServer';
 
 export default class LitsycalPrefs extends ExtensionPreferences {
 
@@ -38,6 +39,14 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             settings.set_int('first-day-of-week', fdowRow.get_selected());
         });
         calGroup.add(fdowRow);
+
+        // ── Calendars group ───────────────────────────────────────────────
+        const calSourcesGroup = new Adw.PreferencesGroup({
+            title:       _('Calendars'),
+            description: _('Choose which calendars appear in the popup and agenda'),
+        });
+        general.add(calSourcesGroup);
+        this._buildCalendarSourcesGroup(calSourcesGroup, settings);
 
         // ── Keyboard shortcut group ────────────────────────────────────────
         const kbGroup = new Adw.PreferencesGroup({title: _('Keyboard Shortcut')});
@@ -430,5 +439,57 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             Gio.AppInfo.launch_default_for_uri('https://github.com/mlkonrad/litsycal', null);
         });
         abGroup.add(ghRow);
+    }
+
+    // Populates `group` with one switch row per enabled calendar source,
+    // fetched directly from Evolution Data Server (independent of whether the
+    // extension itself is currently running).
+    _buildCalendarSourcesGroup(group, settings) {
+        const loadingRow = new Adw.ActionRow({title: _('Loading calendars…')});
+        group.add(loadingRow);
+
+        const disabled = new Set(settings.get_strv('disabled-calendars'));
+
+        try {
+            EDataServer.SourceRegistry.new(null, (_obj, res) => {
+                let registry;
+                try {
+                    registry = EDataServer.SourceRegistry.new_finish(res);
+                } catch (e) {
+                    loadingRow.set_title(_('Could not load calendars'));
+                    return;
+                }
+
+                const sources = registry.list_sources(EDataServer.SOURCE_EXTENSION_CALENDAR)
+                    .filter(src => src.get_enabled());
+
+                group.remove(loadingRow);
+
+                if (sources.length === 0) {
+                    group.add(new Adw.ActionRow({title: _('No calendars found')}));
+                    return;
+                }
+
+                for (const src of sources) {
+                    const uid    = src.get_uid();
+                    const calExt = src.get_extension(EDataServer.SOURCE_EXTENSION_CALENDAR);
+                    const color  = calExt.get_color?.() ?? null;
+                    const name   = GLib.markup_escape_text(src.get_display_name(), -1);
+
+                    const row = new Adw.SwitchRow({
+                        title:  color ? `<span color="${color}">●</span>  ${name}` : name,
+                        active: !disabled.has(uid),
+                    });
+                    row.connect('notify::active', () => {
+                        if (row.get_active()) disabled.delete(uid);
+                        else disabled.add(uid);
+                        settings.set_strv('disabled-calendars', [...disabled]);
+                    });
+                    group.add(row);
+                }
+            });
+        } catch (e) {
+            loadingRow.set_title(_('Could not load calendars'));
+        }
     }
 }

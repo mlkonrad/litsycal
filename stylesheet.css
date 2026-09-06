@@ -708,3 +708,12 @@
     opacity: 0.55;
 }
 .litsycal-agenda-url-btn:hover { opacity: 1.0; background-color: rgba(128,128,128,0.12); }
+
+/* ── Agenda meeting-join link ────────────────────────────────────────────── */
+.litsycal-agenda-join-link {
+    padding: 1px 6px;
+    font-size: 0.76em;
+    font-weight: bold;
+    color: #3a944a;
+}
+.litsycal-agenda-join-link:hover { color: #4db860; }
