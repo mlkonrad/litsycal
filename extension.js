@@ -1,4 +1,4 @@
-import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
+import {Extension, gettext as _, ngettext} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
@@ -297,9 +297,12 @@ class LitsycalCalendar extends St.BoxLayout {
 
         this._monthLbl = new St.Label({style_class: 'litsycal-month-lbl', x_expand: true});
 
-        this._prevBtn  = new St.Button({label: '‹', style_class: 'litsycal-nav-btn'});
-        this._dotBtn   = new St.Button({label: '●', style_class: 'litsycal-nav-btn litsycal-dot-btn'});
-        this._nextBtn  = new St.Button({label: '›', style_class: 'litsycal-nav-btn'});
+        this._prevBtn  = new St.Button({label: '‹', style_class: 'litsycal-nav-btn',
+                                         accessible_name: _('Previous month')});
+        this._dotBtn   = new St.Button({label: '●', style_class: 'litsycal-nav-btn litsycal-dot-btn',
+                                         accessible_name: _('Go to today')});
+        this._nextBtn  = new St.Button({label: '›', style_class: 'litsycal-nav-btn',
+                                         accessible_name: _('Next month')});
 
         this._prevBtn.connect('clicked', () => this._shiftMonth(-1));
         this._dotBtn.connect('clicked',  () => this._goToday());
@@ -465,6 +468,8 @@ class LitsycalCalendar extends St.BoxLayout {
         box.add_child(dotRow);
         btn.set_child(box);
 
+        btn.accessible_name = this._cellAccessibleName(ds, day, isToday);
+
         btn.connect('clicked', () => {
             const [y, m, d] = ds.split('-').map(Number);
             this._selected  = GLib.DateTime.new_local(y, m, d, 0, 0, 0);
@@ -472,6 +477,20 @@ class LitsycalCalendar extends St.BoxLayout {
             this._buildAgenda();
         });
         return btn;
+    }
+
+    _cellAccessibleName(ds, day, isToday) {
+        const [y, m, d] = ds.split('-').map(Number);
+        const cellDate  = GLib.DateTime.new_local(y, m, d, 0, 0, 0);
+        let name = `${capitalize(cellDate.format('%A'))}, ${capitalize(cellDate.format('%B'))} ${day}`;
+        if (isToday) name += `, ${_('Today')}`;
+
+        const count = this._calManager.getEventsForDate(ds).length;
+        if (count > 0) {
+            const template = ngettext('%d event', '%d events', count);
+            name += `, ${template.replace('%d', String(count))}`;
+        }
+        return name;
     }
 
     // ── Agenda ────────────────────────────────────────────────────────────────
@@ -535,6 +554,7 @@ class LitsycalCalendar extends St.BoxLayout {
                     evtBox.add_child(row2);
 
                     evtBtn.set_child(evtBox);
+                    evtBtn.accessible_name = `${ev.title}, ${ev.time ?? _('All day')}`;
                     evtBtn.connect('clicked', () => this._openEventDialog(ev));
 
                     const evtRow = new St.BoxLayout({x_expand: true});
@@ -542,6 +562,7 @@ class LitsycalCalendar extends St.BoxLayout {
                     if (ev.url) {
                         const urlBtn = new St.Button({
                             style_class: 'litsycal-agenda-url-btn',
+                            accessible_name: _('Open link'),
                             child: new St.Icon({
                                 icon_name: 'web-browser-symbolic',
                                 style_class: 'litsycal-gear-icon',
@@ -568,24 +589,26 @@ class LitsycalCalendar extends St.BoxLayout {
         this.add_child(new St.Widget({style_class: 'litsycal-sep'}));
         const footer = new St.BoxLayout({style_class: 'litsycal-footer'});
 
-        const makeIconBtn = (iconName, toggle = false) => new St.Button({
+        const makeIconBtn = (iconName, accessibleName, toggle = false) => new St.Button({
             style_class: 'litsycal-footer-btn',
             child: new St.Icon({icon_name: iconName, style_class: 'litsycal-gear-icon'}),
             x_expand: false, toggle_mode: toggle,
+            accessible_name: accessibleName,
         });
 
-        this._addBtn = new St.Button({label: '+', style_class: 'litsycal-footer-btn litsycal-add-btn'});
+        this._addBtn = new St.Button({label: '+', style_class: 'litsycal-footer-btn litsycal-add-btn',
+                                       accessible_name: _('New event')});
         this._addBtn.connect('clicked', () => this._openCreateDialog());
 
-        const pinBtn = makeIconBtn('view-pin-symbolic', true);
+        const pinBtn = makeIconBtn('view-pin-symbolic', _('Pin calendar open'), true);
         pinBtn.connect('notify::checked', () => {
             if (this._onPinToggle) this._onPinToggle(pinBtn.get_checked());
         });
 
-        const calBtn = makeIconBtn('x-office-calendar-symbolic');
+        const calBtn = makeIconBtn('x-office-calendar-symbolic', _('Open Calendar app'));
         calBtn.connect('clicked', () => { if (this._openCalendar) this._openCalendar(); });
 
-        const gear = makeIconBtn('preferences-system-symbolic');
+        const gear = makeIconBtn('preferences-system-symbolic', _('Preferences'));
         gear.connect('clicked', () => this._openPrefs());
 
         footer.add_child(this._addBtn);
@@ -714,6 +737,9 @@ class LitsycalIndicator extends PanelMenu.Button {
     }
 
     _updateBadge() {
+        const today = GLib.DateTime.new_now_local();
+        this.accessible_name = `${_('Calendar')} — ${capitalize(today.format('%A, %B %-d, %Y'))}`;
+
         const hidden = this._settings.get_boolean('hide-icon');
         this._logo.visible  = false;
         this._badge.visible = !hidden;
