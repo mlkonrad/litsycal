@@ -28,6 +28,10 @@
       <default>7</default>
       <summary>How many days ahead the agenda covers: 0 hides it, otherwise 1-7, 14, or 31</summary>
     </key>
+    <key name="show-week-numbers" type="b">
+      <default>false</default>
+      <summary>Show an ISO week-number gutter beside the calendar grid</summary>
+    </key>
 
     <!-- Appearance – panel badge -->
     <key name="badge-style" type="s">

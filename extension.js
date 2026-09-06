@@ -75,6 +75,14 @@ function prevMonthOf(year, month) {
     return month===1 ? [year-1,12] : [year,month-1];
 }
 
+// ISO 8601 week number: shift to the Thursday of the same week (whose year
+// determines the ISO week-year at year boundaries), then week = ceil(day-of-year / 7).
+function isoWeekNumber(dt) {
+    const isoDow    = dt.get_day_of_week(); // 1=Mon … 7=Sun
+    const thursday  = dt.add_days(4 - isoDow);
+    return Math.ceil(thursday.get_day_of_year() / 7);
+}
+
 // ── Meeting link detection ───────────────────────────────────────────────────
 
 const MEETING_PATTERNS = [
@@ -225,6 +233,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._weekendColorMode = settings.get_string('weekend-color-mode');
         this._weekendColor     = settings.get_string('weekend-color');
         this._agendaDays       = settings.get_int('agenda-days');
+        this._showWeekNumbers  = settings.get_boolean('show-week-numbers');
         this._applySizeClass();
 
         this._sids = [
@@ -262,6 +271,10 @@ class LitsycalCalendar extends St.BoxLayout {
                 this._agendaDays = settings.get_int('agenda-days');
                 this._buildAgenda();
             }),
+            settings.connect('changed::show-week-numbers', () => {
+                this._showWeekNumbers = settings.get_boolean('show-week-numbers');
+                this._buildWeekGutter();
+            }),
         ];
 
         this._iface    = new Gio.Settings({schema: 'org.gnome.desktop.interface'});
@@ -296,8 +309,22 @@ class LitsycalCalendar extends St.BoxLayout {
         this._painter.configure(this._isDark, this._highlightCols);
 
         this._buildHeader();
+
+        // Week-number gutter sits outside the day-name-row/grid overlay as a
+        // plain sibling column, so it never affects OutlinePainter's column
+        // math (which is based on the overlay's own allocated width).
+        this._calBody    = new St.BoxLayout({x_expand: true});
+        this._weekGutter = new St.BoxLayout({
+            vertical: true, style_class: 'litsycal-week-gutter',
+            visible: this._showWeekNumbers,
+        });
+        this._calRight   = new St.BoxLayout({vertical: true, x_expand: true});
+        this._calBody.add_child(this._weekGutter);
+        this._calBody.add_child(this._calRight);
+
         this._buildDayNameRow();
         this._buildGridContainer();
+        this.add_child(this._calBody);
         this._applyTheme();
 
         this._agendaSep = new St.Widget({style_class: 'litsycal-sep'});
@@ -393,7 +420,7 @@ class LitsycalCalendar extends St.BoxLayout {
 
     _buildDayNameRow(rebuild = false) {
         if (rebuild && this._dayNameRow) {
-            this.remove_child(this._dayNameRow);
+            this._calRight.remove_child(this._dayNameRow);
             this._dayNameRow.destroy();
         }
 
@@ -415,8 +442,8 @@ class LitsycalCalendar extends St.BoxLayout {
         }
 
         this._dayNameRow = row;
-        if (rebuild) this.insert_child_at_index(row, 1);
-        else         this.add_child(row);
+        if (rebuild) this._calRight.insert_child_at_index(row, 0);
+        else         this._calRight.add_child(row);
     }
 
     // ── Grid container ────────────────────────────────────────────────────────
@@ -442,7 +469,7 @@ class LitsycalCalendar extends St.BoxLayout {
 
         overlay.add_child(this._gridBox);
         overlay.add_child(this._outline);
-        this.add_child(overlay);
+        this._calRight.add_child(overlay);
         overlay.connect('notify::allocation', () => this._outline.queue_repaint());
     }
 
@@ -496,8 +523,39 @@ class LitsycalCalendar extends St.BoxLayout {
             this._gridBox.add_child(row);
         }
 
+        this._buildWeekGutter();
         this._outline?.queue_repaint();
         this._updateAgendaMaxHeight();
+    }
+
+    // One label per grid row, showing the ISO week number of that row's
+    // first column. Cells reuse the overflow-day markup (number + empty
+    // dot-row) purely so their natural height matches a real grid row
+    // exactly — the gutter is a separate sibling column, not part of the
+    // outlined day-grid, so nothing here affects OutlinePainter's math.
+    _buildWeekGutter() {
+        this._weekGutter.visible = this._showWeekNumbers;
+        this._weekGutter.destroy_all_children();
+        if (!this._showWeekNumbers) return;
+
+        const spacer = new St.BoxLayout({style_class: 'litsycal-day-name-cell'});
+        spacer.add_child(new St.Label({text: '', style_class: 'litsycal-day-name'}));
+        this._weekGutter.add_child(spacer);
+
+        const anchor = GLib.DateTime.new_local(this._year, this._month, 1, 0, 0, 0);
+        for (let r = 0; r < this._numRows; r++) {
+            const rowDate = anchor.add_days(r * 7 - this._firstCol);
+            this._weekGutter.add_child(this._makeWeekCell(isoWeekNumber(rowDate)));
+        }
+    }
+
+    _makeWeekCell(weekNum) {
+        const box = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'litsycal-cell-box'});
+        const lbl = new St.Label({text: String(weekNum), x_expand: true, style_class: 'litsycal-week-num'});
+        lbl.clutter_text.set_x_align(Clutter.ActorAlign.CENTER);
+        box.add_child(lbl);
+        box.add_child(new St.BoxLayout({style_class: 'litsycal-dot-row', x_expand: true}));
+        return box;
     }
 
     // Cap the agenda's height to whatever screen space is actually left below

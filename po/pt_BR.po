@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Litsycal 1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-07 00:21+0300\n"
+"POT-Creation-Date: 2026-09-07 00:32+0300\n"
 "PO-Revision-Date: 2026-05-06 00:00+0000\n"
 "Last-Translator: Marlon Konrad <marlonk@gmail.com>\n"
 "Language-Team: Brazilian Portuguese\n"
@@ -15,66 +15,66 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: extension.js:371 eventDialog.js:577
+#: extension.js:399 eventDialog.js:577
 msgid "Previous month"
 msgstr ""
 
-#: extension.js:373
+#: extension.js:401
 msgid "Go to today"
 msgstr ""
 
-#: extension.js:375 eventDialog.js:580
+#: extension.js:403 eventDialog.js:580
 msgid "Next month"
 msgstr ""
 
-#: extension.js:580 extension.js:614
+#: extension.js:644 extension.js:775
 msgid "Today"
 msgstr "Hoje"
 
-#: extension.js:584
+#: extension.js:648
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] ""
 msgstr[1] ""
 
-#: extension.js:615
-msgid "Tomorrow"
-msgstr "Amanhã"
-
-#: extension.js:630
+#: extension.js:706 extension.js:791
 msgid "No events"
 msgstr "Sem eventos"
 
-#: extension.js:650 extension.js:668
+#: extension.js:718 extension.js:811 extension.js:829
 msgid "All day"
 msgstr "Dia todo"
 
-#: extension.js:682 extension.js:683
+#: extension.js:776
+msgid "Tomorrow"
+msgstr "Amanhã"
+
+#: extension.js:843 extension.js:844
 msgid "Join meeting"
 msgstr ""
 
-#: extension.js:694
+#: extension.js:855
 msgid "Open link"
 msgstr ""
 
-#: extension.js:729
+#: extension.js:890
 msgid "New event"
 msgstr ""
 
-#: extension.js:732
+#: extension.js:893
 msgid "Pin calendar open"
 msgstr ""
 
-#: extension.js:737
+#: extension.js:898
 msgid "Open Calendar app"
 msgstr ""
 
-#: extension.js:740
+#: extension.js:901
 msgid "Preferences"
 msgstr ""
 
-#: extension.js:879 prefs.js:25 prefs.js:315
+#: extension.js:1040 prefs.js:25 prefs.js:315
 msgid "Calendar"
 msgstr "Calendário"
 
@@ -513,88 +513,96 @@ msgstr "P"
 msgid "L"
 msgstr "G"
 
+#: prefs.js:343
+msgid "Show week numbers"
+msgstr ""
+
 #: prefs.js:344
+msgid "ISO week number beside each row of the grid"
+msgstr ""
+
+#: prefs.js:351
 msgid "Highlighted Days"
 msgstr "Dias destacados"
 
-#: prefs.js:345
+#: prefs.js:352
 msgid "Tints the selected day columns across the entire calendar grid"
 msgstr "Colore as colunas dos dias selecionados em toda a grade"
 
-#: prefs.js:349
+#: prefs.js:356
 msgid "Highlight columns"
 msgstr "Destacar colunas"
 
-#: prefs.js:375
+#: prefs.js:382
 msgid "Theme"
 msgstr "Tema"
 
-#: prefs.js:379
+#: prefs.js:386
 msgid "System"
 msgstr "Sistema"
 
-#: prefs.js:379
+#: prefs.js:386
 msgid "Light"
 msgstr "Claro"
 
-#: prefs.js:379
+#: prefs.js:386
 msgid "Dark"
 msgstr "Escuro"
 
-#: prefs.js:382
+#: prefs.js:389
 msgid "Colour scheme"
 msgstr "Esquema de cores"
 
-#: prefs.js:383
+#: prefs.js:390
 msgid "System follows your GNOME appearance setting"
 msgstr "Sistema segue sua configuração de aparência do GNOME"
 
-#: prefs.js:394
+#: prefs.js:401
 msgid "Weekend Days"
 msgstr "Dias de fim de semana"
 
-#: prefs.js:398
+#: prefs.js:405
 msgid "Default (red)"
 msgstr "Padrão (vermelho)"
 
-#: prefs.js:398
+#: prefs.js:405
 msgid "No colour"
 msgstr "Sem cor"
 
-#: prefs.js:398
+#: prefs.js:405
 msgid "Custom…"
 msgstr "Personalizado…"
 
-#: prefs.js:401
+#: prefs.js:408
 msgid "Weekend day colour"
 msgstr "Cor dos dias de fim de semana"
 
-#: prefs.js:407
+#: prefs.js:414
 msgid "Custom colour"
 msgstr "Cor personalizada"
 
-#: prefs.js:437
+#: prefs.js:444
 msgid "About"
 msgstr "Sobre"
 
-#: prefs.js:449
+#: prefs.js:456
 msgid "Inspired by Itsycal for macOS"
 msgstr "Inspirado no Itsycal para macOS"
 
-#: prefs.js:450
+#: prefs.js:457
 msgid "Original by Sanjay Madan • Linux port by mlkonrad"
 msgstr "Original por Sanjay Madan • Versão Linux por mlkonrad"
 
-#: prefs.js:471
+#: prefs.js:478
 #, fuzzy
 msgid "Loading calendars…"
 msgstr "Calendário"
 
-#: prefs.js:482 prefs.js:515
+#: prefs.js:489 prefs.js:522
 msgid "Could not load calendars"
 msgstr ""
 
-#: prefs.js:492
+#: prefs.js:499
 #, fuzzy
 msgid "No calendars found"
 msgstr "Calendário"

@@ -339,6 +339,13 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         sizeRow.add_suffix(sizeBox);
         sizeGroup.add(sizeRow);
 
+        const weekNumRow = new Adw.SwitchRow({
+            title:    _('Show week numbers'),
+            subtitle: _('ISO week number beside each row of the grid'),
+        });
+        settings.bind('show-week-numbers', weekNumRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        sizeGroup.add(weekNumRow);
+
         // ── Highlighted days ───────────────────────────────────────────────
         const hlGroup = new Adw.PreferencesGroup({
             title:       _('Highlighted Days'),

@@ -376,6 +376,16 @@
 .litsycal-cell-box  { spacing: 1px; }
 .litsycal-cell-num  { text-align: center; font-size: 0.88em; }
 
+/* ── Week-number gutter ──────────────────────────────────────────────────── */
+.litsycal-week-gutter { min-width: 22px; }
+.litsycal-week-num    { text-align: center; font-size: 0.72em; opacity: 0.45; }
+.litsycal-size-sm .litsycal-week-gutter { min-width: 18px; }
+.litsycal-size-sm .litsycal-week-num    { font-size: 0.62em; }
+.litsycal-size-lg .litsycal-week-gutter { min-width: 28px; }
+.litsycal-size-lg .litsycal-week-num    { font-size: 0.82em; }
+.litsycal-theme-light .litsycal-week-num { color: rgba(0,0,0,0.45); }
+.litsycal-theme-dark  .litsycal-week-num { color: rgba(255,255,255,0.45); }
+
 /* ── Event dots ──────────────────────────────────────────────────────────── */
 .litsycal-dot-row {
     spacing: 2px;
