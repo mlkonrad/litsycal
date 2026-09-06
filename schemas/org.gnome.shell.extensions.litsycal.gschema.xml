@@ -24,6 +24,10 @@
       <default>[]</default>
       <summary>UIDs of calendar sources hidden from the grid and agenda</summary>
     </key>
+    <key name="agenda-days" type="i">
+      <default>7</default>
+      <summary>How many days ahead the agenda covers: 0 hides it, otherwise 1-7, 14, or 31</summary>
+    </key>
 
     <!-- Appearance – panel badge -->
     <key name="badge-style" type="s">

@@ -224,6 +224,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._theme            = settings.get_string('theme');
         this._weekendColorMode = settings.get_string('weekend-color-mode');
         this._weekendColor     = settings.get_string('weekend-color');
+        this._agendaDays       = settings.get_int('agenda-days');
         this._applySizeClass();
 
         this._sids = [
@@ -256,6 +257,10 @@ class LitsycalCalendar extends St.BoxLayout {
             settings.connect('changed::weekend-color', () => {
                 this._weekendColor = settings.get_string('weekend-color');
                 if (this._weekendColorMode === 'custom') this._buildGrid();
+            }),
+            settings.connect('changed::agenda-days', () => {
+                this._agendaDays = settings.get_int('agenda-days');
+                this._buildAgenda();
             }),
         ];
 
@@ -294,7 +299,8 @@ class LitsycalCalendar extends St.BoxLayout {
         this._buildGridContainer();
         this._applyTheme();
 
-        this.add_child(new St.Widget({style_class: 'litsycal-sep'}));
+        this._agendaSep = new St.Widget({style_class: 'litsycal-sep'});
+        this.add_child(this._agendaSep);
 
         this._agendaBox = new St.BoxLayout({vertical: true, style_class: 'litsycal-agenda', x_expand: true});
         this._agendaScroll = new St.ScrollView({
@@ -586,11 +592,16 @@ class LitsycalCalendar extends St.BoxLayout {
     _buildAgenda() {
         this._agendaBox.destroy_all_children();
 
+        const hidden = this._agendaDays <= 0;
+        this._agendaScroll.visible = !hidden;
+        this._agendaSep.visible    = !hidden;
+        if (hidden) { this._updateAgendaMaxHeight(); return; }
+
         const today = GLib.DateTime.new_now_local();
 
         // Collect qualifying days first so we know which is last
         const groups = [];
-        for (let i = 0; i < 7; i++) {
+        for (let i = 0; i < this._agendaDays; i++) {
             const day = today.add_days(i);
             const ds  = dateStr(day);
             const evs = this._calManager.getEventsForDate(ds);

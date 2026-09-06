@@ -48,6 +48,29 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         general.add(calSourcesGroup);
         this._buildCalendarSourcesGroup(calSourcesGroup, settings);
 
+        // ── Agenda group ─────────────────────────────────────────────────────
+        const agendaGroup = new Adw.PreferencesGroup({title: _('Agenda')});
+        general.add(agendaGroup);
+
+        const AGENDA_DAYS_IDS    = [0, 1, 2, 3, 4, 5, 6, 7, 14, 31];
+        const AGENDA_DAYS_LABELS = [
+            _('Hidden'), _('1 day'), _('2 days'), _('3 days'), _('4 days'),
+            _('5 days'), _('6 days'), _('7 days'), _('14 days'), _('31 days'),
+        ];
+        const agendaDaysRow = new Adw.ComboRow({
+            title:    _('Show upcoming events for'),
+            subtitle: _('How many days ahead the agenda below the calendar covers'),
+            model:    Gtk.StringList.new(AGENDA_DAYS_LABELS),
+        });
+        agendaDaysRow.set_selected(
+            Math.max(0, AGENDA_DAYS_IDS.indexOf(settings.get_int('agenda-days')))
+        );
+        agendaDaysRow.connect('notify::selected', () => {
+            const i = agendaDaysRow.get_selected();
+            if (i < AGENDA_DAYS_IDS.length) settings.set_int('agenda-days', AGENDA_DAYS_IDS[i]);
+        });
+        agendaGroup.add(agendaDaysRow);
+
         // ── Keyboard shortcut group ────────────────────────────────────────
         const kbGroup = new Adw.PreferencesGroup({title: _('Keyboard Shortcut')});
         general.add(kbGroup);
