@@ -39,7 +39,9 @@ export class CalendarManager {
                     logError(e, 'CalendarManager: registry init failed');
                 }
             });
-        } catch(_) {}
+        } catch(e) {
+            logError(e, 'CalendarManager: failed to start registry lookup');
+        }
     }
 
     _loadSources() {
@@ -68,7 +70,9 @@ export class CalendarManager {
                     this._fetchFromClient(uid, this._year, this._month);
                     this._startView(uid, client);
                 }
-            } catch(_) {}
+            } catch(e) {
+                logError(e, `CalendarManager: failed to connect to calendar source '${name}' (${uid})`);
+            }
         });
     }
 
@@ -76,7 +80,7 @@ export class CalendarManager {
         this._stopView(uid);
         const entry = this._clients.get(uid);
         if (!entry) return;
-        try { entry.client.disconnect(null); } catch(_) {}
+        try { entry.client.disconnect(null); } catch(_) {} // already gone; nothing actionable
         this._clients.delete(uid);
         this._events = this._events.filter(e => e.clientUid !== uid);
         this._onEventsChanged(this._events);
@@ -106,14 +110,16 @@ export class CalendarManager {
                 view.connect('objects-removed',   refresh);
                 view.start();
                 this._views.set(uid, view);
-            } catch(_) {}
+            } catch(e) {
+                logError(e, `CalendarManager: failed to start live view for source ${uid}`);
+            }
         });
     }
 
     _stopView(uid) {
         const view = this._views.get(uid);
         if (!view) return;
-        try { view.stop(); } catch(_) {}
+        try { view.stop(); } catch(_) {} // stop() can throw if the view is already stopped
         this._views.delete(uid);
     }
 
@@ -150,7 +156,8 @@ export class CalendarManager {
             try {
                 const [, comps] = client.get_object_list_as_comps_finish(res);
                 this._ingestComps(comps ?? [], color, uid);
-            } catch(_) {
+            } catch(e) {
+                logError(e, `CalendarManager: failed to fetch events for source ${uid}`);
                 this._onEventsChanged(this._events);
             }
         });
@@ -192,11 +199,13 @@ export class CalendarManager {
                         if (notes === '') notes = null;
                         if (url   === '') url   = null;
                     }
-                } catch(_) {}
+                } catch(_) {} // notes/url are optional extras; missing extension data is expected
 
                 this._events.push({date, title, time, color, allDay: isAllDay,
                                    uid: comp.get_uid(), clientUid, notes, url});
-            } catch(_) {}
+            } catch(e) {
+                logError(e, `CalendarManager: failed to parse calendar component ${comp.get_uid?.() ?? '?'}`);
+            }
         }
 
         this._onEventsChanged(this._events);
