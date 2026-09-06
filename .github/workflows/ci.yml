@@ -1,0 +1,42 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gjs libglib2.0-bin gettext
+
+      - name: Compile schemas (strict)
+        run: glib-compile-schemas schemas/ --strict --dry-run
+
+      - name: Syntax-check JS
+        run: |
+          cat > /tmp/check-syntax.js <<'EOF'
+          const fname = ARGV[0];
+          const [, bytes] = imports.gi.GLib.file_get_contents(fname);
+          const text = imports.byteArray.toString(bytes);
+          try {
+              Reflect.parse(text, {target: 'module'});
+          } catch (e) {
+              printerr(`Syntax error in ${fname}: ${e}`);
+              imports.system.exit(1);
+          }
+          EOF
+          for f in *.js; do
+            gjs /tmp/check-syntax.js "$f" || exit 1
+          done
+
+      - name: Validate translations
+        run: |
+          for po in po/*.po; do
+            msgfmt --check "$po" -o /dev/null
+          done
+
+      - name: Validate POT
+        run: msgfmt --check-format po/*.pot -o /dev/null
