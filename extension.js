@@ -277,6 +277,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this.connect('destroy', () => {
             this._eventPanel?.close();
             this._eventPanel = null;
+            this._cancelCellTooltip();
             for (const id of this._sids) this._settings.disconnect(id);
             this._iface.disconnect(this._accentId);
             this._iface.disconnect(this._schemeId);
@@ -448,6 +449,7 @@ class LitsycalCalendar extends St.BoxLayout {
     // ── Calendar grid ─────────────────────────────────────────────────────────
 
     _buildGrid() {
+        this._cancelCellTooltip(); // cells about to be destroyed would leave a dangling anchor
         this._gridBox.destroy_all_children();
 
         const fd       = this._firstDayOfWeek;
@@ -535,7 +537,7 @@ class LitsycalCalendar extends St.BoxLayout {
         if (isToday)    sc += ' litsycal-today';
         else if (isSel) sc += ' litsycal-selected';
 
-        const btn = new St.Button({style_class: sc, x_expand: true});
+        const btn = new St.Button({style_class: sc, x_expand: true, track_hover: true});
 
         if (isToday) {
             btn.style = `background-color: ${this._accent}; color: white;`;
@@ -570,6 +572,10 @@ class LitsycalCalendar extends St.BoxLayout {
             this._buildGrid();
             this._buildAgenda();
         });
+        btn.connect('notify::hover', () => {
+            if (btn.hover) this._scheduleCellTooltip(ds, btn);
+            else this._cancelCellTooltip();
+        });
         return btn;
     }
 
@@ -585,6 +591,103 @@ class LitsycalCalendar extends St.BoxLayout {
             name += `, ${template.replace('%d', String(count))}`;
         }
         return name;
+    }
+
+    // ── Cell hover tooltip ───────────────────────────────────────────────────
+    // A lightweight day preview shown ~600ms into a hover, so browsing days
+    // doesn't require clicking (which moves the selected day and rebuilds the
+    // agenda panel below).
+
+    _scheduleCellTooltip(ds, anchorBtn) {
+        this._cancelCellTooltip();
+        this._tooltipTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 600, () => {
+            this._tooltipTimeoutId = null;
+            this._showCellTooltip(ds, anchorBtn);
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _cancelCellTooltip() {
+        if (this._tooltipTimeoutId) {
+            GLib.source_remove(this._tooltipTimeoutId);
+            this._tooltipTimeoutId = null;
+        }
+        this._hideCellTooltip();
+    }
+
+    _hideCellTooltip() {
+        if (this._tooltipBox) {
+            Main.layoutManager.uiGroup.remove_child(this._tooltipBox);
+            this._tooltipBox.destroy();
+            this._tooltipBox = null;
+        }
+    }
+
+    _showCellTooltip(ds, anchorBtn) {
+        if (!anchorBtn.hover) return; // pointer left before the delay elapsed
+
+        const [y, m, d] = ds.split('-').map(Number);
+        const date = GLib.DateTime.new_local(y, m, d, 0, 0, 0);
+        const evs  = this._calManager.getEventsForDate(ds);
+
+        const box = new St.BoxLayout({
+            vertical: true,
+            style_class: 'popup-menu-content litsycal-cell-tooltip',
+        });
+
+        const header = new St.BoxLayout({style_class: 'litsycal-agenda-header'});
+        header.add_child(new St.Label({
+            text: capitalize(date.format('%A')), style_class: 'litsycal-agenda-day-name',
+        }));
+        header.add_child(new St.Label({
+            text: `${capitalize(date.format('%b'))} ${d}`, style_class: 'litsycal-agenda-day-date',
+        }));
+        box.add_child(header);
+
+        if (evs.length === 0) {
+            box.add_child(new St.Label({text: _('No events'), style_class: 'litsycal-agenda-empty'}));
+        } else {
+            for (const ev of evs) {
+                const row1 = new St.BoxLayout({style_class: 'litsycal-agenda-row'});
+                const dot  = new St.Widget({style_class: 'litsycal-agenda-pill'});
+                dot.style  = `background-color: ${ev.color};`;
+                row1.add_child(dot);
+                row1.add_child(new St.Label({text: ev.title, style_class: 'litsycal-agenda-title'}));
+                box.add_child(row1);
+
+                const row2 = new St.BoxLayout({style_class: 'litsycal-agenda-time-row'});
+                row2.add_child(new St.Label({
+                    text: ev.time ?? _('All day'), style_class: 'litsycal-agenda-time',
+                }));
+                box.add_child(row2);
+            }
+        }
+
+        Main.layoutManager.uiGroup.add_child(box);
+        this._tooltipBox = box;
+
+        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            if (!this._tooltipBox) return GLib.SOURCE_REMOVE; // hidden again already
+
+            const monitor = Main.layoutManager.monitors[
+                Main.layoutManager.findIndexForActor(this)
+            ] ?? Main.layoutManager.primaryMonitor;
+            const panelH = Main.panel.get_height();
+            const [ax, ay] = anchorBtn.get_transformed_position();
+            const aw = anchorBtn.get_width();
+            const boxW = box.get_width()  || 200;
+            const boxH = box.get_height() || 60;
+
+            let x = ax + aw + 8;
+            if (x + boxW > monitor.x + monitor.width - 4) x = ax - boxW - 8;
+            x = Math.max(monitor.x + 4, Math.min(x, monitor.x + monitor.width - boxW - 4));
+
+            let posY = ay;
+            posY = Math.max(monitor.y + panelH + 4, Math.min(posY, monitor.y + monitor.height - boxH - 4));
+
+            box.set_position(x, posY);
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     // ── Agenda ────────────────────────────────────────────────────────────────

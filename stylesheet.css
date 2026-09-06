@@ -481,6 +481,14 @@
     border-radius: 12px;
 }
 
+.litsycal-cell-tooltip {
+    padding: 10px;
+    spacing: 6px;
+    min-width: 170px;
+    max-width: 220px;
+    border-radius: 10px;
+}
+
 .litsycal-panel-title-entry {
     font-size: 1.05em;
     font-weight: bold;
