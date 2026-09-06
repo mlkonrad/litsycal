@@ -956,6 +956,72 @@ class LitsycalCalendar extends St.BoxLayout {
         const monthName = capitalize(GLib.DateTime.new_local(this._year, this._month, 1, 0, 0, 0).format('%b'));
         this._monthLbl.set_text(`${monthName} ${this._year}`);
     }
+
+    // ── Keyboard navigation ──────────────────────────────────────────────────
+    // Arrow keys move the selected day (Up/Down by a week); holding Shift
+    // moves by month/year instead. Space jumps to today. Wired up by
+    // LitsycalIndicator only while the popup is open and no event panel (with
+    // its own text entries) is up, so this never steals normal typing.
+
+    _moveSelectionByDays(delta) {
+        const sel = this._selected.add_days(delta);
+        this._selected = sel;
+        const monthChanged = sel.get_year() !== this._year || sel.get_month() !== this._month;
+        if (monthChanged) {
+            this._year  = sel.get_year();
+            this._month = sel.get_month();
+            this._updateMonthLabel();
+            this._calManager?.fetchMonth(this._year, this._month);
+        }
+        this._buildGrid();
+        this._buildAgenda();
+    }
+
+    _moveSelectionByMonths(delta) {
+        const y = this._selected.get_year();
+        const m = this._selected.get_month();
+        const d = this._selected.get_day_of_month();
+
+        let ny = y, nm = m + delta;
+        while (nm < 1)  { nm += 12; ny--; }
+        while (nm > 12) { nm -= 12; ny++; }
+        const nd = Math.min(d, daysInMonth(ny, nm));
+
+        this._selected = GLib.DateTime.new_local(ny, nm, nd, 0, 0, 0);
+        this._year  = ny;
+        this._month = nm;
+        this._updateMonthLabel();
+        this._buildGrid();
+        this._buildAgenda();
+        this._calManager?.fetchMonth(this._year, this._month);
+    }
+
+    _moveSelectionByYears(delta) {
+        this._moveSelectionByMonths(delta * 12);
+    }
+
+    // Returns true if the key was consumed (caller should stop propagation).
+    handleKeyPress(keyval, shift) {
+        switch (keyval) {
+            case Clutter.KEY_Left:
+                shift ? this._moveSelectionByMonths(-1) : this._moveSelectionByDays(-1);
+                return true;
+            case Clutter.KEY_Right:
+                shift ? this._moveSelectionByMonths(1) : this._moveSelectionByDays(1);
+                return true;
+            case Clutter.KEY_Up:
+                shift ? this._moveSelectionByYears(-1) : this._moveSelectionByDays(-7);
+                return true;
+            case Clutter.KEY_Down:
+                shift ? this._moveSelectionByYears(1) : this._moveSelectionByDays(7);
+                return true;
+            case Clutter.KEY_space:
+                this._goToday();
+                return true;
+            default:
+                return false;
+        }
+    }
 });
 
 // ── Panel indicator ───────────────────────────────────────────────────────────
@@ -1008,6 +1074,18 @@ class LitsycalIndicator extends PanelMenu.Button {
             if (open) {
                 this._calWidget._updateAgendaMaxHeight();
                 this._calWidget._buildAgenda();
+                this._keyPressId = global.stage.connect('key-press-event', (_stage, ev) => {
+                    // The event panel owns text entries (title, notes, ...); never
+                    // steal their keystrokes for calendar navigation.
+                    if (this._calWidget._eventPanel) return Clutter.EVENT_PROPAGATE;
+                    const keyval = ev.get_key_symbol();
+                    const shift  = (ev.get_state() & Clutter.ModifierType.SHIFT_MASK) !== 0;
+                    return this._calWidget.handleKeyPress(keyval, shift)
+                        ? Clutter.EVENT_STOP : Clutter.EVENT_PROPAGATE;
+                });
+            } else if (this._keyPressId) {
+                global.stage.disconnect(this._keyPressId);
+                this._keyPressId = null;
             }
         });
 
@@ -1128,6 +1206,7 @@ class LitsycalIndicator extends PanelMenu.Button {
             this._floatingBox.destroy();
             this._floatingBox = null;
         }
+        if (this._keyPressId) { global.stage.disconnect(this._keyPressId); this._keyPressId = null; }
         if (this._menuOpenId) { this.menu.disconnect(this._menuOpenId); this._menuOpenId = null; }
         if (this._timer)      { GLib.source_remove(this._timer); this._timer = null; }
         for (const id of this._sids) this._settings.disconnect(id);
