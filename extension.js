@@ -535,10 +535,13 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     // One label per grid row, showing the ISO week number of that row's
-    // first column. Cells reuse the overflow-day markup (number + empty
-    // dot-row) purely so their natural height matches a real grid row
-    // exactly — the gutter is a separate sibling column, not part of the
-    // outlined day-grid, so nothing here affects OutlinePainter's math.
+    // first column. The gutter is a separate sibling column (so nothing
+    // here affects OutlinePainter's math, which is based on the overlay's
+    // own width) — but that also means its rows can't rely on shared CSS
+    // to match the real grid row heights (they differ: e.g. edge rows with
+    // overflow-day cells are taller). Instead each cell's height is bound
+    // directly to its corresponding grid row's actual rendered height, so
+    // it always lines up exactly regardless of size class or content.
     _buildWeekGutter() {
         this._weekGutter.visible = this._showWeekNumbers;
         this._weekGutter.destroy_all_children();
@@ -547,20 +550,32 @@ class LitsycalCalendar extends St.BoxLayout {
         const spacer = new St.BoxLayout({style_class: 'litsycal-day-name-cell'});
         spacer.add_child(new St.Label({text: '', style_class: 'litsycal-day-name'}));
         this._weekGutter.add_child(spacer);
+        spacer.add_constraint(new Clutter.BindConstraint({
+            source: this._dayNameRow, coordinate: Clutter.BindCoordinate.HEIGHT,
+        }));
 
-        const anchor = GLib.DateTime.new_local(this._year, this._month, 1, 0, 0, 0);
+        const gridRows = this._gridBox.get_children();
+        const anchor   = GLib.DateTime.new_local(this._year, this._month, 1, 0, 0, 0);
         for (let r = 0; r < this._numRows; r++) {
             const rowDate = anchor.add_days(r * 7 - this._firstCol);
-            this._weekGutter.add_child(this._makeWeekCell(isoWeekNumber(rowDate)));
+            const cell    = this._makeWeekCell(isoWeekNumber(rowDate));
+            this._weekGutter.add_child(cell);
+            if (gridRows[r]) {
+                cell.add_constraint(new Clutter.BindConstraint({
+                    source: gridRows[r], coordinate: Clutter.BindCoordinate.HEIGHT,
+                }));
+            }
         }
     }
 
     _makeWeekCell(weekNum) {
         const box = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'litsycal-cell-box'});
-        const lbl = new St.Label({text: String(weekNum), x_expand: true, style_class: 'litsycal-week-num'});
+        const lbl = new St.Label({
+            text: String(weekNum), x_expand: true, y_expand: true,
+            y_align: Clutter.ActorAlign.CENTER, style_class: 'litsycal-week-num',
+        });
         lbl.clutter_text.set_x_align(Clutter.ActorAlign.CENTER);
         box.add_child(lbl);
-        box.add_child(new St.BoxLayout({style_class: 'litsycal-dot-row', x_expand: true}));
         return box;
     }
 
