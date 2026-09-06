@@ -191,20 +191,33 @@ export class CalendarManager {
                     time = endStr ? `${startStr} - ${endStr}` : startStr;
                 }
 
-                let notes = null, url = null;
+                let notes = null, url = null, location = null, recurrence = null, alarm = null,
+                    recurrenceId = null;
                 try {
                     const ic = comp.get_icalcomponent?.();
                     if (ic) {
                         notes = ic.get_description?.() || null;
                         const up = ic.get_first_property?.(ICalGLib.PropertyKind.URL_PROPERTY);
-                        url = up ? (up.get_value?.() || null) : null;
-                        if (notes === '') notes = null;
-                        if (url   === '') url   = null;
+                        url = up ? (up.get_value_as_string?.() || null) : null;
+                        location = ic.get_location?.() || null;
+                        if (notes    === '') notes    = null;
+                        if (url      === '') url      = null;
+                        if (location === '') location = null;
+
+                        recurrence = this._parseRecurrence(ic);
+                        alarm      = this._parseAlarm(ic);
+
+                        // Present only on one occurrence of a recurring series (never
+                        // on the master) — identifies which occurrence this is, so a
+                        // "delete this event only" can target it specifically.
+                        const ridProp = ic.get_first_property?.(ICalGLib.PropertyKind.RECURRENCEID_PROPERTY);
+                        recurrenceId = ridProp ? (ridProp.get_value_as_string?.() || null) : null;
                     }
-                } catch(_) {} // notes/url are optional extras; missing extension data is expected
+                } catch(_) {} // notes/url/location/etc are optional extras; missing data is expected
 
                 this._events.push({date, title, time, color, allDay: isAllDay,
-                                   uid: comp.get_uid(), clientUid, notes, url});
+                                   uid: comp.get_uid(), clientUid, notes, url,
+                                   location, recurrence, alarm, recurrenceId});
             } catch(e) {
                 logError(e, `CalendarManager: failed to parse calendar component ${comp.get_uid?.() ?? '?'}`);
             }
@@ -212,6 +225,67 @@ export class CalendarManager {
 
         this._reindex();
         this._onEventsChanged(this._events);
+    }
+
+    // Only understands a plain FREQ/INTERVAL/UNTIL rule (what our UI can build).
+    // Anything else (BYDAY, COUNT, multiple rules, ...) is kept as raw text so
+    // editing an unrelated field never silently discards it.
+    _parseRecurrence(ic) {
+        const prop = ic.get_first_property?.(ICalGLib.PropertyKind.RRULE_PROPERTY);
+        if (!prop) return null;
+        try {
+            const raw   = prop.get_value_as_string();
+            const parts = Object.fromEntries(raw.split(';').map(kv => kv.split('=')));
+            const isSimple = Object.keys(parts).every(k => ['FREQ', 'INTERVAL', 'UNTIL'].includes(k)) &&
+                              ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'].includes(parts.FREQ);
+            if (!isSimple) return {raw};
+
+            const until = parts.UNTIL
+                ? `${parts.UNTIL.slice(0, 4)}-${parts.UNTIL.slice(4, 6)}-${parts.UNTIL.slice(6, 8)}`
+                : null;
+            return {freq: parts.FREQ, interval: parts.INTERVAL ? parseInt(parts.INTERVAL) : 1, until};
+        } catch(_) {
+            return {raw: prop.get_value_as_string?.() ?? ''};
+        }
+    }
+
+    // Only understands a single DISPLAY alarm with a relative (before-start)
+    // duration trigger (what our UI can build). Anything else (multiple
+    // alarms, absolute triggers, EMAIL/AUDIO actions, ...) is kept as raw
+    // VALARM blocks so editing an unrelated field never silently discards it.
+    _parseAlarm(ic) {
+        const n = ic.count_components?.(ICalGLib.ComponentKind.VALARM_COMPONENT) ?? 0;
+        if (n === 0) return null;
+        if (n > 1) return {raw: this._allValarmBlocks(ic)};
+
+        const valarm = ic.get_first_component(ICalGLib.ComponentKind.VALARM_COMPONENT);
+        try {
+            const actionProp = valarm.get_first_property?.(ICalGLib.PropertyKind.ACTION_PROPERTY);
+            const action     = actionProp?.get_value_as_string?.() ?? '';
+            const trigProp = valarm.get_first_property?.(ICalGLib.PropertyKind.TRIGGER_PROPERTY);
+            if (!trigProp || action !== 'DISPLAY') return {raw: this._allValarmBlocks(ic)};
+
+            // A relative trigger's raw form is a DURATION ("-PT10M", "PT0S", ...);
+            // an absolute one is a DATE-TIME. dur.is_null_duration() can't tell
+            // "explicitly zero" from "unset", so classify by raw form instead.
+            const raw = trigProp.get_value_as_string?.() ?? '';
+            if (!/^[+-]?P/i.test(raw)) return {raw: this._allValarmBlocks(ic)};
+
+            const dur = trigProp.get_trigger().get_duration();
+            return {minutesBefore: Math.round(-dur.as_int() / 60)};
+        } catch(_) {
+            return {raw: this._allValarmBlocks(ic)};
+        }
+    }
+
+    _allValarmBlocks(ic) {
+        const blocks = [];
+        let v = ic.get_first_component(ICalGLib.ComponentKind.VALARM_COMPONENT);
+        while (v) {
+            blocks.push(v.as_ical_string().trim());
+            v = ic.get_next_component(ICalGLib.ComponentKind.VALARM_COMPONENT);
+        }
+        return blocks;
     }
 
     // ── Index ─────────────────────────────────────────────────────────────────
@@ -238,10 +312,49 @@ export class CalendarManager {
 
     // ── iCal builder ─────────────────────────────────────────────────────────
 
-    _buildICal(uid, title, date, allDay, hour, minute, endHour, endMinute, endDate, notes, url) {
+    _buildRRuleLine(recurrence) {
+        if (!recurrence) return [];
+        if (recurrence.raw) return [`RRULE:${recurrence.raw}`];
+
+        const pad = n => String(n).padStart(2, '0');
+        let r = `FREQ=${recurrence.freq}`;
+        if (recurrence.interval > 1) r += `;INTERVAL=${recurrence.interval}`;
+        if (recurrence.until) {
+            const [uy, um, ud] = recurrence.until.split('-').map(Number);
+            r += `;UNTIL=${uy}${pad(um)}${pad(ud)}T235959Z`;
+        }
+        return [`RRULE:${r}`];
+    }
+
+    _buildValarmLines(alarm) {
+        if (!alarm) return [];
+        if (alarm.raw) return alarm.raw.flatMap(block => block.split(/\r?\n/).filter(Boolean));
+
+        const min = alarm.minutesBefore;
+        const days  = Math.floor(min / 1440);
+        const rem   = min % 1440;
+        const hours = Math.floor(rem / 60);
+        const mins  = rem % 60;
+        let trigger = min === 0 ? 'PT0M' : '-P';
+        if (min !== 0) {
+            if (days)          trigger += `${days}D`;
+            if (hours || mins) trigger += `T${hours ? `${hours}H` : ''}${mins ? `${mins}M` : ''}`;
+        }
+        return [
+            'BEGIN:VALARM',
+            'ACTION:DISPLAY',
+            'DESCRIPTION:Reminder',
+            `TRIGGER:${trigger}`,
+            'END:VALARM',
+        ];
+    }
+
+    _buildICal(uid, fields) {
+        const {title, date, allDay, hour, minute, endHour, endMinute, endDate,
+               notes, url, location, recurrence, alarm} = fields;
         const pad       = n => String(n).padStart(2, '0');
         const [y, m, d] = date.split('-').map(Number);
-        const escDesc   = s => s.replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/,/g, '\\,');
+        const escText   = s => s.replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/,/g, '\\,');
 
         let dtLines;
         if (allDay) {
@@ -262,23 +375,22 @@ export class CalendarManager {
             `UID:${uid}`,
             `SUMMARY:${title}`,
             ...dtLines,
-            ...(notes ? [`DESCRIPTION:${escDesc(notes)}`] : []),
-            ...(url   ? [`URL:${url}`]                    : []),
+            ...(notes    ? [`DESCRIPTION:${escText(notes)}`] : []),
+            ...(url      ? [`URL:${url}`]                    : []),
+            ...(location ? [`LOCATION:${escText(location)}`] : []),
+            ...this._buildRRuleLine(recurrence),
+            ...this._buildValarmLines(alarm),
             'END:VEVENT',
         ].join('\r\n');
     }
 
     // ── Create ────────────────────────────────────────────────────────────────
 
-    createEvent(title, date, allDay, hour, minute, endHour, endMinute, endDate,
-                notes, url, sourceUid, onDone) {
+    createEvent(fields, sourceUid, onDone) {
         const entry = this._clients.get(sourceUid);
         if (!entry) { onDone?.(new Error('Calendar not connected')); return; }
 
-        const icalStr = this._buildICal(
-            GLib.uuid_string_random(), title, date, allDay,
-            hour, minute, endHour, endMinute, endDate, notes, url
-        );
+        const icalStr = this._buildICal(GLib.uuid_string_random(), fields);
         const ical = ICalGLib.Component.new_from_string(icalStr);
         entry.client.create_object(ical, ECal.OperationFlags.NONE, null, (_obj, res) => {
             try {
@@ -292,14 +404,11 @@ export class CalendarManager {
 
     // ── Update ────────────────────────────────────────────────────────────────
 
-    updateEvent(uid, clientUid, props, onDone) {
+    updateEvent(uid, clientUid, fields, onDone) {
         const entry = this._clients.get(clientUid);
         if (!entry) { onDone?.(new Error('Calendar not connected')); return; }
 
-        const {title, date, allDay, hour, minute, endDate, endHour, endMinute, notes, url} = props;
-        const icalStr = this._buildICal(
-            uid, title, date, allDay, hour, minute, endHour, endMinute, endDate, notes, url
-        );
+        const icalStr = this._buildICal(uid, fields);
         const ical = ICalGLib.Component.new_from_string(icalStr);
         entry.client.modify_object(ical, ECal.ObjModType.ALL, ECal.OperationFlags.NONE, null, (_obj, res) => {
             try {
@@ -313,15 +422,27 @@ export class CalendarManager {
 
     // ── Delete ────────────────────────────────────────────────────────────────
 
-    deleteEvent(uid, clientUid, onDone) {
+    // opts: {scope: 'ALL' | 'THIS' | 'FUTURE', recurrenceId}. scope defaults to
+    // 'ALL' (the whole series, or a non-recurring event); 'THIS'/'FUTURE' need
+    // recurrenceId to identify which occurrence.
+    deleteEvent(uid, clientUid, opts, onDone) {
         const entry = this._clients.get(clientUid);
         if (!entry) { onDone?.(new Error('Calendar not connected')); return; }
 
-        entry.client.remove_object(uid, null, ECal.ObjModType.ALL, ECal.OperationFlags.NONE, null, (_obj, res) => {
+        const {scope = 'ALL', recurrenceId = null} = opts ?? {};
+        const modType = {
+            ALL:    ECal.ObjModType.ALL,
+            THIS:   ECal.ObjModType.THIS,
+            FUTURE: ECal.ObjModType.THIS_AND_FUTURE,
+        }[scope] ?? ECal.ObjModType.ALL;
+        const rid = scope === 'ALL' ? null : recurrenceId;
+
+        entry.client.remove_object(uid, rid, modType, ECal.OperationFlags.NONE, null, (_obj, res) => {
             try {
                 entry.client.remove_object_finish(res);
                 onDone?.(null);
-                this._events = this._events.filter(e => !(e.uid === uid && e.clientUid === clientUid));
+                this._events = this._events.filter(e => !(e.uid === uid && e.clientUid === clientUid &&
+                    (rid == null || e.recurrenceId === rid)));
                 this._reindex();
                 this._onEventsChanged(this._events);
             } catch(e) { onDone?.(e); }

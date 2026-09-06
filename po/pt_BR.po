@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Litsycal 1\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-06 21:06+0300\n"
+"POT-Creation-Date: 2026-09-06 22:55+0300\n"
 "PO-Revision-Date: 2026-05-06 00:00+0000\n"
 "Last-Translator: Marlon Konrad <marlonk@gmail.com>\n"
 "Language-Team: Brazilian Portuguese\n"
@@ -15,62 +15,62 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: extension.js:301
+#: extension.js:303 eventDialog.js:577
 msgid "Previous month"
 msgstr ""
 
-#: extension.js:303
+#: extension.js:305
 msgid "Go to today"
 msgstr ""
 
-#: extension.js:305
+#: extension.js:307 eventDialog.js:580
 msgid "Next month"
 msgstr ""
 
-#: extension.js:486 extension.js:515
+#: extension.js:488 extension.js:517
 msgid "Today"
 msgstr "Hoje"
 
-#: extension.js:490
+#: extension.js:492
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] ""
 msgstr[1] ""
 
-#: extension.js:516
+#: extension.js:518
 msgid "Tomorrow"
 msgstr "Amanhã"
 
-#: extension.js:531
+#: extension.js:533
 msgid "No events"
 msgstr "Sem eventos"
 
-#: extension.js:551 extension.js:557
+#: extension.js:553 extension.js:559
 msgid "All day"
 msgstr "Dia todo"
 
-#: extension.js:565
+#: extension.js:567
 msgid "Open link"
 msgstr ""
 
-#: extension.js:600
+#: extension.js:602
 msgid "New event"
 msgstr ""
 
-#: extension.js:603
+#: extension.js:605
 msgid "Pin calendar open"
 msgstr ""
 
-#: extension.js:608
+#: extension.js:610
 msgid "Open Calendar app"
 msgstr ""
 
-#: extension.js:611
+#: extension.js:613
 msgid "Preferences"
 msgstr ""
 
-#: extension.js:741 prefs.js:24 prefs.js:283
+#: extension.js:743 prefs.js:24 prefs.js:283
 msgid "Calendar"
 msgstr "Calendário"
 
@@ -114,7 +114,7 @@ msgstr ""
 msgid "Waiting for keypress…"
 msgstr "Aguardando tecla…"
 
-#: prefs.js:79 eventDialog.js:250
+#: prefs.js:79 eventDialog.js:361 eventDialog.js:844
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -334,78 +334,180 @@ msgstr "Inspirado no Itsycal para macOS"
 msgid "Original by Sanjay Madan • Linux port by mlkonrad"
 msgstr "Original por Sanjay Madan • Versão Linux por mlkonrad"
 
-#: eventDialog.js:98
+#: eventDialog.js:38 eventDialog.js:306
+msgid "Never"
+msgstr ""
+
+#: eventDialog.js:39
+msgid "Every day"
+msgstr ""
+
+#: eventDialog.js:40
+msgid "Every week"
+msgstr ""
+
+#: eventDialog.js:41
+msgid "Every 2 weeks"
+msgstr ""
+
+#: eventDialog.js:42
+msgid "Every month"
+msgstr ""
+
+#: eventDialog.js:43
+msgid "Every year"
+msgstr ""
+
+#: eventDialog.js:55
+msgid "On the day"
+msgstr ""
+
+#: eventDialog.js:55
+msgid "At time of event"
+msgstr ""
+
+#: eventDialog.js:58
+msgid "1 week before"
+msgstr ""
+
+#: eventDialog.js:58
+#, javascript-format
+msgid "%d day before"
+msgid_plural "%d days before"
+msgstr[0] ""
+msgstr[1] ""
+
+#: eventDialog.js:62
+#, javascript-format
+msgid "%d hour before"
+msgid_plural "%d hours before"
+msgstr[0] ""
+msgstr[1] ""
+
+#: eventDialog.js:64
+#, javascript-format
+msgid "%d minute before"
+msgid_plural "%d minutes before"
+msgstr[0] ""
+msgstr[1] ""
+
+#: eventDialog.js:68
+msgid "None"
+msgstr ""
+
+#: eventDialog.js:158
 msgid "Event title"
 msgstr "Título do evento"
 
-#: eventDialog.js:151
-msgid "All-day"
+#: eventDialog.js:211
+msgid "Location"
 msgstr ""
 
-#: eventDialog.js:154 eventDialog.js:289
-msgid "On"
-msgstr ""
-
-#: eventDialog.js:154 eventDialog.js:289
-msgid "Off"
-msgstr ""
-
-#: eventDialog.js:166
-msgid "Starts"
-msgstr ""
-
-#: eventDialog.js:181
-msgid "Ends"
-msgstr ""
-
-#: eventDialog.js:198
-msgid "URL"
-msgstr ""
-
-#: eventDialog.js:222
-msgid "Notes"
+#: eventDialog.js:214
+msgid "Add location…"
 msgstr ""
 
 #: eventDialog.js:225
+msgid "URL"
+msgstr ""
+
+#: eventDialog.js:253
+msgid "All-day"
+msgstr ""
+
+#: eventDialog.js:256 eventDialog.js:403
+msgid "On"
+msgstr ""
+
+#: eventDialog.js:256 eventDialog.js:403
+msgid "Off"
+msgstr ""
+
+#: eventDialog.js:268
+msgid "Starts"
+msgstr ""
+
+#: eventDialog.js:279
+msgid "Ends"
+msgstr ""
+
+#: eventDialog.js:295
+msgid "Repeat"
+msgstr ""
+
+#: eventDialog.js:303
+msgid "Until"
+msgstr ""
+
+#: eventDialog.js:306
+msgid "On date"
+msgstr ""
+
+#: eventDialog.js:323
+msgid "Alert"
+msgstr ""
+
+#: eventDialog.js:332
+msgid "Notes"
+msgstr ""
+
+#: eventDialog.js:335
 msgid "Add notes…"
 msgstr ""
 
-#: eventDialog.js:245
+#: eventDialog.js:356
 msgid "Delete"
 msgstr ""
 
-#: eventDialog.js:252
+#: eventDialog.js:363
 msgid "Save Event"
 msgstr ""
 
-#: eventDialog.js:280
+#: eventDialog.js:394
 #, fuzzy
 msgid "No calendar"
 msgstr "Calendário"
 
-#: eventDialog.js:332
+#: eventDialog.js:416 eventDialog.js:435 eventDialog.js:458
+#, fuzzy
+msgid "Custom"
+msgstr "Personalizado…"
+
+#: eventDialog.js:773
 #, fuzzy
 msgid "Title required"
 msgstr "Título é obrigatório"
 
-#: eventDialog.js:333
+#: eventDialog.js:774
 #, fuzzy
 msgid "No calendar available"
 msgstr "Nenhum calendário disponível"
 
-#: eventDialog.js:336
+#: eventDialog.js:777
 msgid "Invalid date (YYYY-MM-DD)"
 msgstr ""
 
-#: eventDialog.js:343
+#: eventDialog.js:784
 #, fuzzy
 msgid "Invalid start time (HH:MM)"
 msgstr "Hora inválida"
 
-#: eventDialog.js:344
+#: eventDialog.js:785
 #, fuzzy
 msgid "Invalid end time (HH:MM)"
 msgstr "Hora inválida"
+
+#: eventDialog.js:823
+msgid "This is a repeating event."
+msgstr ""
+
+#: eventDialog.js:840
+msgid "Delete this event"
+msgstr ""
+
+#: eventDialog.js:842
+msgid "Delete all events"
+msgstr ""
 
 #~ msgid "Time:"
 #~ msgstr "Hora:"

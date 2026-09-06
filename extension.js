@@ -224,6 +224,13 @@ class LitsycalCalendar extends St.BoxLayout {
             this._calManager?.destroy();
         });
 
+        // Constructed before any _buildGrid()/_buildAgenda() call below, since
+        // both read events via this._calManager.getEventsForDate().
+        this._calManager = new CalendarManager(() => {
+            this._buildGrid();
+            this._buildAgenda();
+        });
+
         this._isDark  = this._computeIsDark();
         this._painter = new OutlinePainter();
         this._painter.configure(this._isDark, this._highlightCols);
@@ -240,11 +247,6 @@ class LitsycalCalendar extends St.BoxLayout {
         this._buildAgenda();
 
         this._buildFooter();
-
-        this._calManager = new CalendarManager(() => {
-            this._buildGrid();
-            this._buildAgenda();
-        });
         this._calManager.fetchMonth(this._year, this._month);
     }
 

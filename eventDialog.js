@@ -10,6 +10,64 @@ function pad(n) { return String(n).padStart(2, '0'); }
 function dateStr(dt) {
     return `${dt.get_year()}-${pad(dt.get_month())}-${pad(dt.get_day_of_month())}`;
 }
+function capitalize(s) {
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+function daysInMonth(year, month) {
+    const nm = month === 12 ? 1 : month + 1, ny = month === 12 ? year + 1 : year;
+    return GLib.DateTime.new_local(ny, nm, 1, 0, 0, 0).add_days(-1).get_day_of_month();
+}
+function ngettext(one, many, n) {
+    return GLib.dngettext('litsycal@mlkonrad.github.com', one, many, n);
+}
+
+// Repeat presets are keyed "FREQ:INTERVAL". An existing event whose recurrence
+// doesn't match one of these (an unusual interval, BYDAY rules, ...) shows as
+// CUSTOM and is left untouched unless the user explicitly picks something else.
+const REPEAT_PRESETS = [
+    {value: 'NONE',      freq: null,      interval: 1},
+    {value: 'DAILY:1',   freq: 'DAILY',   interval: 1},
+    {value: 'WEEKLY:1',  freq: 'WEEKLY',  interval: 1},
+    {value: 'WEEKLY:2',  freq: 'WEEKLY',  interval: 2},
+    {value: 'MONTHLY:1', freq: 'MONTHLY', interval: 1},
+    {value: 'YEARLY:1',  freq: 'YEARLY',  interval: 1},
+];
+
+function repeatLabel(value) {
+    return {
+        'NONE':      _('Never'),
+        'DAILY:1':   _('Every day'),
+        'WEEKLY:1':  _('Every week'),
+        'WEEKLY:2':  _('Every 2 weeks'),
+        'MONTHLY:1': _('Every month'),
+        'YEARLY:1':  _('Every year'),
+    }[value] ?? value;
+}
+
+// Alert presets are keyed by minutes-before as a string ("0" = at/on the day).
+// A non-preset minutesBefore from another app is injected as an extra option
+// (labelled via minutesLabel) rather than treated as unsupported, since any
+// integer offset round-trips fine through our VALARM writer.
+const ALERT_PRESETS_TIMED  = ['NONE', '0', '5', '10', '15', '30', '60', '120', '1440', '2880'];
+const ALERT_PRESETS_ALLDAY = ['NONE', '0', '1440', '2880', '10080'];
+
+function minutesLabel(min, allDay) {
+    if (min === 0) return allDay ? _('On the day') : _('At time of event');
+    if (min % 1440 === 0) {
+        const days = min / 1440;
+        return days === 7 ? _('1 week before') : ngettext('%d day before', '%d days before', days).replace('%d', days);
+    }
+    if (min % 60 === 0) {
+        const hours = min / 60;
+        return ngettext('%d hour before', '%d hours before', hours).replace('%d', hours);
+    }
+    return ngettext('%d minute before', '%d minutes before', min).replace('%d', min);
+}
+
+function alertLabel(value, allDay) {
+    if (value === 'NONE') return _('None');
+    return minutesLabel(parseInt(value), allDay);
+}
 
 export class EventPanel {
 
@@ -46,6 +104,7 @@ export class EventPanel {
         });
 
         this._clickId = global.stage.connect('button-press-event', (_stage, ev) => {
+            if (this._confirmOverlay) return Clutter.EVENT_PROPAGATE; // let it handle its own clicks
             const [x, y] = ev.get_coords();
             const actor  = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
             if (actor && !this._box.contains(actor)) this.close();
@@ -53,6 +112,7 @@ export class EventPanel {
         });
 
         this._keyId = global.stage.connect('key-press-event', (_stage, ev) => {
+            if (this._confirmOverlay) return Clutter.EVENT_PROPAGATE; // let it handle Escape itself
             if (ev.get_key_symbol() === Clutter.KEY_Escape) {
                 this.close();
                 return Clutter.EVENT_STOP;
@@ -101,6 +161,7 @@ export class EventPanel {
         });
         if (ev) this._titleEntry.set_text(ev.title ?? '');
         this._titleEntry.clutter_text.connect('activate', () => this._save());
+        this._focusOnClick(this._titleEntry);
         box.add_child(this._titleEntry);
 
         // ── Calendar picker ────────────────────────────────────────────────────
@@ -134,7 +195,7 @@ export class EventPanel {
                 this._calDropdown.add_child(btn);
             }
             this._calPickerBtn.connect('clicked', () => {
-                this._calDropdown.visible = !this._calDropdown.visible;
+                this._toggleDropdown(this._calDropdown);
             });
             calBox.add_child(this._calPickerBtn);
             calBox.add_child(this._calDropdown);
@@ -142,6 +203,47 @@ export class EventPanel {
             calBox.add_child(this._calPickerBtn);
         }
         box.add_child(calBox);
+
+        box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
+
+        // ── Location ───────────────────────────────────────────────────────────
+        const locationRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
+        locationRow.add_child(new St.Label({text: _('Location'), style_class: 'litsycal-panel-lbl'}));
+        this._locationEntry = new St.Entry({
+            style_class: 'litsycal-panel-text-entry',
+            hint_text: _('Add location…'),
+            x_expand: true,
+            can_focus: true,
+        });
+        if (ev?.location) this._locationEntry.set_text(ev.location);
+        this._focusOnClick(this._locationEntry);
+        locationRow.add_child(this._locationEntry);
+        box.add_child(locationRow);
+
+        // ── URL ────────────────────────────────────────────────────────────────
+        const urlRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
+        urlRow.add_child(new St.Label({text: _('URL'), style_class: 'litsycal-panel-lbl'}));
+        this._urlEntry = new St.Entry({
+            style_class: 'litsycal-panel-text-entry',
+            hint_text: 'https://…',
+            x_expand: true,
+            can_focus: true,
+        });
+        if (ev?.url) this._urlEntry.set_text(ev.url);
+        this._focusOnClick(this._urlEntry);
+
+        this._openUrlBtn = new St.Button({
+            label: '↗',
+            style_class: 'litsycal-panel-open-btn',
+            visible: !!(ev?.url),
+        });
+        this._openUrlBtn.connect('clicked', () => this._openUrl());
+        this._urlEntry.clutter_text.connect('text-changed', () => {
+            this._openUrlBtn.visible = this._urlEntry.get_text().trim().length > 0;
+        });
+        urlRow.add_child(this._urlEntry);
+        urlRow.add_child(this._openUrlBtn);
+        box.add_child(urlRow);
 
         box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
 
@@ -164,14 +266,10 @@ export class EventPanel {
             ? (ev.time?.split(' - ')[0] ?? this._nowHour()) : this._nowHour();
         this._startsRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
         this._startsRow.add_child(new St.Label({text: _('Starts'), style_class: 'litsycal-panel-lbl'}));
-        this._startDateEntry = new St.Entry({
-            style_class: 'litsycal-panel-date-entry', text: this._selDate, x_expand: true,
-        });
-        this._startTimeEntry = new St.Entry({
-            style_class: 'litsycal-panel-time-entry', text: defStartTime,
-        });
-        this._startsRow.add_child(this._startDateEntry);
-        this._startsRow.add_child(this._startTimeEntry);
+        this._startDatePicker = this._makeDateField(this._selDate);
+        this._startTimePicker = this._makeTimeField(defStartTime);
+        this._startsRow.add_child(this._startDatePicker.actor);
+        this._startsRow.add_child(this._startTimePicker.actor);
         box.add_child(this._startsRow);
 
         // ── Ends ───────────────────────────────────────────────────────────────
@@ -179,43 +277,55 @@ export class EventPanel {
             ? (ev.time?.split(' - ')[1]?.trim() ?? this._nextHour()) : this._nextHour();
         this._endsRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
         this._endsRow.add_child(new St.Label({text: _('Ends'), style_class: 'litsycal-panel-lbl'}));
-        this._endDateEntry = new St.Entry({
-            style_class: 'litsycal-panel-date-entry', text: this._selDate, x_expand: true,
-        });
-        this._endTimeEntry = new St.Entry({
-            style_class: 'litsycal-panel-time-entry', text: defEndTime,
-        });
-        this._endsRow.add_child(this._endDateEntry);
-        this._endsRow.add_child(this._endTimeEntry);
+        this._endDatePicker = this._makeDateField(this._selDate);
+        this._endTimePicker = this._makeTimeField(defEndTime);
+        this._endsRow.add_child(this._endDatePicker.actor);
+        this._endsRow.add_child(this._endTimePicker.actor);
         box.add_child(this._endsRow);
 
         this._updateTimeVisibility();
 
         box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
 
-        // ── URL ────────────────────────────────────────────────────────────────
-        const urlRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
-        urlRow.add_child(new St.Label({text: _('URL'), style_class: 'litsycal-panel-lbl'}));
-        this._urlEntry = new St.Entry({
-            style_class: 'litsycal-panel-text-entry',
-            hint_text: 'https://…',
-            x_expand: true,
-            can_focus: true,
-        });
-        if (ev?.url) this._urlEntry.set_text(ev.url);
+        // ── Repeat ─────────────────────────────────────────────────────────────
+        const repeatInit = this._repeatInitFor(ev?.recurrence);
+        this._customRecurrence = repeatInit.customRecurrence;
 
-        this._openUrlBtn = new St.Button({
-            label: '↗',
-            style_class: 'litsycal-panel-open-btn',
-            visible: !!(ev?.url),
-        });
-        this._openUrlBtn.connect('clicked', () => this._openUrl());
-        this._urlEntry.clutter_text.connect('text-changed', () => {
-            this._openUrlBtn.visible = this._urlEntry.get_text().trim().length > 0;
-        });
-        urlRow.add_child(this._urlEntry);
-        urlRow.add_child(this._openUrlBtn);
-        box.add_child(urlRow);
+        const repeatRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
+        repeatRow.add_child(new St.Label({text: _('Repeat'), style_class: 'litsycal-panel-lbl'}));
+        this._repeatPicker = this._makeDropdownField(
+            repeatInit.options, repeatInit.value, () => this._updateRepeatEndVisibility()
+        );
+        repeatRow.add_child(this._repeatPicker.actor);
+        box.add_child(repeatRow);
+
+        this._repeatEndRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
+        this._repeatEndRow.add_child(new St.Label({text: _('Until'), style_class: 'litsycal-panel-lbl'}));
+        const initialUntil = ev?.recurrence?.until ?? null;
+        this._repeatEndPicker = this._makeDropdownField(
+            [{value: 'NEVER', label: _('Never')}, {value: 'ON_DATE', label: _('On date')}],
+            initialUntil ? 'ON_DATE' : 'NEVER',
+            () => this._updateRepeatUntilVisibility()
+        );
+        this._repeatEndRow.add_child(this._repeatEndPicker.actor);
+        this._repeatUntilPicker = this._makeDateField(initialUntil ?? this._selDate);
+        this._repeatEndRow.add_child(this._repeatUntilPicker.actor);
+        box.add_child(this._repeatEndRow);
+
+        this._updateRepeatEndVisibility();
+        this._updateRepeatUntilVisibility();
+
+        box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
+
+        // ── Alert ──────────────────────────────────────────────────────────────
+        const alertInit = this._alertInitFor(ev?.alarm, this._allDay);
+        const alertRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
+        alertRow.add_child(new St.Label({text: _('Alert'), style_class: 'litsycal-panel-lbl'}));
+        this._alertPicker = this._makeDropdownField(alertInit.options, alertInit.value);
+        alertRow.add_child(this._alertPicker.actor);
+        box.add_child(alertRow);
+
+        box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
 
         // ── Notes ──────────────────────────────────────────────────────────────
         const notesRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
@@ -230,6 +340,7 @@ export class EventPanel {
         this._notesEntry.clutter_text.set_activatable(false);
         this._notesEntry.clutter_text.set_line_wrap(true);
         if (ev?.notes) this._notesEntry.set_text(ev.notes);
+        this._focusOnClick(this._notesEntry);
         notesRow.add_child(this._notesEntry);
         box.add_child(notesRow);
 
@@ -243,17 +354,20 @@ export class EventPanel {
         const btnRow = new St.BoxLayout({style_class: 'litsycal-panel-btn-row', x_expand: true});
         if (ev) {
             const delBtn = new St.Button({label: _('Delete'), style_class: 'litsycal-panel-delete-btn'});
-            delBtn.connect('clicked', () => this._delete());
+            delBtn.connect('clicked', () => this._confirmDelete());
             btnRow.add_child(delBtn);
         }
         btnRow.add_child(new St.Widget({x_expand: true}));
         const cancelBtn = new St.Button({label: _('Cancel'), style_class: 'litsycal-panel-cancel-btn'});
         cancelBtn.connect('clicked', () => this.close());
-        const saveBtn = new St.Button({label: _('Save Event'), style_class: 'litsycal-panel-save-btn'});
-        saveBtn.connect('clicked', () => this._save());
+        this._saveBtn = new St.Button({label: _('Save Event'), style_class: 'litsycal-panel-save-btn'});
+        this._saveBtn.connect('clicked', () => this._save());
         btnRow.add_child(cancelBtn);
-        btnRow.add_child(saveBtn);
+        btnRow.add_child(this._saveBtn);
         box.add_child(btnRow);
+
+        this._titleEntry.clutter_text.connect('text-changed', () => this._updateSaveEnabled());
+        this._updateSaveEnabled();
     }
 
     _nowHour() {
@@ -293,11 +407,319 @@ export class EventPanel {
             this._allDay ? 'litsycal-panel-toggle-on' : 'litsycal-panel-toggle-off'
         );
         this._updateTimeVisibility();
+
+        // Alert presets differ for all-day vs timed events; keep a custom
+        // (unrecognized) alarm selected across the toggle, reset others to None.
+        const keepCustom = this._alertPicker.getValue() === 'CUSTOM';
+        const presets = this._alertPresetOptions(this._allDay);
+        this._alertPicker.setOptions(
+            keepCustom ? [{value: 'CUSTOM', label: _('Custom')}, ...presets] : presets,
+            keepCustom ? 'CUSTOM' : 'NONE'
+        );
     }
 
     _updateTimeVisibility() {
-        this._startTimeEntry.visible = !this._allDay;
-        this._endTimeEntry.visible   = !this._allDay;
+        this._startTimePicker.actor.visible = !this._allDay;
+        this._endTimePicker.actor.visible   = !this._allDay;
+    }
+
+    _alertPresetOptions(allDay) {
+        return (allDay ? ALERT_PRESETS_ALLDAY : ALERT_PRESETS_TIMED)
+            .map(v => ({value: v, label: alertLabel(v, allDay)}));
+    }
+
+    _alertInitFor(alarm, allDay) {
+        const presets = this._alertPresetOptions(allDay);
+        if (!alarm) return {value: 'NONE', options: presets};
+        if (alarm.raw)
+            return {value: 'CUSTOM', options: [{value: 'CUSTOM', label: _('Custom')}, ...presets]};
+
+        const key = String(alarm.minutesBefore);
+        if (presets.some(o => o.value === key)) return {value: key, options: presets};
+
+        // Exact offset from another app that isn't one of our presets — inject
+        // it so it stays visible and editable instead of looking unsupported.
+        const extra = {value: key, label: minutesLabel(alarm.minutesBefore, allDay)};
+        return {value: key, options: [extra, ...presets]};
+    }
+
+    _repeatInitFor(recurrence) {
+        const presets = REPEAT_PRESETS.map(p => ({value: p.value, label: repeatLabel(p.value)}));
+        if (!recurrence) return {value: 'NONE', options: presets, customRecurrence: null};
+
+        if (!recurrence.raw) {
+            const match = REPEAT_PRESETS.find(
+                p => p.freq === recurrence.freq && p.interval === recurrence.interval
+            );
+            if (match) return {value: match.value, options: presets, customRecurrence: null};
+        }
+        return {
+            value: 'CUSTOM',
+            options: [{value: 'CUSTOM', label: _('Custom')}, ...presets],
+            customRecurrence: recurrence,
+        };
+    }
+
+    _updateRepeatEndVisibility() {
+        const val = this._repeatPicker.getValue();
+        this._repeatEndRow.visible = val !== 'NONE' && val !== 'CUSTOM';
+    }
+
+    _updateRepeatUntilVisibility() {
+        this._repeatUntilPicker.actor.visible = this._repeatEndPicker.getValue() === 'ON_DATE';
+    }
+
+    _updateSaveEnabled() {
+        const hasTitle = this._titleEntry.get_text().trim().length > 0;
+        this._saveBtn.reactive  = hasTitle;
+        this._saveBtn.can_focus = hasTitle;
+        this._saveBtn.remove_style_class_name('litsycal-panel-save-btn-disabled');
+        if (!hasTitle) this._saveBtn.add_style_class_name('litsycal-panel-save-btn-disabled');
+    }
+
+    // This panel floats in Main.layoutManager.uiGroup, detached from the shell's
+    // PopupMenu that hosts the calendar — clicking an entry here doesn't reliably
+    // grab key focus on its own, so do it explicitly.
+    _focusOnClick(entry) {
+        entry.connect('button-press-event', () => {
+            entry.grab_key_focus();
+            return Clutter.EVENT_PROPAGATE;
+        });
+    }
+
+    // Only one dropdown (calendar picker, date picker, time picker) open at a time.
+    _toggleDropdown(dropdown, onOpen) {
+        const willOpen = !dropdown.visible;
+        if (this._openDropdown && this._openDropdown !== dropdown)
+            this._openDropdown.visible = false;
+        dropdown.visible = willOpen;
+        this._openDropdown = willOpen ? dropdown : null;
+        if (willOpen) onOpen?.();
+    }
+
+    // options: [{value, label}]. Returns a controller with getValue() and
+    // setOptions(newOptions, newValue) so the Alert list can be rebuilt when
+    // All-day toggles.
+    _makeDropdownField(options, initialValue, onChange) {
+        const wrap    = new St.BoxLayout({vertical: true, x_expand: true});
+        const btnLbl  = new St.Label({x_expand: true});
+        const btn     = new St.Button({
+            style_class: 'litsycal-panel-dropdown-btn', x_expand: true, child: btnLbl,
+        });
+        const dropdown = new St.BoxLayout({
+            vertical: true,
+            style_class: 'popup-menu-content litsycal-panel-dropdown-list',
+            visible: false,
+        });
+
+        let opts = options;
+        let cur  = initialValue;
+
+        const rebuildList = () => {
+            dropdown.destroy_all_children();
+            for (const opt of opts) {
+                const isSel = opt.value === cur;
+                const optBtn = new St.Button({
+                    label: opt.label, x_expand: true,
+                    style_class: 'litsycal-panel-dropdown-option' +
+                        (isSel ? ' litsycal-panel-dropdown-option-selected' : ''),
+                });
+                optBtn.connect('clicked', () => {
+                    cur = opt.value;
+                    btnLbl.set_text(opt.label);
+                    dropdown.visible   = false;
+                    this._openDropdown = null;
+                    onChange?.(cur);
+                });
+                dropdown.add_child(optBtn);
+            }
+        };
+
+        btnLbl.set_text(opts.find(o => o.value === cur)?.label ?? '');
+        rebuildList();
+
+        btn.connect('clicked', () => this._toggleDropdown(dropdown));
+
+        wrap.add_child(btn);
+        wrap.add_child(dropdown);
+
+        return {
+            actor: wrap,
+            getValue: () => cur,
+            setOptions(newOpts, newValue) {
+                opts = newOpts;
+                cur  = newValue;
+                btnLbl.set_text(opts.find(o => o.value === cur)?.label ?? '');
+                rebuildList();
+            },
+        };
+    }
+
+    _makeDateField(initialStr) {
+        const [iy, im, id] = initialStr.split('-').map(Number);
+        let cur  = {y: iy, m: im, d: id};
+        let view = {y: iy, m: im};
+
+        const wrap = new St.BoxLayout({vertical: true, x_expand: true});
+        const btnLbl = new St.Label({text: initialStr});
+        const btn = new St.Button({
+            style_class: 'litsycal-panel-date-btn', x_expand: true, child: btnLbl,
+        });
+
+        const dropdown = new St.BoxLayout({
+            vertical: true,
+            style_class: 'popup-menu-content litsycal-panel-date-dropdown',
+            visible: false,
+        });
+
+        const header    = new St.BoxLayout({style_class: 'litsycal-panel-date-header'});
+        const prevBtn   = new St.Button({label: '‹', style_class: 'litsycal-nav-btn',
+                                          accessible_name: _('Previous month')});
+        const monthLbl  = new St.Label({x_expand: true, style_class: 'litsycal-panel-date-month-lbl'});
+        const nextBtn   = new St.Button({label: '›', style_class: 'litsycal-nav-btn',
+                                          accessible_name: _('Next month')});
+        header.add_child(prevBtn);
+        header.add_child(monthLbl);
+        header.add_child(nextBtn);
+        dropdown.add_child(header);
+
+        const dowRow = new St.BoxLayout({style_class: 'litsycal-panel-date-dow-row'});
+        for (let i = 0; i < 7; i++) {
+            const abbr = capitalize(GLib.DateTime.new_local(2025, 1, 6 + i, 0, 0, 0).format('%a'));
+            dowRow.add_child(new St.Label({text: abbr, x_expand: true, style_class: 'litsycal-panel-date-dow'}));
+        }
+        dropdown.add_child(dowRow);
+
+        const gridBox = new St.BoxLayout({vertical: true});
+        dropdown.add_child(gridBox);
+
+        const todayStr = dateStr(GLib.DateTime.new_now_local());
+
+        const rebuild = () => {
+            gridBox.destroy_all_children();
+            monthLbl.set_text(
+                `${capitalize(GLib.DateTime.new_local(view.y, view.m, 1, 0, 0, 0).format('%B'))} ${view.y}`
+            );
+
+            const firstDow = GLib.DateTime.new_local(view.y, view.m, 1, 0, 0, 0).get_day_of_week() - 1;
+            const total    = daysInMonth(view.y, view.m);
+
+            let row = new St.BoxLayout({style_class: 'litsycal-panel-date-row'});
+            for (let i = 0; i < firstDow; i++) row.add_child(new St.Widget({x_expand: true}));
+            let col = firstDow;
+
+            for (let d = 1; d <= total; d++) {
+                const ds     = `${view.y}-${pad(view.m)}-${pad(d)}`;
+                const isSel  = view.y === cur.y && view.m === cur.m && d === cur.d;
+                const isToday = ds === todayStr;
+                let sc = 'litsycal-panel-date-day';
+                if (isSel)   sc += ' litsycal-panel-date-day-selected';
+                if (isToday) sc += ' litsycal-panel-date-day-today';
+                const dayBtn = new St.Button({label: String(d), x_expand: true, style_class: sc});
+                dayBtn.accessible_name = capitalize(
+                    GLib.DateTime.new_local(view.y, view.m, d, 0, 0, 0).format('%A, %B %-d, %Y')
+                );
+                dayBtn.connect('clicked', () => {
+                    cur = {y: view.y, m: view.m, d};
+                    btnLbl.set_text(ds);
+                    dropdown.visible   = false;
+                    this._openDropdown = null;
+                });
+                row.add_child(dayBtn);
+                col++;
+                if (col === 7) {
+                    gridBox.add_child(row);
+                    row = new St.BoxLayout({style_class: 'litsycal-panel-date-row'});
+                    col = 0;
+                }
+            }
+            if (col > 0) {
+                while (col < 7) { row.add_child(new St.Widget({x_expand: true})); col++; }
+                gridBox.add_child(row);
+            }
+        };
+
+        prevBtn.connect('clicked', () => {
+            view = view.m === 1 ? {y: view.y - 1, m: 12} : {y: view.y, m: view.m - 1};
+            rebuild();
+        });
+        nextBtn.connect('clicked', () => {
+            view = view.m === 12 ? {y: view.y + 1, m: 1} : {y: view.y, m: view.m + 1};
+            rebuild();
+        });
+        btn.connect('clicked', () => {
+            this._toggleDropdown(dropdown, () => { view = {y: cur.y, m: cur.m}; rebuild(); });
+        });
+
+        rebuild();
+        wrap.add_child(btn);
+        wrap.add_child(dropdown);
+
+        return {
+            actor: wrap,
+            getValue: () => btnLbl.get_text(),
+        };
+    }
+
+    _makeTimeField(initialStr) {
+        const wrap = new St.BoxLayout({vertical: true});
+        const btnLbl = new St.Label({text: initialStr});
+        const btn = new St.Button({style_class: 'litsycal-panel-time-btn', child: btnLbl});
+
+        const scroll = new St.ScrollView({
+            style_class: 'litsycal-panel-time-scroll',
+            visible: false,
+            hscrollbar_policy: St.PolicyType.NEVER,
+            vscrollbar_policy: St.PolicyType.AUTOMATIC,
+        });
+        const list = new St.BoxLayout({
+            vertical: true, style_class: 'popup-menu-content litsycal-panel-time-dropdown',
+        });
+        scroll.set_child(list);
+
+        let cur = initialStr;
+        const optBtns = [];
+        for (let h = 0; h < 24; h++) {
+            for (const m of [0, 30]) {
+                const value = `${pad(h)}:${pad(m)}`;
+                const isSel = value === cur;
+                const optBtn = new St.Button({
+                    label: value, x_expand: true,
+                    style_class: 'litsycal-panel-time-option' +
+                        (isSel ? ' litsycal-panel-time-option-selected' : ''),
+                });
+                optBtn.connect('clicked', () => {
+                    cur = value;
+                    btnLbl.set_text(value);
+                    scroll.visible     = false;
+                    this._openDropdown = null;
+                });
+                list.add_child(optBtn);
+                optBtns.push(optBtn);
+            }
+        }
+
+        btn.connect('clicked', () => {
+            this._toggleDropdown(scroll, () => {
+                const idx = optBtns.findIndex(b => b.get_label() === cur);
+                if (idx < 0) return;
+                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    const adjustment = scroll.vadjustment ?? scroll.vscroll.adjustment;
+                    const rowH  = optBtns[0].get_height() || 0;
+                    const viewH = scroll.get_height() || 0;
+                    adjustment.value = Math.max(0, rowH * idx - viewH / 2 + rowH / 2);
+                    return GLib.SOURCE_REMOVE;
+                });
+            });
+        });
+
+        wrap.add_child(btn);
+        wrap.add_child(scroll);
+
+        return {
+            actor: wrap,
+            getValue: () => cur,
+        };
     }
 
     _openUrl() {
@@ -327,28 +749,53 @@ export class EventPanel {
         this._errorLbl.visible = true;
     }
 
+    _recurrenceFromUI() {
+        const val = this._repeatPicker.getValue();
+        if (val === 'NONE')   return null;
+        if (val === 'CUSTOM') return this._customRecurrence;
+
+        const preset = REPEAT_PRESETS.find(p => p.value === val);
+        const until  = this._repeatEndPicker.getValue() === 'ON_DATE'
+            ? this._parseDate(this._repeatUntilPicker.getValue())
+            : null;
+        return {freq: preset.freq, interval: preset.interval, until};
+    }
+
+    _alarmFromUI() {
+        const val = this._alertPicker.getValue();
+        if (val === 'NONE')   return null;
+        if (val === 'CUSTOM') return this._customAlarm;
+        return {minutesBefore: parseInt(val)};
+    }
+
     _save() {
         const title = this._titleEntry.get_text().trim();
         if (!title)           { this._showError(_('Title required')); return; }
         if (!this._selSource) { this._showError(_('No calendar available')); return; }
 
-        const startDate = this._parseDate(this._startDateEntry.get_text());
+        const startDate = this._parseDate(this._startDatePicker.getValue());
         if (!startDate) { this._showError(_('Invalid date (YYYY-MM-DD)')); return; }
 
         let hour = 0, minute = 0, endHour = 1, endMinute = 0, endDate = startDate;
 
         if (!this._allDay) {
-            const st = this._parseTime(this._startTimeEntry.get_text());
-            const et = this._parseTime(this._endTimeEntry.get_text());
+            const st = this._parseTime(this._startTimePicker.getValue());
+            const et = this._parseTime(this._endTimePicker.getValue());
             if (!st) { this._showError(_('Invalid start time (HH:MM)')); return; }
             if (!et) { this._showError(_('Invalid end time (HH:MM)')); return; }
             hour = st.h; minute = st.min;
             endHour = et.h; endMinute = et.min;
-            endDate = this._parseDate(this._endDateEntry.get_text()) ?? startDate;
+            endDate = this._parseDate(this._endDatePicker.getValue()) ?? startDate;
         }
 
-        const notes = this._notesEntry.get_text().trim() || null;
-        const url   = this._urlEntry.get_text().trim()   || null;
+        const notes      = this._notesEntry.get_text().trim()    || null;
+        const url        = this._urlEntry.get_text().trim()      || null;
+        const location   = this._locationEntry.get_text().trim() || null;
+        const recurrence = this._recurrenceFromUI();
+        const alarm      = this._alarmFromUI();
+
+        const fields = {title, date: startDate, allDay: this._allDay, hour, minute,
+                         endDate, endHour, endMinute, notes, url, location, recurrence, alarm};
 
         const done = err => {
             if (err) { this._showError(err.message); return; }
@@ -357,23 +804,74 @@ export class EventPanel {
         };
 
         if (this._event) {
-            this._calManager.updateEvent(
-                this._event.uid, this._event.clientUid,
-                {title, date: startDate, allDay: this._allDay,
-                 hour, minute, endDate, endHour, endMinute, notes, url},
-                done
-            );
+            this._calManager.updateEvent(this._event.uid, this._event.clientUid, fields, done);
         } else {
-            this._calManager.createEvent(
-                title, startDate, this._allDay, hour, minute,
-                endHour, endMinute, endDate, notes, url,
-                this._selSource.uid, done
-            );
+            this._calManager.createEvent(fields, this._selSource.uid, done);
         }
     }
 
-    _delete() {
-        this._calManager.deleteEvent(this._event.uid, this._event.clientUid, err => {
+    _confirmDelete() {
+        const isRecurring = !!(this._event.recurrence || this._event.recurrenceId);
+        if (!isRecurring) { this._doDelete('ALL'); return; }
+
+        const overlay = new St.BoxLayout({
+            vertical: true,
+            style_class: 'popup-menu-content litsycal-confirm-panel',
+            reactive: true,
+        });
+        overlay.add_child(new St.Label({
+            text: _('This is a repeating event.'), style_class: 'litsycal-confirm-title',
+        }));
+
+        const closeOverlay = () => {
+            global.stage.disconnect(clickId);
+            global.stage.disconnect(keyId);
+            Main.layoutManager.uiGroup.remove_child(overlay);
+            overlay.destroy();
+            this._confirmOverlay = null;
+        };
+
+        const mkBtn = (label, styleClass, onClick) => {
+            const b = new St.Button({label, style_class: styleClass, x_expand: true});
+            b.connect('clicked', () => { closeOverlay(); onClick(); });
+            return b;
+        };
+
+        overlay.add_child(mkBtn(_('Delete this event'), 'litsycal-confirm-btn litsycal-confirm-btn-danger',
+            () => this._doDelete('THIS')));
+        overlay.add_child(mkBtn(_('Delete all events'), 'litsycal-confirm-btn litsycal-confirm-btn-danger',
+            () => this._doDelete('ALL')));
+        overlay.add_child(mkBtn(_('Cancel'), 'litsycal-confirm-btn', () => {}));
+
+        Main.layoutManager.uiGroup.add_child(overlay);
+        this._confirmOverlay = overlay;
+
+        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            const monitor = Main.layoutManager.primaryMonitor;
+            const w = overlay.get_width()  || 260;
+            const h = overlay.get_height() || 160;
+            overlay.set_position(
+                monitor.x + Math.round((monitor.width  - w) / 2),
+                monitor.y + Math.round((monitor.height - h) / 2)
+            );
+            return GLib.SOURCE_REMOVE;
+        });
+
+        const clickId = global.stage.connect('button-press-event', (_stage, ev) => {
+            const [x, y] = ev.get_coords();
+            const actor  = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
+            if (actor && !overlay.contains(actor)) closeOverlay();
+            return Clutter.EVENT_PROPAGATE;
+        });
+        const keyId = global.stage.connect('key-press-event', (_stage, ev) => {
+            if (ev.get_key_symbol() === Clutter.KEY_Escape) { closeOverlay(); return Clutter.EVENT_STOP; }
+            return Clutter.EVENT_PROPAGATE;
+        });
+    }
+
+    _doDelete(scope) {
+        const recurrenceId = this._event.recurrenceId ?? null;
+        this._calManager.deleteEvent(this._event.uid, this._event.clientUid, {scope, recurrenceId}, err => {
             if (err) { this._showError(err.message); return; }
             this._onSaved?.();
             this.close();
@@ -381,6 +879,11 @@ export class EventPanel {
     }
 
     close() {
+        if (this._confirmOverlay) {
+            Main.layoutManager.uiGroup.remove_child(this._confirmOverlay);
+            this._confirmOverlay.destroy();
+            this._confirmOverlay = null;
+        }
         if (this._clickId) { global.stage.disconnect(this._clickId); this._clickId = null; }
         if (this._keyId)   { global.stage.disconnect(this._keyId);   this._keyId   = null; }
         if (this._box) {
