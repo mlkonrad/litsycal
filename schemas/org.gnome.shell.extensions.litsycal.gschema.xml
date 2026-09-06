@@ -25,7 +25,7 @@
     <key name="badge-style" type="s">
       <default>'number-light'</default>
       <summary>Panel badge style</summary>
-      <description>One of: number-light, number-dark, calendar, calendar-dark</description>
+      <description>One of: number-light, number-dark, calendar, calendar-dark, text</description>
     </key>
     <key name="show-month-in-badge" type="b">
       <default>false</default>

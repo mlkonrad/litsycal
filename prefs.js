@@ -184,8 +184,8 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         const iconGroup = new Adw.PreferencesGroup({title: _('Panel Icon')});
         appearance.add(iconGroup);
 
-        const STYLE_IDS    = ['number-light', 'number-dark', 'calendar', 'calendar-dark'];
-        const STYLE_LABELS = [_('Number — light'), _('Number — dark'), _('Calendar — light'), _('Calendar — dark')];
+        const STYLE_IDS    = ['number-light', 'number-dark', 'calendar', 'calendar-dark', 'text'];
+        const STYLE_LABELS = [_('Number — light'), _('Number — dark'), _('Calendar — light'), _('Calendar — dark'), _('Text — no background')];
 
         const styleRow = new Adw.ComboRow({
             title: _('Icon style'),

@@ -271,6 +271,13 @@
     color: white;
 }
 
+/* Badge style: plain text, no background — inherits the panel's own colour */
+.litsycal-badge-text {
+    background-color: transparent;
+    border: none;
+    padding: 1px 3px;
+}
+
 /* ── Calendar size variants ──────────────────────────────────────────────── */
 /* Small */
 .litsycal-size-sm                { min-width: 220px; }

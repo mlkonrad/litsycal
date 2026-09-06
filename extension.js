@@ -753,9 +753,11 @@ class LitsycalIndicator extends PanelMenu.Button {
         this._badge.remove_style_class_name('litsycal-badge-dark');
         this._badge.remove_style_class_name('litsycal-badge-calendar');
         this._badge.remove_style_class_name('litsycal-badge-calendar-dark');
+        this._badge.remove_style_class_name('litsycal-badge-text');
         if (style === 'number-dark')   this._badge.add_style_class_name('litsycal-badge-dark');
         if (style === 'calendar')      this._badge.add_style_class_name('litsycal-badge-calendar');
         if (style === 'calendar-dark') this._badge.add_style_class_name('litsycal-badge-calendar-dark');
+        if (style === 'text')          this._badge.add_style_class_name('litsycal-badge-text');
 
         const now = GLib.DateTime.new_now_local();
         this._badge.set_text(
