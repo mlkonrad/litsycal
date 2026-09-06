@@ -243,7 +243,15 @@ class LitsycalCalendar extends St.BoxLayout {
         this.add_child(new St.Widget({style_class: 'litsycal-sep'}));
 
         this._agendaBox = new St.BoxLayout({vertical: true, style_class: 'litsycal-agenda', x_expand: true});
-        this.add_child(this._agendaBox);
+        this._agendaScroll = new St.ScrollView({
+            style_class: 'litsycal-agenda-scroll',
+            x_expand: true,
+            hscrollbar_policy: St.PolicyType.NEVER,
+            vscrollbar_policy: St.PolicyType.AUTOMATIC,
+            overlay_scrollbars: true,
+        });
+        this._agendaScroll.set_child(this._agendaBox);
+        this.add_child(this._agendaScroll);
         this._buildAgenda();
 
         this._buildFooter();
@@ -427,6 +435,30 @@ class LitsycalCalendar extends St.BoxLayout {
         }
 
         this._outline?.queue_repaint();
+        this._updateAgendaMaxHeight();
+    }
+
+    // Cap the agenda's height to whatever screen space is actually left below
+    // the calendar/header/footer, mirroring Itsycal's agendaMaxPossibleHeight —
+    // rather than letting a busy week grow the popup past the monitor edge.
+    _updateAgendaMaxHeight() {
+        if (!this._agendaScroll) return;
+
+        const monitor = Main.layoutManager.monitors[
+            Main.layoutManager.findIndexForActor(this)
+        ] ?? Main.layoutManager.primaryMonitor;
+        const panelH = Main.panel.get_height();
+
+        let othersHeight = 0;
+        for (const child of this.get_children()) {
+            if (child === this._agendaScroll) continue;
+            othersHeight += child.get_preferred_height(-1)[1];
+        }
+
+        const margin    = 16; // breathing room below the popup
+        const maxTotal  = monitor.height - panelH - margin;
+        const maxAgenda = Math.max(80, maxTotal - othersHeight);
+        this._agendaScroll.style = `max-height: ${maxAgenda}px;`;
     }
 
     _makeOverflow(day) {
@@ -712,6 +744,7 @@ class LitsycalIndicator extends PanelMenu.Button {
 
         this._menuOpenId = this.menu.connect('open-state-changed', (_menu, open) => {
             if (open && this._pinned) this._unpinCalendar(false);
+            if (open) this._calWidget._updateAgendaMaxHeight();
         });
 
         const section = new PopupMenu.PopupMenuSection();
@@ -805,7 +838,9 @@ class LitsycalIndicator extends PanelMenu.Button {
         this._menuItem.remove_child(this._calWidget);
         this._floatingBox.add_child(this._calWidget);
 
-        const calW = this._calWidget.get_width() || 270;
+        const sizeMinWidths = [220, 255, 315]; // must match .litsycal-size-sm/-lg / base min-width
+        const calW = this._calWidget.get_width()
+            || sizeMinWidths[this._settings.get_int('calendar-size')] || 255;
         let x = Math.round(btnX + btnW / 2 - calW / 2);
         x = Math.max(monitor.x + 4, Math.min(x, monitor.x + monitor.width - calW - 4));
         this._floatingBox.set_position(x, monitor.y + panelH + 4);

@@ -115,6 +115,10 @@
 }
 
 /* ── Agenda ──────────────────────────────────────────────────────────────── */
+.litsycal-agenda-scroll {
+    padding: 0;
+}
+
 .litsycal-agenda {
     padding-top: 4px;
     padding-bottom: 6px;
@@ -292,6 +296,24 @@
 .litsycal-size-lg .litsycal-overflow { min-width: 40px; min-height: 34px; font-size: 1.00em; }
 .litsycal-size-lg .litsycal-day-name { min-width: 42px; font-size: 0.80em; }
 .litsycal-size-lg .litsycal-day-name-cell { min-width: 40px; }
+
+/* Agenda text/markers scale with the same size preference (Small) */
+.litsycal-size-sm .litsycal-agenda-day-name { font-size: 0.78em; }
+.litsycal-size-sm .litsycal-agenda-day-date { font-size: 0.70em; }
+.litsycal-size-sm .litsycal-agenda-empty    { font-size: 0.68em; }
+.litsycal-size-sm .litsycal-agenda-title    { font-size: 0.75em; }
+.litsycal-size-sm .litsycal-agenda-time     { font-size: 0.66em; }
+.litsycal-size-sm .litsycal-agenda-pill     { width: 7px; height: 7px; border-radius: 3.5px; }
+.litsycal-size-sm .litsycal-agenda-time-row { padding-left: 14px; }
+
+/* Agenda text/markers scale with the same size preference (Large) */
+.litsycal-size-lg .litsycal-agenda-day-name { font-size: 1.00em; }
+.litsycal-size-lg .litsycal-agenda-day-date { font-size: 0.92em; }
+.litsycal-size-lg .litsycal-agenda-empty    { font-size: 0.90em; }
+.litsycal-size-lg .litsycal-agenda-title    { font-size: 0.97em; }
+.litsycal-size-lg .litsycal-agenda-time     { font-size: 0.88em; }
+.litsycal-size-lg .litsycal-agenda-pill     { width: 9px; height: 9px; border-radius: 4.5px; }
+.litsycal-size-lg .litsycal-agenda-time-row { padding-left: 18px; }
 
 /* ── Calendar widget background (replaces inline style from JS) ──────────────── */
 .litsycal-theme-dark  { background-color: #1e1e1e; border-radius: 8px; }
