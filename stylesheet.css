@@ -194,16 +194,35 @@
     opacity: 0.55;
 }
 
+/* Location row: indented below time, same treatment */
+.litsycal-agenda-location-row {
+    padding-left: 16px;
+    padding-bottom: 1px;
+    spacing: 4px;
+}
+
+.litsycal-agenda-location-icon {
+    icon-size: 11px;
+    opacity: 0.55;
+}
+
+.litsycal-agenda-location {
+    font-size: 0.76em;
+    opacity: 0.55;
+}
+
 /* Theme overrides */
 .litsycal-theme-light .litsycal-agenda-day-name { color: #1a1a1a; }
 .litsycal-theme-light .litsycal-agenda-day-date { color: #1a1a1a; }
 .litsycal-theme-light .litsycal-agenda-title    { color: #1a1a1a; }
 .litsycal-theme-light .litsycal-agenda-time     { color: rgba(0,0,0,0.50); }
+.litsycal-theme-light .litsycal-agenda-location { color: rgba(0,0,0,0.50); }
 .litsycal-theme-light .litsycal-agenda-empty    { color: #1a1a1a; }
 .litsycal-theme-dark  .litsycal-agenda-day-name { color: white; }
 .litsycal-theme-dark  .litsycal-agenda-day-date { color: white; }
 .litsycal-theme-dark  .litsycal-agenda-title    { color: white; }
 .litsycal-theme-dark  .litsycal-agenda-time     { color: rgba(255,255,255,0.50); }
+.litsycal-theme-dark  .litsycal-agenda-location { color: rgba(255,255,255,0.50); }
 .litsycal-theme-dark  .litsycal-agenda-empty    { color: white; }
 
 /* ── Footer (gear button) ────────────────────────────────────────────────── */

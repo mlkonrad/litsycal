@@ -641,8 +641,21 @@ class LitsycalCalendar extends St.BoxLayout {
                     }));
                     evtBox.add_child(row2);
 
+                    if (ev.location) {
+                        const row3 = new St.BoxLayout({style_class: 'litsycal-agenda-location-row'});
+                        row3.add_child(new St.Icon({
+                            icon_name: 'mark-location-symbolic',
+                            style_class: 'litsycal-agenda-location-icon',
+                        }));
+                        row3.add_child(new St.Label({
+                            text: ev.location, style_class: 'litsycal-agenda-location',
+                        }));
+                        evtBox.add_child(row3);
+                    }
+
                     evtBtn.set_child(evtBox);
-                    evtBtn.accessible_name = `${ev.title}, ${ev.time ?? _('All day')}`;
+                    evtBtn.accessible_name = `${ev.title}, ${ev.time ?? _('All day')}` +
+                        (ev.location ? `, ${ev.location}` : '');
                     evtBtn.connect('clicked', () => this._openEventDialog(ev));
 
                     const evtRow = new St.BoxLayout({x_expand: true});
