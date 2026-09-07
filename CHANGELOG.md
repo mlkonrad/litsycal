@@ -15,6 +15,10 @@ GNOME Extensions build number.
   down to reveal up to five extra weeks of next month's dates (dragging
   back up hides them again). The chosen row count is remembered across
   month navigation and reopening the calendar.
+- Calendar system preference (Gregorian/Buddhist): shows the year as
+  Gregorian + 543 in the header, day-cell accessible names, and the event
+  creation/editing date pickers. Only the displayed year changes — month
+  and day layout, and the dates actually saved to events, stay Gregorian.
 
 ## [3] - 2026-09-08
 
