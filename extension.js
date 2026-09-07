@@ -1192,7 +1192,7 @@ class LitsycalIndicator extends PanelMenu.Button {
             this._contextMenu.toggle();
             return Clutter.EVENT_STOP;
         }
-        return super.vfunc_event(event);
+        return Clutter.EVENT_PROPAGATE;
     }
 
     _updateBadge() {
@@ -1319,7 +1319,7 @@ export default class LitsycalExtension extends Extension {
         Main.panel.addToStatusArea(this.uuid, this._indicator, 0, 'right');
 
         Main.wm.addKeybinding(
-            'toggle-shortcut',
+            'litsycal-toggle-shortcut',
             this._settings,
             Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
@@ -1328,7 +1328,7 @@ export default class LitsycalExtension extends Extension {
     }
 
     disable() {
-        Main.wm.removeKeybinding('toggle-shortcut');
+        Main.wm.removeKeybinding('litsycal-toggle-shortcut');
         this._indicator?.destroy();
         this._indicator = null;
         this._settings  = null;

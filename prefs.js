@@ -82,7 +82,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
 
         // Label that shows the current shortcut (or placeholder)
         const shortcutLabel = () => {
-            const strv = settings.get_strv('toggle-shortcut');
+            const strv = settings.get_strv('litsycal-toggle-shortcut');
             if (strv.length === 0) return _('Not set');
             const [ok, kv, mods] = Gtk.accelerator_parse(strv[0]);
             return ok ? Gtk.accelerator_get_label(kv, mods) : strv[0];
@@ -103,7 +103,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             });
 
             const hint = new Gtk.ShortcutLabel({
-                accelerator:   settings.get_strv('toggle-shortcut')[0] ?? '',
+                accelerator:   settings.get_strv('litsycal-toggle-shortcut')[0] ?? '',
                 disabled_text: _('Waiting for keypress…'),
                 halign:        Gtk.Align.CENTER,
             });
@@ -117,7 +117,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                     return Gdk.EVENT_STOP;
                 }
                 if (keyval === Gdk.KEY_BackSpace) {
-                    settings.set_strv('toggle-shortcut', []);
+                    settings.set_strv('litsycal-toggle-shortcut', []);
                     recordBtn.set_label(_('Not set'));
                     dlg.close();
                     return Gdk.EVENT_STOP;
@@ -130,7 +130,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                 );
                 if (Gtk.accelerator_valid(keyval, mods)) {
                     const accel = Gtk.accelerator_name(keyval, mods);
-                    settings.set_strv('toggle-shortcut', [accel]);
+                    settings.set_strv('litsycal-toggle-shortcut', [accel]);
                     recordBtn.set_label(Gtk.accelerator_get_label(keyval, mods));
                     hint.set_accelerator(accel);
                     GLib.timeout_add(GLib.PRIORITY_DEFAULT, 600, () => {
