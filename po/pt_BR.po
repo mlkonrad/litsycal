@@ -76,11 +76,11 @@ msgstr ""
 
 #: extension.js:1234
 msgid "Preferences…"
-msgstr ""
+msgstr "Preferências…"
 
 #: extension.js:1240
 msgid "Quit Litsycal"
-msgstr ""
+msgstr "Sair do Litsycal"
 
 #: extension.js:1265 prefs.js:25 prefs.js:315
 msgid "Calendar"
@@ -530,32 +530,28 @@ msgid "ISO week number beside each row of the grid"
 msgstr ""
 
 #: prefs.js:348
-#, fuzzy
 msgid "Event Dots"
-msgstr "Título do evento"
+msgstr "Pontos de evento"
 
 #: prefs.js:352
-#, fuzzy
 msgid "Show event dots"
-msgstr "Sem eventos"
+msgstr "Mostrar pontos de evento"
 
 #: prefs.js:353
 msgid "Small dots under each day marking that day’s events"
-msgstr ""
+msgstr "Pequenos pontos abaixo de cada dia indicando os eventos daquele dia"
 
 #: prefs.js:359
-#, fuzzy
 msgid "Per-calendar colour"
-msgstr "Cor dos dias de fim de semana"
+msgstr "Cor por calendário"
 
 #: prefs.js:359
 msgid "Monochrome"
-msgstr ""
+msgstr "Monocromático"
 
 #: prefs.js:361
-#, fuzzy
 msgid "Dot colour"
-msgstr "Sem cor"
+msgstr "Cor dos pontos"
 
 #: prefs.js:377
 msgid "Highlighted Days"
