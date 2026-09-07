@@ -826,23 +826,25 @@ class LitsycalCalendar extends St.BoxLayout {
         this._agendaSep.visible    = !hidden;
         if (hidden) { this._updateAgendaMaxHeight(); return; }
 
-        const today = GLib.DateTime.new_now_local();
+        const todayStr    = dateStr(this._today);
+        const tomorrowStr = dateStr(this._today.add_days(1));
+        const start       = this._selected ?? this._today;
 
         // Collect qualifying days first so we know which is last
         const groups = [];
         for (let i = 0; i < this._agendaDays; i++) {
-            const day = today.add_days(i);
+            const day = start.add_days(i);
             const ds  = dateStr(day);
             const evs = this._calManager.getEventsForDate(ds);
             if (i === 0 || evs.length > 0)
                 groups.push({day, ds, evs, i});
         }
 
-        groups.forEach(({day, evs, i}, g) => {
+        groups.forEach(({day, ds, evs}, g) => {
             let dayLabel;
-            if (i === 0)      dayLabel = _('Today');
-            else if (i === 1) dayLabel = _('Tomorrow');
-            else              dayLabel = capitalize(day.format('%A'));
+            if (ds === todayStr)      dayLabel = _('Today');
+            else if (ds === tomorrowStr) dayLabel = _('Tomorrow');
+            else                      dayLabel = capitalize(day.format('%A'));
 
             const header  = new St.BoxLayout({style_class: 'litsycal-agenda-header'});
             const nameLbl = new St.Label({text: dayLabel, style_class: 'litsycal-agenda-day-name'});
