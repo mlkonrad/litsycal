@@ -7,6 +7,7 @@ import St      from 'gi://St';
 import GLib    from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Clutter from 'gi://Clutter';
+import Pango   from 'gi://Pango';
 import Cairo   from 'gi://cairo';
 import Gio     from 'gi://Gio';
 import Meta    from 'gi://Meta';
@@ -765,6 +766,7 @@ class LitsycalCalendar extends St.BoxLayout {
         header.add_child(new St.Label({
             text: capitalize(date.format('%A')), style_class: 'litsycal-agenda-day-name',
         }));
+        header.add_child(new St.Widget({x_expand: true})); // spacer: pushes the date to the right edge
         header.add_child(new St.Label({
             text: `${capitalize(date.format('%b'))} ${d}`, style_class: 'litsycal-agenda-day-date',
         }));
@@ -778,7 +780,12 @@ class LitsycalCalendar extends St.BoxLayout {
                 const dot  = new St.Widget({style_class: 'litsycal-agenda-pill'});
                 dot.style  = `background-color: ${ev.color};`;
                 row1.add_child(dot);
-                row1.add_child(new St.Label({text: ev.title, style_class: 'litsycal-agenda-title'}));
+                const titleLbl = new St.Label({
+                    text: ev.title, style_class: 'litsycal-agenda-title', x_expand: true,
+                });
+                titleLbl.clutter_text.set_line_wrap(false);
+                titleLbl.clutter_text.set_ellipsize(Pango.EllipsizeMode.END);
+                row1.add_child(titleLbl);
                 box.add_child(row1);
 
                 const row2 = new St.BoxLayout({style_class: 'litsycal-agenda-time-row'});
@@ -853,6 +860,7 @@ class LitsycalCalendar extends St.BoxLayout {
                 style_class: 'litsycal-agenda-day-date',
             });
             header.add_child(nameLbl);
+            header.add_child(new St.Widget({x_expand: true})); // spacer: pushes the date to the right edge
             header.add_child(dateLbl);
             this._agendaBox.add_child(header);
 
@@ -871,9 +879,12 @@ class LitsycalCalendar extends St.BoxLayout {
                     const dot  = new St.Widget({style_class: 'litsycal-agenda-pill'});
                     dot.style  = `background-color: ${ev.color};`;
                     row1.add_child(dot);
-                    row1.add_child(new St.Label({
+                    const titleLbl = new St.Label({
                         text: ev.title, style_class: 'litsycal-agenda-title', x_expand: true,
-                    }));
+                    });
+                    titleLbl.clutter_text.set_line_wrap(false);
+                    titleLbl.clutter_text.set_ellipsize(Pango.EllipsizeMode.END);
+                    row1.add_child(titleLbl);
                     evtBox.add_child(row1);
 
                     const row2 = new St.BoxLayout({style_class: 'litsycal-agenda-time-row'});
@@ -889,9 +900,12 @@ class LitsycalCalendar extends St.BoxLayout {
                             icon_name: 'mark-location-symbolic',
                             style_class: 'litsycal-agenda-location-icon',
                         }));
-                        row3.add_child(new St.Label({
-                            text: ev.location, style_class: 'litsycal-agenda-location',
-                        }));
+                        const locLbl = new St.Label({
+                            text: ev.location, style_class: 'litsycal-agenda-location', x_expand: true,
+                        });
+                        locLbl.clutter_text.set_line_wrap(false);
+                        locLbl.clutter_text.set_ellipsize(Pango.EllipsizeMode.END);
+                        row3.add_child(locLbl);
                         evtBox.add_child(row3);
                     }
 

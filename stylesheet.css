@@ -7,6 +7,7 @@
 .litsycal-calendar {
     padding: 10px 8px 4px 8px;
     min-width: 255px;
+    max-width: 255px;
     spacing: 2px;
 }
 
@@ -308,25 +309,25 @@
 
 /* ── Calendar size variants ──────────────────────────────────────────────── */
 /* Small */
-.litsycal-size-sm                { min-width: 220px; }
+.litsycal-size-sm                { min-width: 220px; max-width: 220px; }
 .litsycal-size-sm .litsycal-day-btn  { min-width: 26px; min-height: 21px; font-size: 0.78em; }
 .litsycal-size-sm .litsycal-day-name { min-width: 28px; font-size: 0.65em; }
 .litsycal-size-sm .litsycal-day-name-cell { min-width: 26px; }
 
 /* Small-plus (between Small and Medium) */
-.litsycal-size-sm-plus                { min-width: 238px; }
+.litsycal-size-sm-plus                { min-width: 238px; max-width: 238px; }
 .litsycal-size-sm-plus .litsycal-day-btn  { min-width: 29px; min-height: 24px; font-size: 0.83em; }
 .litsycal-size-sm-plus .litsycal-day-name { min-width: 30px; font-size: 0.69em; }
 .litsycal-size-sm-plus .litsycal-day-name-cell { min-width: 29px; }
 
 /* Medium-plus (between Medium and Large) */
-.litsycal-size-md-plus                { min-width: 285px; }
+.litsycal-size-md-plus                { min-width: 285px; max-width: 285px; }
 .litsycal-size-md-plus .litsycal-day-btn  { min-width: 36px; min-height: 30px; font-size: 0.94em; }
 .litsycal-size-md-plus .litsycal-day-name { min-width: 37px; font-size: 0.76em; }
 .litsycal-size-md-plus .litsycal-day-name-cell { min-width: 36px; }
 
 /* Large */
-.litsycal-size-lg                { min-width: 315px; }
+.litsycal-size-lg                { min-width: 315px; max-width: 315px; }
 .litsycal-size-lg .litsycal-day-btn  { min-width: 40px; min-height: 34px; font-size: 1.00em; }
 .litsycal-size-lg .litsycal-day-name { min-width: 42px; font-size: 0.80em; }
 .litsycal-size-lg .litsycal-day-name-cell { min-width: 40px; }
