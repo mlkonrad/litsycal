@@ -29,6 +29,10 @@ GNOME Extensions build number.
   whole title. The colour dot is now its own widget, parsed with
   `Gdk.RGBA` (hex, `rgb()`/`rgba()`/`hsl()`, and named colours all work),
   so the title text can't be taken down by an unexpected colour format.
+- Calendar source colour is now normalized to hex once, right where it's
+  read from EDS, instead of every consumer needing to tolerate whatever
+  format a given backend hands back (this is what let Google's `rgb(...)`
+  colour reach the Preferences title in the first place).
 
 ## [3] - 2026-09-08
 
