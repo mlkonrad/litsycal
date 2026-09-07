@@ -3,6 +3,24 @@ import ECal        from 'gi://ECal';
 import ICalGLib    from 'gi://ICalGLib';
 import GLib        from 'gi://GLib';
 
+// EDS calendar backends report colour in whatever format they like — hex,
+// "rgb(r,g,b)"/"rgba(r,g,b,a)" (Google's backend switched to this after a
+// colour change), or occasionally a named CSS colour. Normalizing to hex
+// here, once, means every consumer downstream (day-cell dots, agenda pills,
+// the event dialog's calendar picker, prefs.js's row) gets one predictable
+// format instead of each needing to tolerate every backend's quirks — see
+// the Pango-markup title that silently went blank on "rgb(...)" before this.
+function normalizeColor(color, fallback = '#3584e4') {
+    if (!color) return fallback;
+    if (/^#[0-9a-f]{3,8}$/i.test(color)) return color;
+    const m = color.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    if (m) {
+        const hex = n => Number(n).toString(16).padStart(2, '0');
+        return `#${hex(m[1])}${hex(m[2])}${hex(m[3])}`;
+    }
+    return color; // named colour or unrecognized format — CSS still accepts it
+}
+
 export class CalendarManager {
 
     constructor(settings, onEventsChanged) {
@@ -67,7 +85,7 @@ export class CalendarManager {
 
         const uid    = source.get_uid();
         const calExt = source.get_extension(EDataServer.SOURCE_EXTENSION_CALENDAR);
-        const color  = calExt.get_color?.() ?? '#3584e4';
+        const color  = normalizeColor(calExt.get_color?.());
         const name   = source.get_display_name();
 
         ECal.Client.connect(source, ECal.ClientSourceType.EVENTS, 10, null, (_obj, res) => {

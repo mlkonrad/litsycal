@@ -602,6 +602,13 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                     if (color) {
                         const rgba = new Gdk.RGBA();
                         if (rgba.parse(color)) {
+                            // Gdk.RGBA.to_string() renders "rgb(...)", not hex —
+                            // convert explicitly so this normalizes the same way
+                            // CalendarManager does on the Shell-process side.
+                            const toHex = v => Math.round(Math.max(0, Math.min(1, v)) * 255)
+                                .toString(16).padStart(2, '0');
+                            const hex = `#${toHex(rgba.red)}${toHex(rgba.green)}${toHex(rgba.blue)}`;
+
                             const dot = new Gtk.Box({
                                 width_request: 10, height_request: 10,
                                 valign: Gtk.Align.CENTER,
@@ -609,7 +616,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                             });
                             const provider = new Gtk.CssProvider();
                             provider.load_from_string(
-                                `.litsycal-prefs-cal-dot { background-color: ${rgba.to_string()}; border-radius: 50%; }`
+                                `.litsycal-prefs-cal-dot { background-color: ${hex}; border-radius: 50%; }`
                             );
                             dot.get_style_context()
                                 .add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
