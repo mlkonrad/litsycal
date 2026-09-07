@@ -17,6 +17,12 @@ function daysInMonth(year, month) {
     const nm = month === 12 ? 1 : month + 1, ny = month === 12 ? year + 1 : year;
     return GLib.DateTime.new_local(ny, nm, 1, 0, 0, 0).add_days(-1).get_day_of_month();
 }
+// Buddhist Era year = Gregorian + 543 — display only; every date value that
+// flows into save/parse logic below stays Gregorian (see _makeDateField).
+const BUDDHIST_ERA_OFFSET = 543;
+function displayYear(gregorianYear, calendarSystem) {
+    return calendarSystem === 'buddhist' ? gregorianYear + BUDDHIST_ERA_OFFSET : gregorianYear;
+}
 function ngettext(one, many, n) {
     return GLib.dngettext('litsycal@mlkonrad.github.com', one, many, n);
 }
@@ -71,17 +77,18 @@ function alertLabel(value, allDay) {
 
 export class EventPanel {
 
-    constructor(calManager, event, selectedDate, anchorActor, onSaved) {
-        this._calManager  = calManager;
-        this._event       = event ?? null;
-        this._onSaved     = onSaved;
-        this._allDay      = event?.allDay ?? false;
-        this._selDate     = event?.date
+    constructor(calManager, event, selectedDate, anchorActor, onSaved, calendarSystem = 'gregorian') {
+        this._calManager     = calManager;
+        this._event          = event ?? null;
+        this._onSaved        = onSaved;
+        this._calendarSystem = calendarSystem;
+        this._allDay         = event?.allDay ?? false;
+        this._selDate        = event?.date
             ?? (selectedDate ? dateStr(selectedDate) : dateStr(GLib.DateTime.new_now_local()));
 
-        const sources     = calManager.getSources();
-        this._sources     = sources;
-        this._selSource   = event
+        const sources        = calManager.getSources();
+        this._sources        = sources;
+        this._selSource      = event
             ? (sources.find(s => s.uid === event.clientUid) ?? sources[0] ?? null)
             : (sources[0] ?? null);
 
@@ -560,8 +567,14 @@ export class EventPanel {
         let cur  = {y: iy, m: im, d: id};
         let view = {y: iy, m: im};
 
+        // The label shows the calendar-system year for the user, but getValue()
+        // below always returns the real Gregorian ISO string _save()/_parseDate()
+        // expect — display and stored value are deliberately kept separate.
+        const labelFor = ({y, m, d}) =>
+            `${displayYear(y, this._calendarSystem)}-${pad(m)}-${pad(d)}`;
+
         const wrap = new St.BoxLayout({vertical: true, x_expand: true});
-        const btnLbl = new St.Label({text: initialStr});
+        const btnLbl = new St.Label({text: labelFor(cur)});
         const btn = new St.Button({
             style_class: 'litsycal-panel-date-btn', x_expand: true, child: btnLbl,
         });
@@ -598,7 +611,8 @@ export class EventPanel {
         const rebuild = () => {
             gridBox.destroy_all_children();
             monthLbl.set_text(
-                `${capitalize(GLib.DateTime.new_local(view.y, view.m, 1, 0, 0, 0).format('%B'))} ${view.y}`
+                `${capitalize(GLib.DateTime.new_local(view.y, view.m, 1, 0, 0, 0).format('%B'))} ` +
+                `${displayYear(view.y, this._calendarSystem)}`
             );
 
             const firstDow = GLib.DateTime.new_local(view.y, view.m, 1, 0, 0, 0).get_day_of_week() - 1;
@@ -616,12 +630,12 @@ export class EventPanel {
                 if (isSel)   sc += ' litsycal-panel-date-day-selected';
                 if (isToday) sc += ' litsycal-panel-date-day-today';
                 const dayBtn = new St.Button({label: String(d), x_expand: true, style_class: sc});
-                dayBtn.accessible_name = capitalize(
-                    GLib.DateTime.new_local(view.y, view.m, d, 0, 0, 0).format('%A, %B %-d, %Y')
-                );
+                dayBtn.accessible_name =
+                    capitalize(GLib.DateTime.new_local(view.y, view.m, d, 0, 0, 0).format('%A, %B %-d')) +
+                    `, ${displayYear(view.y, this._calendarSystem)}`;
                 dayBtn.connect('clicked', () => {
                     cur = {y: view.y, m: view.m, d};
-                    btnLbl.set_text(ds);
+                    btnLbl.set_text(labelFor(cur));
                     dropdown.visible   = false;
                     this._openDropdown = null;
                 });
@@ -657,7 +671,7 @@ export class EventPanel {
 
         return {
             actor: wrap,
-            getValue: () => btnLbl.get_text(),
+            getValue: () => `${cur.y}-${pad(cur.m)}-${pad(cur.d)}`,
         };
     }
 

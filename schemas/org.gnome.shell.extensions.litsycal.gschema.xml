@@ -115,6 +115,14 @@
       <default>'#e06060'</default>
       <summary>Custom weekend day colour (hex)</summary>
     </key>
+    <key name="calendar-system" type="s">
+      <choices>
+        <choice value="gregorian"/>
+        <choice value="buddhist"/>
+      </choices>
+      <default>'gregorian'</default>
+      <summary>Year numbering shown in the calendar: gregorian or buddhist (Gregorian + 543)</summary>
+    </key>
 
   </schema>
 </schemalist>

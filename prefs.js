@@ -40,6 +40,24 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         });
         calGroup.add(fdowRow);
 
+        // Calendar system — swaps the displayed year only (Buddhist = Gregorian + 543);
+        // month/day grid math is unaffected since both calendars share the same months.
+        const CAL_SYSTEM_IDS    = ['gregorian', 'buddhist'];
+        const CAL_SYSTEM_LABELS = [_('Gregorian'), _('Buddhist')];
+        const calSystemRow = new Adw.ComboRow({
+            title:    _('Calendar system'),
+            subtitle: _('Buddhist shows the year as Gregorian + 543'),
+            model:    Gtk.StringList.new(CAL_SYSTEM_LABELS),
+        });
+        calSystemRow.set_selected(
+            Math.max(0, CAL_SYSTEM_IDS.indexOf(settings.get_string('calendar-system')))
+        );
+        calSystemRow.connect('notify::selected', () => {
+            const i = calSystemRow.get_selected();
+            if (i < CAL_SYSTEM_IDS.length) settings.set_string('calendar-system', CAL_SYSTEM_IDS[i]);
+        });
+        calGroup.add(calSystemRow);
+
         // ── Calendars group ───────────────────────────────────────────────
         const calSourcesGroup = new Adw.PreferencesGroup({
             title:       _('Calendars'),

@@ -91,6 +91,15 @@ function prevMonthOf(year, month) {
     return month===1 ? [year-1,12] : [year,month-1];
 }
 
+// Buddhist Era year = Gregorian + 543. Months/days/leap years are identical
+// between the two calendars, so this only ever touches the printed year —
+// every date computation elsewhere in this file stays Gregorian.
+const BUDDHIST_ERA_OFFSET = 543;
+
+function displayYear(gregorianYear, calendarSystem) {
+    return calendarSystem === 'buddhist' ? gregorianYear + BUDDHIST_ERA_OFFSET : gregorianYear;
+}
+
 // ISO 8601 week number: shift to the Thursday of the same week (whose year
 // determines the ISO week-year at year boundaries), then week = ceil(day-of-year / 7).
 function isoWeekNumber(dt) {
@@ -262,6 +271,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._extraWeekRows    = settings.get_int('extra-week-rows');
         this._showEventDots    = settings.get_boolean('show-event-dots');
         this._dotColorMode     = settings.get_string('dot-color-mode');
+        this._calendarSystem   = settings.get_string('calendar-system');
         this._applySizeClass();
         this._applyFontSizeClass();
 
@@ -320,6 +330,16 @@ class LitsycalCalendar extends St.BoxLayout {
             settings.connect('changed::dot-color-mode', () => {
                 this._dotColorMode = settings.get_string('dot-color-mode');
                 this._buildGrid();
+            }),
+            settings.connect('changed::calendar-system', () => {
+                this._calendarSystem = settings.get_string('calendar-system');
+                // Only the header year needs an immediate refresh. Day cells'
+                // accessible names embed the year too, but rebuilding all of
+                // them here means destroying every interactive day-cell
+                // button — unnecessary just to refresh a label, and each one
+                // will pick up the new year on its next natural rebuild
+                // (month navigation, day selection, ...) anyway.
+                this._updateMonthLabel();
             }),
         ];
 
@@ -829,7 +849,8 @@ class LitsycalCalendar extends St.BoxLayout {
     _cellAccessibleName(ds, day, isToday) {
         const [y, m, d] = ds.split('-').map(Number);
         const cellDate  = GLib.DateTime.new_local(y, m, d, 0, 0, 0);
-        let name = `${capitalize(cellDate.format('%A'))}, ${capitalize(cellDate.format('%B'))} ${day}`;
+        let name = `${capitalize(cellDate.format('%A'))}, ${capitalize(cellDate.format('%B'))} ${day}, ` +
+                   `${displayYear(y, this._calendarSystem)}`;
         if (isToday) name += `, ${_('Today')}`;
 
         const count = this._calManager.getEventsForDate(ds).length;
@@ -1136,7 +1157,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._onPinToggle?.(true);  // keep calendar visible while panel is open
         this._eventPanel = new EventPanel(
             this._calManager, null, this._selected, this,
-            () => { this._eventPanel = null; }
+            () => { this._eventPanel = null; }, this._calendarSystem
         );
     }
 
@@ -1146,7 +1167,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._onPinToggle?.(true);
         this._eventPanel = new EventPanel(
             this._calManager, ev, null, this,
-            () => { this._eventPanel = null; }
+            () => { this._eventPanel = null; }, this._calendarSystem
         );
     }
 
@@ -1173,7 +1194,7 @@ class LitsycalCalendar extends St.BoxLayout {
 
     _updateMonthLabel() {
         const monthName = capitalize(GLib.DateTime.new_local(this._year, this._month, 1, 0, 0, 0).format('%b'));
-        this._monthLbl.set_text(`${monthName} ${this._year}`);
+        this._monthLbl.set_text(`${monthName} ${displayYear(this._year, this._calendarSystem)}`);
     }
 
     // ── Keyboard navigation ──────────────────────────────────────────────────
