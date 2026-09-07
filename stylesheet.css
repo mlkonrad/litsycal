@@ -783,11 +783,16 @@
 }
 .litsycal-agenda-url-btn:hover { opacity: 1.0; background-color: rgba(128,128,128,0.12); }
 
-/* ── Agenda meeting-join link ────────────────────────────────────────────── */
-.litsycal-agenda-join-link {
-    padding: 1px 6px;
-    font-size: 0.76em;
-    font-weight: bold;
-    color: #3a944a;
+/* ── Agenda meeting-join button ─────────────────────────────────────────── */
+.litsycal-agenda-join-btn {
+    border: none;
+    background: none;
+    padding: 1px 4px;
+    border-radius: 4px;
 }
-.litsycal-agenda-join-link:hover { color: #4db860; }
+.litsycal-agenda-join-btn:hover { background-color: rgba(128,128,128,0.12); }
+
+.litsycal-agenda-join-icon {
+    icon-size: 15px;
+    color: #3584e4;
+}

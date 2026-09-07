@@ -919,18 +919,18 @@ class LitsycalCalendar extends St.BoxLayout {
 
                     const meetingUrl = findMeetingUrl(ev);
                     if (meetingUrl && meetingIsJoinable(ev)) {
-                        // A plain St.Button styled with no border/background reads as a
-                        // link rather than a button; GNOME Shell's ClutterText here
-                        // doesn't support Pango's <a href> markup or 'activate-link'.
-                        const joinLink = new St.Button({
-                            style_class: 'litsycal-agenda-join-link',
-                            label: _('Join meeting'),
+                        const joinBtn = new St.Button({
+                            style_class: 'litsycal-agenda-join-btn',
                             accessible_name: _('Join meeting'),
+                            child: new St.Icon({
+                                icon_name: 'camera-video-symbolic',
+                                style_class: 'litsycal-agenda-join-icon',
+                            }),
                         });
-                        joinLink.connect('clicked', () => {
+                        joinBtn.connect('clicked', () => {
                             try { Gio.AppInfo.launch_default_for_uri(meetingUrl, null); } catch(_) {}
                         });
-                        evtRow.add_child(joinLink);
+                        evtRow.add_child(joinBtn);
                     }
 
                     if (ev.url) {
