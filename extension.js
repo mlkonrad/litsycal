@@ -978,8 +978,10 @@ class LitsycalCalendar extends St.BoxLayout {
 
         const pinBtn = makeIconBtn('view-pin-symbolic', _('Pin calendar open'), true);
         pinBtn.connect('notify::checked', () => {
+            if (this._suppressPinNotify) return;
             if (this._onPinToggle) this._onPinToggle(pinBtn.get_checked());
         });
+        this._pinBtn = pinBtn;
 
         const calBtn = makeIconBtn('x-office-calendar-symbolic', _('Open Calendar app'));
         calBtn.connect('clicked', () => { if (this._openCalendar) this._openCalendar(); });
@@ -993,6 +995,17 @@ class LitsycalCalendar extends St.BoxLayout {
         footer.add_child(calBtn);
         footer.add_child(gear);
         this.add_child(footer);
+    }
+
+    // Keeps the footer pin toggle's visual state in sync when pinning/
+    // unpinning happens programmatically (e.g. LitsycalIndicator force-
+    // unpinning the calendar when the menu is reopened) rather than from a
+    // direct click on this button.
+    setPinned(pinned) {
+        if (this._pinBtn.get_checked() === pinned) return;
+        this._suppressPinNotify = true;
+        this._pinBtn.set_checked(pinned);
+        this._suppressPinNotify = false;
     }
 
     // ── Event panels ──────────────────────────────────────────────────────────
@@ -1184,10 +1197,25 @@ class LitsycalIndicator extends PanelMenu.Button {
         this._menuIsOpen = false;
         this._menuOpenId = this.menu.connect('open-state-changed', (_menu, open) => {
             this._menuIsOpen = open;
-            if (open && this._pinned) this._unpinCalendar(false);
-            if (open) {
+            if (open && this._pinned) {
+                // The calendar widget currently lives in the floating pinned
+                // box, not in this menu item. Reparenting it back while
+                // open() is still setting up its modal grab races that
+                // setup and leaves the widget detached from the stage
+                // (never actually mapped/shown, and stuck with a stale
+                // pointer-grab ":insensitive" style). Defer the unpin to
+                // the next idle, once the grab has settled.
+                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    if (this._pinned) this._unpinCalendar(false);
+                    this._calWidget._updateAgendaMaxHeight();
+                    this._calWidget._buildAgenda();
+                    return GLib.SOURCE_REMOVE;
+                });
+            } else if (open) {
                 this._calWidget._updateAgendaMaxHeight();
                 this._calWidget._buildAgenda();
+            }
+            if (open) {
                 // Capture phase on the menu's own actor, not the stage: PopupMenu's
                 // modal grab (Main.pushModal, via GrabHelper) is scoped to
                 // this.menu.actor, and GNOME's Clutter.Grab delivers events starting
@@ -1223,7 +1251,7 @@ class LitsycalIndicator extends PanelMenu.Button {
         });
         const cal = new LitsycalCalendar(
             settings,
-            () => { this.menu.close(); openPrefs(); },
+            () => this._openPrefsAndPin(openPrefs),
             () => {
                 const app = Shell.AppSystem.get_default().lookup_app('org.gnome.Calendar.desktop');
                 if (app) app.activate();
@@ -1342,9 +1370,43 @@ class LitsycalIndicator extends PanelMenu.Button {
         return parts.join(' ');
     }
 
+    // Preferences opens in a separate top-level window; clicking into it
+    // would otherwise register as a click outside the popup menu's modal
+    // grab and dismiss it. Pin the calendar so it becomes a plain floating
+    // widget instead (no grab), then automatically unpin again once
+    // Preferences closes — unless the calendar was already pinned (by the
+    // user, or some other feature), in which case that pin sticks and we
+    // leave it alone.
+    _openPrefsAndPin(openPrefs) {
+        if (!this._pinned) {
+            this._autoPinnedForPrefs = true;
+            this._pinCalendar();
+        }
+        this._watchPrefsWindow();
+        openPrefs();
+    }
+
+    _watchPrefsWindow() {
+        if (this._prefsApp) return; // already watching a prefs window
+        const app = Shell.AppSystem.get_default().lookup_app('org.gnome.Shell.Extensions.desktop');
+        if (!app) return;
+        this._prefsApp = app;
+        this._prefsAppSignalId = app.connect('windows-changed', () => {
+            if (app.get_n_windows() > 0) return; // still open (or just opened)
+            app.disconnect(this._prefsAppSignalId);
+            this._prefsAppSignalId = null;
+            this._prefsApp = null;
+            if (this._autoPinnedForPrefs) {
+                this._autoPinnedForPrefs = false;
+                this._unpinCalendar(false);
+            }
+        });
+    }
+
     _pinCalendar() {
         if (this._pinned) return;
         this._pinned = true;
+        this._calWidget.setPinned(true);
         const monitor = Main.layoutManager.monitors[
             Main.layoutManager.findIndexForActor(this)
         ] ?? Main.layoutManager.primaryMonitor;
@@ -1367,6 +1429,7 @@ class LitsycalIndicator extends PanelMenu.Button {
 
     _unpinCalendar(andOpen = false) {
         this._pinned = false;
+        this._calWidget.setPinned(false);
         if (!this._floatingBox) return;
         this._floatingBox.remove_child(this._calWidget);
         this._menuItem.add_child(this._calWidget);
@@ -1384,6 +1447,7 @@ class LitsycalIndicator extends PanelMenu.Button {
         }
         if (this._keyPressId) { this.menu.actor.disconnect(this._keyPressId); this._keyPressId = null; }
         if (this._menuOpenId) { this.menu.disconnect(this._menuOpenId); this._menuOpenId = null; }
+        if (this._prefsAppSignalId) { this._prefsApp.disconnect(this._prefsAppSignalId); this._prefsAppSignalId = null; this._prefsApp = null; }
         if (this._timer)      { GLib.source_remove(this._timer); this._timer = null; }
         if (this._contextMenu) { this._contextMenu.destroy(); this._contextMenu = null; }
         for (const id of this._sids) this._settings.disconnect(id);

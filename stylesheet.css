@@ -384,6 +384,9 @@
 .litsycal-theme-light .litsycal-weekend          { color: #cc2222; }
 .litsycal-theme-light .litsycal-month-lbl        { color: #1a1a1a; }
 .litsycal-theme-light .litsycal-nav-btn          { color: #1a1a1a; }
+.litsycal-theme-light .litsycal-gear-icon        { color: rgba(0, 0, 0, 0.55); }
+.litsycal-theme-light .litsycal-add-btn          { color: rgba(0, 0, 0, 0.55); }
+.litsycal-theme-light .litsycal-agenda-location-icon { color: rgba(0, 0, 0, 0.55); }
 .litsycal-theme-light .litsycal-day-name         { color: #1a1a1a; }
 .litsycal-theme-light .litsycal-agenda-date      { color: #1a1a1a; }
 .litsycal-theme-light .litsycal-agenda-empty     { color: #1a1a1a; }
@@ -401,6 +404,9 @@
 .litsycal-theme-dark .litsycal-weekend           { color: #e06060; }
 .litsycal-theme-dark .litsycal-month-lbl         { color: white; }
 .litsycal-theme-dark .litsycal-nav-btn           { color: white; }
+.litsycal-theme-dark .litsycal-gear-icon         { color: rgba(255, 255, 255, 0.55); }
+.litsycal-theme-dark .litsycal-add-btn           { color: rgba(255, 255, 255, 0.55); }
+.litsycal-theme-dark .litsycal-agenda-location-icon { color: rgba(255, 255, 255, 0.55); }
 .litsycal-theme-dark .litsycal-day-name          { color: white; }
 .litsycal-theme-dark .litsycal-agenda-date       { color: white; }
 .litsycal-theme-dark .litsycal-agenda-empty      { color: white; }
