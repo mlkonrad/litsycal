@@ -32,6 +32,11 @@
       <default>false</default>
       <summary>Show an ISO week-number gutter beside the calendar grid</summary>
     </key>
+    <key name="extra-week-rows" type="i">
+      <range min="0" max="5"/>
+      <default>0</default>
+      <summary>Extra overflow weeks shown below the current month, via the resize handle</summary>
+    </key>
     <key name="show-event-dots" type="b">
       <default>true</default>
       <summary>Show event dots on day cells in the grid</summary>

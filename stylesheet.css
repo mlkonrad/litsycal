@@ -112,6 +112,43 @@
     margin: 6px 0;
 }
 
+/* ── Resize handle ───────────────────────────────────────────────────────── */
+/* Drag to reveal/hide extra overflow weeks below the current month — see
+   LitsycalCalendar._buildResizeHandle(). The track spans the full width; the
+   grip is the short bar centered on it that signals the drag affordance. */
+.litsycal-resize-handle {
+    height: 14px;
+    margin: 2px 0 0 0;
+}
+
+.litsycal-resize-track {
+    height: 1px;
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+.litsycal-resize-grip {
+    width: 28px;
+    height: 3px;
+    border-radius: 2px;
+    background-color: rgba(255, 255, 255, 0.35);
+}
+
+.litsycal-resize-handle:hover .litsycal-resize-grip {
+    background-color: rgba(255, 255, 255, 0.55);
+}
+
+.litsycal-theme-light .litsycal-resize-track {
+    background-color: rgba(0, 0, 0, 0.10);
+}
+
+.litsycal-theme-light .litsycal-resize-grip {
+    background-color: rgba(0, 0, 0, 0.30);
+}
+
+.litsycal-theme-light .litsycal-resize-handle:hover .litsycal-resize-grip {
+    background-color: rgba(0, 0, 0, 0.50);
+}
+
 /* ── Agenda ──────────────────────────────────────────────────────────────── */
 .litsycal-agenda-scroll {
     padding: 0;

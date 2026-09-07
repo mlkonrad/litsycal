@@ -46,6 +46,8 @@ const SIZE_MIN_WIDTHS = [220, 238, 255, 285, 315]; // must match the widths abov
 
 // font-size index -> style class (index 1 "Medium" is the base CSS, no class needed).
 const FONT_SIZE_CLASSES = ['litsycal-font-sm', null, 'litsycal-font-lg'];
+// Must match schemas/…gschema.xml's extra-week-rows <range max="…">.
+const MAX_EXTRA_WEEK_ROWS = 5;
 // Outline top inset per calendar-size — see OutlinePainter.paint(). The line
 // should sit close under the weekday-name row and clear of the day numbers
 // (Itsycal draws it flush with the cell's top edge, inset 0) — Small's own
@@ -257,6 +259,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._weekendColor     = settings.get_string('weekend-color');
         this._agendaDays       = settings.get_int('agenda-days');
         this._showWeekNumbers  = settings.get_boolean('show-week-numbers');
+        this._extraWeekRows    = settings.get_int('extra-week-rows');
         this._showEventDots    = settings.get_boolean('show-event-dots');
         this._dotColorMode     = settings.get_string('dot-color-mode');
         this._applySizeClass();
@@ -306,6 +309,10 @@ class LitsycalCalendar extends St.BoxLayout {
                 this._showWeekNumbers = settings.get_boolean('show-week-numbers');
                 this._buildWeekGutter();
             }),
+            settings.connect('changed::extra-week-rows', () => {
+                this._extraWeekRows = settings.get_int('extra-week-rows');
+                this._buildGrid();
+            }),
             settings.connect('changed::show-event-dots', () => {
                 this._showEventDots = settings.get_boolean('show-event-dots');
                 this._buildGrid();
@@ -330,6 +337,7 @@ class LitsycalCalendar extends St.BoxLayout {
             this._eventPanel?.close();
             this._eventPanel = null;
             this._cancelCellTooltip();
+            if (this._dragStartY !== undefined) this._endHandleDrag(this._resizeHandle);
             for (const id of this._sids) this._settings.disconnect(id);
             this._iface.disconnect(this._accentId);
             this._iface.disconnect(this._schemeId);
@@ -366,6 +374,8 @@ class LitsycalCalendar extends St.BoxLayout {
         this._buildGridContainer();
         this.add_child(this._calBody);
         this._applyTheme();
+
+        this.add_child(this._buildResizeHandle());
 
         this._agendaSep = new St.Widget({style_class: 'litsycal-sep'});
         this.add_child(this._agendaSep);
@@ -524,6 +534,62 @@ class LitsycalCalendar extends St.BoxLayout {
         overlay.connect('notify::allocation', () => this._outline.queue_repaint());
     }
 
+    // ── Resize handle ─────────────────────────────────────────────────────────
+    // A thin drag grip below the grid, mirroring Itsycal's own resize handle:
+    // dragging it down reveals extra overflow weeks from next month (up to
+    // MAX_EXTRA_WEEK_ROWS), dragging up hides them again. The chosen row
+    // count is persisted in extra-week-rows so it survives month
+    // navigation/reopening.
+
+    _buildResizeHandle() {
+        const handle = new St.Widget({
+            style_class: 'litsycal-resize-handle',
+            layout_manager: new Clutter.BinLayout(),
+            x_expand: true, reactive: true, track_hover: true,
+            accessible_name: _('Drag to show more weeks'),
+        });
+        handle.add_child(new St.Widget({
+            style_class: 'litsycal-resize-track', x_expand: true, y_align: Clutter.ActorAlign.CENTER,
+        }));
+        handle.add_child(new St.Widget({
+            style_class: 'litsycal-resize-grip',
+            x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.CENTER,
+        }));
+
+        handle.connect('button-press-event', (actor, event) => {
+            if (event.get_button() !== Clutter.BUTTON_PRIMARY) return Clutter.EVENT_PROPAGATE;
+            this._dragStartY     = event.get_coords()[1];
+            this._dragStartExtra = this._extraWeekRows;
+            this._dragRowHeight  = this._gridBox.get_height() / Math.max(1, this._numRows);
+            this._resizeGrab     = global.stage.grab(actor);
+            this._dragMotionId   = actor.connect('motion-event', (a, ev) => this._onHandleDrag(ev));
+            this._dragReleaseId  = actor.connect('button-release-event', () => this._endHandleDrag(actor));
+            return Clutter.EVENT_STOP;
+        });
+
+        this._resizeHandle = handle;
+        return handle;
+    }
+
+    _onHandleDrag(event) {
+        if (this._dragStartY === undefined || !this._dragRowHeight) return Clutter.EVENT_PROPAGATE;
+
+        const delta  = event.get_coords()[1] - this._dragStartY;
+        const rows   = Math.round(delta / this._dragRowHeight);
+        const wanted = Math.min(MAX_EXTRA_WEEK_ROWS, Math.max(0, this._dragStartExtra + rows));
+
+        if (wanted !== this._extraWeekRows) this._settings.set_int('extra-week-rows', wanted);
+        return Clutter.EVENT_STOP;
+    }
+
+    _endHandleDrag(actor) {
+        if (this._dragMotionId)  { actor.disconnect(this._dragMotionId);  this._dragMotionId  = null; }
+        if (this._dragReleaseId) { actor.disconnect(this._dragReleaseId); this._dragReleaseId = null; }
+        this._resizeGrab?.dismiss();
+        this._resizeGrab  = null;
+        this._dragStartY  = undefined;
+    }
+
     // ── Calendar grid ─────────────────────────────────────────────────────────
 
     _buildGrid() {
@@ -540,7 +606,12 @@ class LitsycalCalendar extends St.BoxLayout {
         const lastIdx  = firstDow + total - 1;
         this._lastRow  = Math.floor(lastIdx / 7);
         this._lastCol  = lastIdx % 7;
-        this._numRows  = this._lastRow + 1;
+
+        // Extra overflow weeks (dragged in via the resize handle) top up the
+        // month's natural row count. The outline itself stays keyed to
+        // _lastRow/_lastCol (the real month), so it never grows into these.
+        this._extraRows = this._extraWeekRows;
+        this._numRows   = this._lastRow + 1 + this._extraRows;
 
         const todayStr = dateStr(this._today);
         const selStr   = dateStr(this._selected);
@@ -568,10 +639,25 @@ class LitsycalCalendar extends St.BoxLayout {
             }
         }
 
+        // A running date (not just a day-of-month counter) so overflow
+        // numbering rolls over correctly when the extra rows stretch past a
+        // single following month (up to MAX_EXTRA_WEEK_ROWS extra weeks).
+        let cursor = GLib.DateTime.new_local(this._year, this._month, total, 0, 0, 0).add_days(1);
+        const nextOverflow = () => {
+            const d = cursor.get_day_of_month();
+            cursor = cursor.add_days(1);
+            return d;
+        };
+
         if (col > 0) {
-            let nd = 1;
-            while (col < 7) { row.add_child(this._makeOverflow(nd++)); col++; }
+            while (col < 7) { row.add_child(this._makeOverflow(nextOverflow())); col++; }
             this._gridBox.add_child(row);
+        }
+
+        for (let r = 0; r < this._extraRows; r++) {
+            const extraRow = new St.BoxLayout({style_class: 'litsycal-grid-row'});
+            for (let c = 0; c < 7; c++) extraRow.add_child(this._makeOverflow(nextOverflow()));
+            this._gridBox.add_child(extraRow);
         }
 
         this._buildWeekGutter();
