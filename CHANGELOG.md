@@ -9,8 +9,17 @@ GNOME Extensions build number.
 
 ## [Unreleased]
 
+## [3] - 2026-09-08
+
+### Added
+
+- Font size preference: an S/M/L slider (alongside the existing calendar
+  Size slider) that scales all popup text independently of the calendar's
+  button/grid dimensions.
+
 ### Changed
 
+- Default calendar text size increased slightly for readability.
 - Week numbers in the week-number gutter are now bold.
 
 ### Fixed
@@ -79,6 +88,7 @@ GNOME Extensions build number.
 - Internationalization via gettext, including a Brazilian Portuguese
   translation.
 
-[Unreleased]: https://github.com/mlkonrad/litsycal/compare/9c3a415...HEAD
+[Unreleased]: https://github.com/mlkonrad/litsycal/compare/776d203...HEAD
+[3]: https://github.com/mlkonrad/litsycal/compare/9c3a415...776d203
 [2]: https://github.com/mlkonrad/litsycal/compare/dbfda84...9c3a415
 [1]: https://github.com/mlkonrad/litsycal/commit/dbfda84
