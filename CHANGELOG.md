@@ -20,6 +20,16 @@ GNOME Extensions build number.
   creation/editing date pickers. Only the displayed year changes — month
   and day layout, and the dates actually saved to events, stay Gregorian.
 
+### Fixed
+
+- A calendar row in Preferences → Calendars could render completely blank
+  (no colour dot, no name) if its source reported colour as `rgb(...)`
+  rather than hex — valid everywhere else in the app, but rejected by the
+  Pango markup the row's title was built from, which silently dropped the
+  whole title. The colour dot is now its own widget, parsed with
+  `Gdk.RGBA` (hex, `rgb()`/`rgba()`/`hsl()`, and named colours all work),
+  so the title text can't be taken down by an unexpected colour format.
+
 ## [3] - 2026-09-08
 
 ### Added
