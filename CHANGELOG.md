@@ -9,6 +9,8 @@ GNOME Extensions build number.
 
 ## [Unreleased]
 
+## [2] - 2026-09-07
+
 ### Added
 
 - Keyboard navigation inside the open calendar: arrow keys (and vi-style
@@ -51,5 +53,6 @@ GNOME Extensions build number.
 - Internationalization via gettext, including a Brazilian Portuguese
   translation.
 
-[Unreleased]: https://github.com/mlkonrad/litsycal/compare/dbfda84...HEAD
+[Unreleased]: https://github.com/mlkonrad/litsycal/compare/9c3a415...HEAD
+[2]: https://github.com/mlkonrad/litsycal/compare/dbfda84...9c3a415
 [1]: https://github.com/mlkonrad/litsycal/commit/dbfda84
