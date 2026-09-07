@@ -2,7 +2,7 @@
     "uuid": "litsycal@mlkonrad.github.com",
     "name": "Litsycal",
     "description": "A compact calendar indicator for the GNOME panel, inspired by Itsycal.",
-    "version": 2,
+    "version": 3,
     "shell-version": ["48", "49", "50"],
     "settings-schema": "org.gnome.shell.extensions.litsycal",
     "gettext-domain": "litsycal@mlkonrad.github.com",
