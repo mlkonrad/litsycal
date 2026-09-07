@@ -10,6 +10,25 @@ Litsycal brings the simplicity of Itsycal to Linux. Click the panel indicator to
 
 **Supported GNOME Shell versions:** 48, 49, 50
 
+## Keyboard Shortcuts
+
+While the calendar popup is open, these keys move the selected day around
+(arrow keys and vi-style `h`/`j`/`k`/`l` both work — use `j` in place of
+`Down` if the arrow key doesn't respond, since GNOME Shell reserves it for
+its own menu navigation):
+
+| Key | Action |
+| --- | --- |
+| `←` / `h` | Previous day |
+| `→` / `l` | Next day |
+| `↑` / `k` | Previous week |
+| `j` | Next week |
+| `Shift + ←` / `Shift + H` | Previous month |
+| `Shift + →` / `Shift + L` | Next month |
+| `Shift + ↑` / `Shift + K` | Next year |
+| `Shift + ↓` / `Shift + J` | Previous year |
+| `Space` | Jump to today |
+
 ## Installation
 
 1. Clone the repository:
