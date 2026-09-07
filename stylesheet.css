@@ -185,6 +185,7 @@
 .litsycal-agenda-time-row {
     padding-left: 16px;
     padding-bottom: 1px;
+    spacing: 4px;
 }
 
 .litsycal-agenda-time {
@@ -794,5 +795,4 @@
 
 .litsycal-agenda-join-icon {
     icon-size: 15px;
-    color: #3584e4;
 }

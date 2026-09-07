@@ -892,6 +892,24 @@ class LitsycalCalendar extends St.BoxLayout {
                         text: ev.time ?? _('All day'),
                         style_class: 'litsycal-agenda-time',
                     }));
+
+                    const meetingUrl = findMeetingUrl(ev);
+                    if (meetingUrl && meetingIsJoinable(ev)) {
+                        const joinIcon = new St.Icon({
+                            icon_name: 'camera-video-symbolic',
+                            style_class: 'litsycal-agenda-join-icon',
+                        });
+                        joinIcon.style = `color: ${ev.color};`;
+                        const joinBtn = new St.Button({
+                            style_class: 'litsycal-agenda-join-btn',
+                            accessible_name: _('Join meeting'),
+                            child: joinIcon,
+                        });
+                        joinBtn.connect('clicked', () => {
+                            try { Gio.AppInfo.launch_default_for_uri(meetingUrl, null); } catch(_) {}
+                        });
+                        row2.add_child(joinBtn);
+                    }
                     evtBox.add_child(row2);
 
                     if (ev.location) {
@@ -916,22 +934,6 @@ class LitsycalCalendar extends St.BoxLayout {
 
                     const evtRow = new St.BoxLayout({x_expand: true});
                     evtRow.add_child(evtBtn);
-
-                    const meetingUrl = findMeetingUrl(ev);
-                    if (meetingUrl && meetingIsJoinable(ev)) {
-                        const joinBtn = new St.Button({
-                            style_class: 'litsycal-agenda-join-btn',
-                            accessible_name: _('Join meeting'),
-                            child: new St.Icon({
-                                icon_name: 'camera-video-symbolic',
-                                style_class: 'litsycal-agenda-join-icon',
-                            }),
-                        });
-                        joinBtn.connect('clicked', () => {
-                            try { Gio.AppInfo.launch_default_for_uri(meetingUrl, null); } catch(_) {}
-                        });
-                        evtRow.add_child(joinBtn);
-                    }
 
                     if (ev.url) {
                         const urlBtn = new St.Button({
