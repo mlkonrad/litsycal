@@ -9,6 +9,13 @@ GNOME Extensions build number.
 
 ## [Unreleased]
 
+### Added
+
+- Resize handle below the calendar grid, mirroring Itsycal's own: drag it
+  down to reveal up to five extra weeks of next month's dates (dragging
+  back up hides them again). The chosen row count is remembered across
+  month navigation and reopening the calendar.
+
 ## [3] - 2026-09-08
 
 ### Added
