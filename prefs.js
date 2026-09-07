@@ -337,6 +337,28 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         sizeRow.add_suffix(sizeBox);
         sizeGroup.add(sizeRow);
 
+        const fontRow = new Adw.ActionRow({title: _('Font size'), subtitle: _('Applied on-the-fly')});
+        const fontBox = new Gtk.Box({spacing: 8, valign: Gtk.Align.CENTER, hexpand: true});
+        fontBox.append(new Gtk.Label({label: _('S'), css_classes: ['dim-label']}));
+
+        const fontScale = new Gtk.Scale({
+            orientation:   Gtk.Orientation.HORIZONTAL,
+            adjustment:    new Gtk.Adjustment({lower: 0, upper: 2, step_increment: 1}),
+            draw_value:    false,
+            round_digits:  0,
+            hexpand:       true,
+            width_request: 140,
+        });
+        for (let i = 0; i <= 2; i++) fontScale.add_mark(i, Gtk.PositionType.BOTTOM, null);
+        fontScale.set_value(settings.get_int('font-size'));
+        fontScale.connect('value-changed', () => {
+            settings.set_int('font-size', Math.round(fontScale.get_value()));
+        });
+        fontBox.append(fontScale);
+        fontBox.append(new Gtk.Label({label: _('L'), css_classes: ['dim-label']}));
+        fontRow.add_suffix(fontBox);
+        sizeGroup.add(fontRow);
+
         const weekNumRow = new Adw.SwitchRow({
             title:    _('Show week numbers'),
             subtitle: _('ISO week number beside each row of the grid'),

@@ -85,6 +85,10 @@
       <default>2</default>
       <summary>Calendar size: 0=S, 1=S+, 2=M, 3=M+, 4=L</summary>
     </key>
+    <key name="font-size" type="i">
+      <default>1</default>
+      <summary>Calendar text size: 0=S, 1=M, 2=L</summary>
+    </key>
     <key name="highlight-days" type="as">
       <default>['sa','su']</default>
       <summary>Day abbreviations whose columns are highlighted (mo tu we th fr sa su)</summary>

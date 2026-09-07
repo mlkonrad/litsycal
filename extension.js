@@ -43,6 +43,9 @@ const DAY_COL = {mo:0, tu:1, we:2, th:3, fr:4, sa:5, su:6};
 // calendar-size index -> style class (index 2 "Medium" is the base CSS, no class needed).
 const SIZE_CLASSES = ['litsycal-size-sm', 'litsycal-size-sm-plus', null, 'litsycal-size-md-plus', 'litsycal-size-lg'];
 const SIZE_MIN_WIDTHS = [220, 238, 255, 285, 315]; // must match the widths above
+
+// font-size index -> style class (index 1 "Medium" is the base CSS, no class needed).
+const FONT_SIZE_CLASSES = ['litsycal-font-sm', null, 'litsycal-font-lg'];
 // Outline top inset per calendar-size — see OutlinePainter.paint(). The line
 // should sit close under the weekday-name row and clear of the day numbers
 // (Itsycal draws it flush with the cell's top edge, inset 0) — Small's own
@@ -248,6 +251,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._firstDayOfWeek   = settings.get_int('first-day-of-week');
         this._highlightCols    = this._readHighlight();
         this._calSize          = settings.get_int('calendar-size');
+        this._fontSize         = settings.get_int('font-size');
         this._theme            = settings.get_string('theme');
         this._weekendColorMode = settings.get_string('weekend-color-mode');
         this._weekendColor     = settings.get_string('weekend-color');
@@ -256,6 +260,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._showEventDots    = settings.get_boolean('show-event-dots');
         this._dotColorMode     = settings.get_string('dot-color-mode');
         this._applySizeClass();
+        this._applyFontSizeClass();
 
         this._sids = [
             settings.connect('changed::first-day-of-week', () => {
@@ -276,6 +281,10 @@ class LitsycalCalendar extends St.BoxLayout {
                 this._applySizeClass();
                 this._painter.configure(this._isDark, this._highlightCols, OUTLINE_TOP_INSET[this._calSize]);
                 this._buildGrid();
+            }),
+            settings.connect('changed::font-size', () => {
+                this._fontSize = settings.get_int('font-size');
+                this._applyFontSizeClass();
             }),
             settings.connect('changed::theme', () => {
                 this._theme = settings.get_string('theme');
@@ -405,6 +414,15 @@ class LitsycalCalendar extends St.BoxLayout {
             if (cls) this.remove_style_class_name(cls);
         }
         const cls = SIZE_CLASSES[this._calSize];
+        if (cls) this.add_style_class_name(cls);
+    }
+
+    // font-size: 0=S, 1=M (no class — the base CSS values), 2=L
+    _applyFontSizeClass() {
+        for (const cls of FONT_SIZE_CLASSES) {
+            if (cls) this.remove_style_class_name(cls);
+        }
+        const cls = FONT_SIZE_CLASSES[this._fontSize];
         if (cls) this.add_style_class_name(cls);
     }
 
