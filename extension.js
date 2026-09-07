@@ -1028,10 +1028,20 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     // ── Keyboard navigation ──────────────────────────────────────────────────
-    // Arrow keys move the selected day (Up/Down by a week); holding Shift
-    // moves by month/year instead. Space jumps to today. Wired up by
-    // LitsycalIndicator only while the popup is open and no event panel (with
-    // its own text entries) is up, so this never steals normal typing.
+    // Arrow keys (and vi-style h/j/k/l) move the selected day (Up/Down or k/j
+    // by a week); holding Shift moves by month/year instead. Space jumps to
+    // today. Wired up by LitsycalIndicator only while the popup is open and no
+    // event panel (with its own text entries) is up, so this never steals
+    // normal typing.
+    //
+    // Plain/Shift Down (and h/j/k/l's Down-equivalent, j) can't be reached via
+    // the physical arrow key alone: GNOME Shell's PopupMenu reserves bare
+    // Down for its own accessibility keynav whenever a menu drops down from
+    // the top panel (js/ui/popupMenu.js PopupMenu._onKeyPress — it matches on
+    // the keysym only, ignoring modifiers, and consumes the event before it
+    // ever reaches actor-level signal handlers). j/J is the reliable way to
+    // trigger that direction; the Down/Shift+Down cases below are kept for
+    // when the popup isn't anchored to the top (e.g. a bottom panel).
 
     _moveSelectionByDays(delta) {
         const sel = this._selected.add_days(delta);
@@ -1074,16 +1084,24 @@ class LitsycalCalendar extends St.BoxLayout {
     handleKeyPress(keyval, shift) {
         switch (keyval) {
             case Clutter.KEY_Left:
+            case Clutter.KEY_h:
+            case Clutter.KEY_H:
                 shift ? this._moveSelectionByMonths(-1) : this._moveSelectionByDays(-1);
                 return true;
             case Clutter.KEY_Right:
+            case Clutter.KEY_l:
+            case Clutter.KEY_L:
                 shift ? this._moveSelectionByMonths(1) : this._moveSelectionByDays(1);
                 return true;
             case Clutter.KEY_Up:
-                shift ? this._moveSelectionByYears(-1) : this._moveSelectionByDays(-7);
+            case Clutter.KEY_k:
+            case Clutter.KEY_K:
+                shift ? this._moveSelectionByYears(1) : this._moveSelectionByDays(-7);
                 return true;
             case Clutter.KEY_Down:
-                shift ? this._moveSelectionByYears(1) : this._moveSelectionByDays(7);
+            case Clutter.KEY_j:
+            case Clutter.KEY_J:
+                shift ? this._moveSelectionByYears(-1) : this._moveSelectionByDays(7);
                 return true;
             case Clutter.KEY_space:
                 this._goToday();
@@ -1154,7 +1172,21 @@ class LitsycalIndicator extends PanelMenu.Button {
             if (open) {
                 this._calWidget._updateAgendaMaxHeight();
                 this._calWidget._buildAgenda();
-                this._keyPressId = global.stage.connect('key-press-event', (_stage, ev) => {
+                // Capture phase on the menu's own actor, not the stage: PopupMenu's
+                // modal grab (Main.pushModal, via GrabHelper) is scoped to
+                // this.menu.actor, and GNOME's Clutter.Grab delivers events starting
+                // from the grab actor while the grab is active — global.stage's own
+                // 'captured-event' never sees them.
+                //
+                // Note: bare Down (any modifiers) never reaches this handler at all.
+                // PopupMenu's own _keyController ('key-press', wired in the PopupMenu
+                // constructor — js/ui/popupMenu.js PopupMenu._onKeyPress) sits upstream
+                // of Clutter's normal actor event pipeline and unconditionally consumes
+                // the Down keysym for its own accessibility keynav whenever the popup
+                // drops down from the top panel. See LitsycalCalendar.handleKeyPress
+                // for the h/j/k/l fallback this forces.
+                this._keyPressId = this.menu.actor.connect('captured-event', (_actor, ev) => {
+                    if (ev.type() !== Clutter.EventType.KEY_PRESS) return Clutter.EVENT_PROPAGATE;
                     // The event panel owns text entries (title, notes, ...); never
                     // steal their keystrokes for calendar navigation.
                     if (this._calWidget._eventPanel) return Clutter.EVENT_PROPAGATE;
@@ -1164,7 +1196,7 @@ class LitsycalIndicator extends PanelMenu.Button {
                         ? Clutter.EVENT_STOP : Clutter.EVENT_PROPAGATE;
                 });
             } else if (this._keyPressId) {
-                global.stage.disconnect(this._keyPressId);
+                this.menu.actor.disconnect(this._keyPressId);
                 this._keyPressId = null;
             }
         });
@@ -1334,7 +1366,7 @@ class LitsycalIndicator extends PanelMenu.Button {
             this._floatingBox.destroy();
             this._floatingBox = null;
         }
-        if (this._keyPressId) { global.stage.disconnect(this._keyPressId); this._keyPressId = null; }
+        if (this._keyPressId) { this.menu.actor.disconnect(this._keyPressId); this._keyPressId = null; }
         if (this._menuOpenId) { this.menu.disconnect(this._menuOpenId); this._menuOpenId = null; }
         if (this._timer)      { GLib.source_remove(this._timer); this._timer = null; }
         if (this._contextMenu) { this._contextMenu.destroy(); this._contextMenu = null; }
