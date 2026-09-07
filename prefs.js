@@ -412,14 +412,31 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         const THEME_LABELS = [_('System'), _('Light'), _('Dark')];
 
         const themeRow = new Adw.ComboRow({
-            title:    _('Colour scheme'),
-            subtitle: _('System follows your GNOME appearance setting'),
-            model: Gtk.StringList.new(THEME_LABELS),
+            title:          _('Colour scheme'),
+            subtitle:       _('System follows your GNOME appearance setting'),
+            subtitle_lines: 1,
+            model:          Gtk.StringList.new(THEME_LABELS),
         });
         themeRow.set_selected(Math.max(0, THEME_IDS.indexOf(settings.get_string('theme'))));
+
+        // Live "currently: Light/Dark" hint while "System" is selected, so the
+        // option visibly does something instead of looking like a no-op.
+        const iface = new Gio.Settings({schema: 'org.gnome.desktop.interface'});
+        const updateThemeSubtitle = () => {
+            if (THEME_IDS[themeRow.get_selected()] !== 'system') {
+                themeRow.subtitle = _('System follows your GNOME appearance setting');
+                return;
+            }
+            const state = iface.get_string('color-scheme') === 'prefer-dark' ? _('Dark') : _('Light');
+            themeRow.subtitle = `${_('System follows your GNOME appearance setting')} (${_('currently')}: ${state})`;
+        };
+        updateThemeSubtitle();
+        iface.connect('changed::color-scheme', updateThemeSubtitle);
+
         themeRow.connect('notify::selected', () => {
             const i = themeRow.get_selected();
             if (i < THEME_IDS.length) settings.set_string('theme', THEME_IDS[i]);
+            updateThemeSubtitle();
         });
         themeGroup.add(themeRow);
 
