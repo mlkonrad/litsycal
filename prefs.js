@@ -579,7 +579,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                 group.remove(loadingRow);
 
                 if (sources.length === 0) {
-                    group.add(new Adw.ActionRow({title: _('No calendars found')}));
+                    group.add(this._buildNoCalendarsRow());
                     return;
                 }
 
@@ -604,5 +604,37 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         } catch (e) {
             loadingRow.set_title(_('Could not load calendars'));
         }
+    }
+
+    // Evolution Data Server (which Litsycal reads directly) doesn't come
+    // with a default calendar pre-registered — that's normally created the
+    // first time GNOME Calendar itself runs, or when an account with
+    // calendar support is added in Online Accounts. Without either having
+    // happened, a plain "No calendars found" row is a dead end, so offer
+    // both paths directly.
+    _buildNoCalendarsRow() {
+        const row = new Adw.ActionRow({
+            title:          _('No calendars found'),
+            subtitle:       _('Add one via GNOME Calendar or an online account to see events here'),
+            subtitle_lines: 2,
+        });
+
+        const calendarAppInfo = Gio.DesktopAppInfo.new('org.gnome.Calendar.desktop');
+        if (calendarAppInfo) {
+            const openCalBtn = new Gtk.Button({label: _('Open Calendar'), valign: Gtk.Align.CENTER});
+            openCalBtn.connect('clicked', () => {
+                try { calendarAppInfo.launch([], null); } catch (_) { /* best effort */ }
+            });
+            row.add_suffix(openCalBtn);
+        }
+
+        const openAccountsBtn = new Gtk.Button({label: _('Online Accounts…'), valign: Gtk.Align.CENTER});
+        openAccountsBtn.connect('clicked', () => {
+            try { Gio.Subprocess.new(['gnome-control-center', 'online-accounts'], Gio.SubprocessFlags.NONE); }
+            catch (_) { /* best effort */ }
+        });
+        row.add_suffix(openAccountsBtn);
+
+        return row;
     }
 }
