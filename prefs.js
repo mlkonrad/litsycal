@@ -587,12 +587,36 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                     const uid    = src.get_uid();
                     const calExt = src.get_extension(EDataServer.SOURCE_EXTENSION_CALENDAR);
                     const color  = calExt.get_color?.() ?? null;
-                    const name   = GLib.markup_escape_text(src.get_display_name(), -1);
+                    const name   = src.get_display_name();
 
                     const row = new Adw.SwitchRow({
-                        title:  color ? `<span color="${color}">●</span>  ${name}` : name,
+                        title:  GLib.markup_escape_text(name, -1),
                         active: !disabled.has(uid),
                     });
+
+                    // Backends report colour in whatever format they like (hex,
+                    // "rgb(...)", named, ...) — Gdk.RGBA.parse() accepts all of
+                    // those, unlike embedding the raw string in Pango markup
+                    // (only hex/named there), which silently blanked the whole
+                    // row's title if a backend ever handed back "rgb(...)".
+                    if (color) {
+                        const rgba = new Gdk.RGBA();
+                        if (rgba.parse(color)) {
+                            const dot = new Gtk.Box({
+                                width_request: 10, height_request: 10,
+                                valign: Gtk.Align.CENTER,
+                                css_classes: ['litsycal-prefs-cal-dot'],
+                            });
+                            const provider = new Gtk.CssProvider();
+                            provider.load_from_string(
+                                `.litsycal-prefs-cal-dot { background-color: ${rgba.to_string()}; border-radius: 50%; }`
+                            );
+                            dot.get_style_context()
+                                .add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
+                            row.add_prefix(dot);
+                        }
+                    }
+
                     row.connect('notify::active', () => {
                         if (row.get_active()) disabled.delete(uid);
                         else disabled.add(uid);
