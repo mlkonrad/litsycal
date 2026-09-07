@@ -301,6 +301,14 @@
     padding: 1px 3px;
 }
 
+/* Shown instead of the badge when the icon is hidden but a meeting is
+   starting soon or in progress — see LitsycalIndicator._hasUpcomingMeeting */
+.litsycal-meeting-glyph {
+    font-size: 0.6em;
+    color: #e06060;
+    padding: 0 4px;
+}
+
 /* ── Calendar size variants ──────────────────────────────────────────────── */
 /* Small */
 .litsycal-size-sm                { min-width: 220px; }
@@ -430,6 +438,9 @@
     height: 4px;
     border-radius: 3px;
 }
+
+.litsycal-theme-light .litsycal-event-dot-mono { background-color: rgba(0,0,0,0.45); }
+.litsycal-theme-dark  .litsycal-event-dot-mono { background-color: rgba(255,255,255,0.45); }
 
 /* ── Add (+) button ──────────────────────────────────────────────────────── */
 .litsycal-add-btn {

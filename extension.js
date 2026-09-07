@@ -213,7 +213,7 @@ class OutlinePainter {
 const LitsycalCalendar = GObject.registerClass(
 class LitsycalCalendar extends St.BoxLayout {
 
-    _init(settings, openPrefs, openCalendar, onPinToggle) {
+    _init(settings, openPrefs, openCalendar, onPinToggle, onDataChanged) {
         super._init({vertical: true, style_class: 'litsycal-calendar'});
 
         this._settings     = settings;
@@ -238,6 +238,8 @@ class LitsycalCalendar extends St.BoxLayout {
         this._weekendColor     = settings.get_string('weekend-color');
         this._agendaDays       = settings.get_int('agenda-days');
         this._showWeekNumbers  = settings.get_boolean('show-week-numbers');
+        this._showEventDots    = settings.get_boolean('show-event-dots');
+        this._dotColorMode     = settings.get_string('dot-color-mode');
         this._applySizeClass();
 
         this._sids = [
@@ -279,6 +281,14 @@ class LitsycalCalendar extends St.BoxLayout {
                 this._showWeekNumbers = settings.get_boolean('show-week-numbers');
                 this._buildWeekGutter();
             }),
+            settings.connect('changed::show-event-dots', () => {
+                this._showEventDots = settings.get_boolean('show-event-dots');
+                this._buildGrid();
+            }),
+            settings.connect('changed::dot-color-mode', () => {
+                this._dotColorMode = settings.get_string('dot-color-mode');
+                this._buildGrid();
+            }),
         ];
 
         this._iface    = new Gio.Settings({schema: 'org.gnome.desktop.interface'});
@@ -306,6 +316,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._calManager = new CalendarManager(settings, () => {
             this._buildGrid();
             this._buildAgenda();
+            onDataChanged?.();
         });
 
         this._isDark  = this._computeIsDark();
@@ -635,10 +646,15 @@ class LitsycalCalendar extends St.BoxLayout {
 
         const dotRow = new St.BoxLayout({style_class: 'litsycal-dot-row', x_expand: true});
         dotRow.set_x_align(Clutter.ActorAlign.CENTER);
-        for (const ev of this._calManager.getEventsForDate(ds).slice(0, 3)) {
-            const dot = new St.Widget({style_class: 'litsycal-event-dot'});
-            dot.style = `background-color: ${ev.color};`;
-            dotRow.add_child(dot);
+        if (this._showEventDots) {
+            for (const ev of this._calManager.getEventsForDate(ds).slice(0, 3)) {
+                const dot = new St.Widget({style_class: 'litsycal-event-dot'});
+                if (this._dotColorMode === 'mono')
+                    dot.add_style_class_name('litsycal-event-dot-mono');
+                else
+                    dot.style = `background-color: ${ev.color};`;
+                dotRow.add_child(dot);
+            }
         }
         box.add_child(dotRow);
         btn.set_child(box);
@@ -1050,10 +1066,11 @@ class LitsycalCalendar extends St.BoxLayout {
 const LitsycalIndicator = GObject.registerClass(
 class LitsycalIndicator extends PanelMenu.Button {
 
-    _init(settings, openPrefs, extPath) {
+    _init(settings, openPrefs, extPath, uuid) {
         super._init(0.5, 'Litsycal');
 
         this._settings = settings;
+        this._uuid     = uuid;
 
         this._badge = new St.Label({
             y_align: Clutter.ActorAlign.CENTER,
@@ -1067,6 +1084,15 @@ class LitsycalIndicator extends PanelMenu.Button {
         });
         this._logo.set_gicon(Gio.icon_new_for_string(`${extPath}/litsycal-logo.svg`));
         this.add_child(this._logo);
+
+        // Shown in place of the (hidden) badge text when there's a meeting
+        // starting soon or in progress, so the icon isn't completely blank
+        // right when it matters most. See _hasUpcomingMeeting().
+        this._meetingGlyph = new St.Label({
+            text: '●', y_align: Clutter.ActorAlign.CENTER,
+            style_class: 'litsycal-meeting-glyph', visible: false,
+        });
+        this.add_child(this._meetingGlyph);
 
         this._updateBadge();
         this._lastHour = GLib.DateTime.new_now_local().get_hour();
@@ -1121,7 +1147,8 @@ class LitsycalIndicator extends PanelMenu.Button {
                 const app = Shell.AppSystem.get_default().lookup_app('org.gnome.Calendar.desktop');
                 if (app) app.activate();
             },
-            (pinned) => { if (pinned) this._pinCalendar(); else this._unpinCalendar(true); }
+            (pinned) => { if (pinned) this._pinCalendar(); else this._unpinCalendar(true); },
+            () => this._updateBadge()
         );
         this._calWidget = cal;
         this._menuItem  = item;
@@ -1132,6 +1159,40 @@ class LitsycalIndicator extends PanelMenu.Button {
         this.menu.actor.style = 'border: none; background-color: transparent; box-shadow: none; padding: 0;';
         this.menu.box.style   = 'padding: 0; background-color: transparent; border: none;';
         try { this.menu.actor.bin.style = 'padding: 0; border: none; background-color: transparent;'; } catch (_) {}
+
+        // Right-click alternative to the calendar dropdown: Preferences / Quit.
+        // A second, independent PopupMenu — `this.menu` above stays reserved
+        // for the left-click calendar popup.
+        this._contextMenu = new PopupMenu.PopupMenu(this, 0.5, St.Side.TOP);
+        Main.panel.menuManager.addMenu(this._contextMenu);
+
+        const prefsItem = new PopupMenu.PopupMenuItem(_('Preferences…'));
+        prefsItem.connect('activate', () => openPrefs());
+        this._contextMenu.addMenuItem(prefsItem);
+
+        this._contextMenu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+        const quitItem = new PopupMenu.PopupMenuItem(_('Quit Litsycal'));
+        quitItem.connect('activate', () => {
+            // Disabling from inside this item's own 'activate' handler would
+            // tear this actor down mid-event; defer to the next idle tick.
+            const uuid = this._uuid;
+            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                Main.extensionManager.disableExtension(uuid);
+                return GLib.SOURCE_REMOVE;
+            });
+        });
+        this._contextMenu.addMenuItem(quitItem);
+    }
+
+    vfunc_event(event) {
+        if (event.type() === Clutter.EventType.BUTTON_PRESS &&
+            event.get_button() === Clutter.BUTTON_SECONDARY) {
+            this.menu.close();
+            this._contextMenu.toggle();
+            return Clutter.EVENT_STOP;
+        }
+        return super.vfunc_event(event);
     }
 
     _updateBadge() {
@@ -1141,7 +1202,11 @@ class LitsycalIndicator extends PanelMenu.Button {
         const hidden = this._settings.get_boolean('hide-icon');
         this._logo.visible  = false;
         this._badge.visible = !hidden;
-        if (hidden) return;
+        if (hidden) {
+            this._meetingGlyph.visible = this._hasUpcomingMeeting();
+            return;
+        }
+        this._meetingGlyph.visible = false;
 
         const style   = this._settings.get_string('badge-style');
         const pattern = this._settings.get_string('datetime-pattern');
@@ -1159,6 +1224,16 @@ class LitsycalIndicator extends PanelMenu.Button {
         this._badge.set_text(
             pattern ? formatPattern(now, pattern) : this._defaultText()
         );
+    }
+
+    // True while today has a video-call event that's joinable right now
+    // (mirrors the agenda's own join-button window — see meetingIsJoinable).
+    _hasUpcomingMeeting() {
+        const calManager = this._calWidget?._calManager;
+        if (!calManager) return false;
+        const today = dateStr(GLib.DateTime.new_now_local());
+        return calManager.getEventsForDate(today)
+            .some(ev => findMeetingUrl(ev) && meetingIsJoinable(ev));
     }
 
     _checkHourlyBeep() {
@@ -1229,6 +1304,7 @@ class LitsycalIndicator extends PanelMenu.Button {
         if (this._keyPressId) { global.stage.disconnect(this._keyPressId); this._keyPressId = null; }
         if (this._menuOpenId) { this.menu.disconnect(this._menuOpenId); this._menuOpenId = null; }
         if (this._timer)      { GLib.source_remove(this._timer); this._timer = null; }
+        if (this._contextMenu) { this._contextMenu.destroy(); this._contextMenu = null; }
         for (const id of this._sids) this._settings.disconnect(id);
         super.destroy();
     }
@@ -1239,7 +1315,7 @@ class LitsycalIndicator extends PanelMenu.Button {
 export default class LitsycalExtension extends Extension {
     enable() {
         this._settings  = this.getSettings();
-        this._indicator = new LitsycalIndicator(this._settings, () => this.openPreferences(), this.path);
+        this._indicator = new LitsycalIndicator(this._settings, () => this.openPreferences(), this.path, this.uuid);
         Main.panel.addToStatusArea(this.uuid, this._indicator, 0, 'right');
 
         Main.wm.addKeybinding(

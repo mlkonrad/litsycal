@@ -344,6 +344,34 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         settings.bind('show-week-numbers', weekNumRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         sizeGroup.add(weekNumRow);
 
+        // ── Event dots ────────────────────────────────────────────────────
+        const dotsGroup = new Adw.PreferencesGroup({title: _('Event Dots')});
+        appearance.add(dotsGroup);
+
+        const showDotsRow = new Adw.SwitchRow({
+            title:    _('Show event dots'),
+            subtitle: _('Small dots under each day marking that day’s events'),
+        });
+        settings.bind('show-event-dots', showDotsRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        dotsGroup.add(showDotsRow);
+
+        const DOT_COLOR_IDS    = ['calendar', 'mono'];
+        const DOT_COLOR_LABELS = [_('Per-calendar colour'), _('Monochrome')];
+        const dotColorRow = new Adw.ComboRow({
+            title:   _('Dot colour'),
+            model:   Gtk.StringList.new(DOT_COLOR_LABELS),
+            visible: settings.get_boolean('show-event-dots'),
+        });
+        dotColorRow.set_selected(Math.max(0, DOT_COLOR_IDS.indexOf(settings.get_string('dot-color-mode'))));
+        dotColorRow.connect('notify::selected', () => {
+            const i = dotColorRow.get_selected();
+            if (i < DOT_COLOR_IDS.length) settings.set_string('dot-color-mode', DOT_COLOR_IDS[i]);
+        });
+        settings.connect('changed::show-event-dots', () => {
+            dotColorRow.visible = settings.get_boolean('show-event-dots');
+        });
+        dotsGroup.add(dotColorRow);
+
         // ── Highlighted days ───────────────────────────────────────────────
         const hlGroup = new Adw.PreferencesGroup({
             title:       _('Highlighted Days'),

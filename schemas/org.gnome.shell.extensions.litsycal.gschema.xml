@@ -32,6 +32,18 @@
       <default>false</default>
       <summary>Show an ISO week-number gutter beside the calendar grid</summary>
     </key>
+    <key name="show-event-dots" type="b">
+      <default>true</default>
+      <summary>Show event dots on day cells in the grid</summary>
+    </key>
+    <key name="dot-color-mode" type="s">
+      <choices>
+        <choice value="calendar"/>
+        <choice value="mono"/>
+      </choices>
+      <default>'calendar'</default>
+      <summary>Event dot colour: per-calendar colour or monochrome</summary>
+    </key>
 
     <!-- Appearance – panel badge -->
     <key name="badge-style" type="s">
