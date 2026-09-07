@@ -42,6 +42,12 @@ const DAY_COL = {mo:0, tu:1, we:2, th:3, fr:4, sa:5, su:6};
 // calendar-size index -> style class (index 2 "Medium" is the base CSS, no class needed).
 const SIZE_CLASSES = ['litsycal-size-sm', 'litsycal-size-sm-plus', null, 'litsycal-size-md-plus', 'litsycal-size-lg'];
 const SIZE_MIN_WIDTHS = [220, 238, 255, 285, 315]; // must match the widths above
+// Outline top inset per calendar-size — see OutlinePainter.paint(). The line
+// should sit close under the weekday-name row and clear of the day numbers
+// (Itsycal draws it flush with the cell's top edge, inset 0) — Small's own
+// cell is so short that even a couple of extra px reads as "line hugging
+// the numbers, far from the weekday row" instead.
+const OUTLINE_TOP_INSET = [0, 2, 4, 4, 4];
 
 // ── Accent colour ─────────────────────────────────────────────────────────────
 
@@ -144,15 +150,23 @@ function meetingIsJoinable(ev) {
 // ── Outline painter ───────────────────────────────────────────────────────────
 
 class OutlinePainter {
-    configure(isDark, highlightCols) {
+    configure(isDark, highlightCols, topInset = 4) {
         this._isDark        = isDark;
         this._highlightCols = highlightCols;
+        this._topInset      = topInset;
     }
 
     paint(cr, w, h, numRows, firstCol, lastCol, lastRow) {
         const cw    = w / 7;
         const dark  = this._isDark;
-        const INSET = 4; // vertical breathing room so outline doesn't clip day numbers
+        // Vertical breathing room so the outline doesn't clip day numbers.
+        // A row's own height shrinks a lot at the smaller calendar sizes,
+        // but the (fixed-size) event-dot strip under the number doesn't —
+        // so a small cell has far less slack above its number than a
+        // medium/large one. A single constant inset that clears the number
+        // comfortably at Medium ends up overlapping it at Small, so the
+        // caller scales this down for the compact sizes (see INSET_BY_SIZE).
+        const INSET = this._topInset;
 
         for (const col of this._highlightCols) {
             cr.rectangle(col * cw, INSET, cw, h - 2 * INSET);
@@ -246,19 +260,20 @@ class LitsycalCalendar extends St.BoxLayout {
             settings.connect('changed::first-day-of-week', () => {
                 this._firstDayOfWeek = settings.get_int('first-day-of-week');
                 this._highlightCols  = this._readHighlight();
-                this._painter.configure(this._isDark, this._highlightCols);
+                this._painter.configure(this._isDark, this._highlightCols, OUTLINE_TOP_INSET[this._calSize]);
                 this._buildDayNameRow(true);
                 this._buildGrid();
             }),
             settings.connect('changed::highlight-days', () => {
                 this._highlightCols = this._readHighlight();
-                this._painter.configure(this._isDark, this._highlightCols);
+                this._painter.configure(this._isDark, this._highlightCols, OUTLINE_TOP_INSET[this._calSize]);
                 this._buildDayNameRow(true);
                 this._buildGrid();
             }),
             settings.connect('changed::calendar-size', () => {
                 this._calSize = settings.get_int('calendar-size');
                 this._applySizeClass();
+                this._painter.configure(this._isDark, this._highlightCols, OUTLINE_TOP_INSET[this._calSize]);
                 this._buildGrid();
             }),
             settings.connect('changed::theme', () => {
@@ -321,7 +336,7 @@ class LitsycalCalendar extends St.BoxLayout {
 
         this._isDark  = this._computeIsDark();
         this._painter = new OutlinePainter();
-        this._painter.configure(this._isDark, this._highlightCols);
+        this._painter.configure(this._isDark, this._highlightCols, OUTLINE_TOP_INSET[this._calSize]);
 
         this._buildHeader();
 
@@ -397,7 +412,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this.remove_style_class_name('litsycal-theme-light');
         this.remove_style_class_name('litsycal-theme-dark');
         this.add_style_class_name(this._isDark ? 'litsycal-theme-dark' : 'litsycal-theme-light');
-        this._painter.configure(this._isDark, this._highlightCols);
+        this._painter.configure(this._isDark, this._highlightCols, OUTLINE_TOP_INSET[this._calSize]);
         if (this._prevBtn) this._updateHeaderColors();
         this._buildDayNameRow(true);
         this._buildGrid();
@@ -549,10 +564,9 @@ class LitsycalCalendar extends St.BoxLayout {
     // first column. The gutter is a separate sibling column (so nothing
     // here affects OutlinePainter's math, which is based on the overlay's
     // own width) — but that also means its rows can't rely on shared CSS
-    // to match the real grid row heights (they differ: e.g. edge rows with
-    // overflow-day cells are taller). Instead each cell's height is bound
-    // directly to its corresponding grid row's actual rendered height, so
-    // it always lines up exactly regardless of size class or content.
+    // to match the real grid row heights. Instead each cell's height is
+    // bound directly to its corresponding grid row's actual rendered
+    // height, so it always lines up exactly regardless of size class.
     _buildWeekGutter() {
         this._weekGutter.visible = this._showWeekNumbers;
         this._weekGutter.destroy_all_children();
@@ -614,12 +628,29 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     _makeOverflow(day) {
-        const box = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'litsycal-cell-box'});
-        const lbl = new St.Label({text: String(day), style_class: 'litsycal-overflow', x_expand: true});
-        lbl.clutter_text.set_x_align(Clutter.ActorAlign.CENTER);
-        box.add_child(lbl);
+        // Uses the exact same St.Button shell (litsycal-day-btn) as a real
+        // day cell — same size, same padding, same layout tree — just
+        // non-interactive and dimmed. Any structural difference here (a
+        // different widget, different padding) throws off that cell's box
+        // model just enough to misalign it and its row within the grid, so
+        // overflow days must stay wire-identical to real ones, differing
+        // only in text color. Mirrors Itsycal's MoCalCell, which is the one
+        // cell class for every day regardless of month.
+        const btn = new St.Button({
+            style_class: 'litsycal-day-btn', x_expand: true,
+            reactive: false, can_focus: false,
+        });
+
+        const box    = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'litsycal-cell-box'});
+        const numLbl = new St.Label({
+            text: String(day), x_expand: true,
+            style_class: 'litsycal-cell-num litsycal-overflow',
+        });
+        numLbl.clutter_text.set_x_align(Clutter.ActorAlign.CENTER);
+        box.add_child(numLbl);
         box.add_child(new St.BoxLayout({style_class: 'litsycal-dot-row', x_expand: true}));
-        return box;
+        btn.set_child(box);
+        return btn;
     }
 
     _makeCell(day, ds, isToday, isSel, isWeekend) {

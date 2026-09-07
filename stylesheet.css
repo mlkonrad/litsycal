@@ -99,13 +99,10 @@
 }
 
 /* ── Overflow days (prev / next month) ───────────────────────────────────── */
-.litsycal-overflow {
-    min-width: 32px;
-    min-height: 26px;
-    text-align: center;
-    font-size: 0.88em;
-    padding: 4px 0;
-}
+/* Overflow cells reuse .litsycal-day-btn itself (see _makeOverflow) so their
+   box model — size, padding, layout tree — is identical to a real day cell.
+   This class only ever needs to override text color (see theme rules below);
+   sizing/font-size already come from .litsycal-day-btn's own rules. */
 
 /* ── Separator ───────────────────────────────────────────────────────────── */
 .litsycal-sep {
@@ -313,28 +310,24 @@
 /* Small */
 .litsycal-size-sm                { min-width: 220px; }
 .litsycal-size-sm .litsycal-day-btn  { min-width: 26px; min-height: 21px; font-size: 0.78em; }
-.litsycal-size-sm .litsycal-overflow { min-width: 26px; min-height: 21px; font-size: 0.78em; }
 .litsycal-size-sm .litsycal-day-name { min-width: 28px; font-size: 0.65em; }
 .litsycal-size-sm .litsycal-day-name-cell { min-width: 26px; }
 
 /* Small-plus (between Small and Medium) */
 .litsycal-size-sm-plus                { min-width: 238px; }
 .litsycal-size-sm-plus .litsycal-day-btn  { min-width: 29px; min-height: 24px; font-size: 0.83em; }
-.litsycal-size-sm-plus .litsycal-overflow { min-width: 29px; min-height: 24px; font-size: 0.83em; }
 .litsycal-size-sm-plus .litsycal-day-name { min-width: 30px; font-size: 0.69em; }
 .litsycal-size-sm-plus .litsycal-day-name-cell { min-width: 29px; }
 
 /* Medium-plus (between Medium and Large) */
 .litsycal-size-md-plus                { min-width: 285px; }
 .litsycal-size-md-plus .litsycal-day-btn  { min-width: 36px; min-height: 30px; font-size: 0.94em; }
-.litsycal-size-md-plus .litsycal-overflow { min-width: 36px; min-height: 30px; font-size: 0.94em; }
 .litsycal-size-md-plus .litsycal-day-name { min-width: 37px; font-size: 0.76em; }
 .litsycal-size-md-plus .litsycal-day-name-cell { min-width: 36px; }
 
 /* Large */
 .litsycal-size-lg                { min-width: 315px; }
 .litsycal-size-lg .litsycal-day-btn  { min-width: 40px; min-height: 34px; font-size: 1.00em; }
-.litsycal-size-lg .litsycal-overflow { min-width: 40px; min-height: 34px; font-size: 1.00em; }
 .litsycal-size-lg .litsycal-day-name { min-width: 42px; font-size: 0.80em; }
 .litsycal-size-lg .litsycal-day-name-cell { min-width: 40px; }
 
