@@ -580,12 +580,20 @@ class LitsycalCalendar extends St.BoxLayout {
             source: this._dayNameRow, coordinate: Clutter.BindCoordinate.HEIGHT,
         }));
 
+        // Row cells go in their own nested box so the 4px inter-row spacing
+        // (which must match .litsycal-grid's) only applies between rows —
+        // not between the spacer above and the first row, which sits flush
+        // against the day-name row/grid boundary with no gap, same as
+        // _calRight's dayNameRow-to-grid-overlay join.
+        const rows = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'litsycal-week-rows'});
+        this._weekGutter.add_child(rows);
+
         const gridRows = this._gridBox.get_children();
         const anchor   = GLib.DateTime.new_local(this._year, this._month, 1, 0, 0, 0);
         for (let r = 0; r < this._numRows; r++) {
             const rowDate = anchor.add_days(r * 7 - this._firstCol);
             const cell    = this._makeWeekCell(isoWeekNumber(rowDate));
-            this._weekGutter.add_child(cell);
+            rows.add_child(cell);
             if (gridRows[r]) {
                 cell.add_constraint(new Clutter.BindConstraint({
                     source: gridRows[r], coordinate: Clutter.BindCoordinate.HEIGHT,
@@ -594,15 +602,23 @@ class LitsycalCalendar extends St.BoxLayout {
         }
     }
 
+    // Mirrors _makeCell's number+dot-row composition (number on top, an
+    // empty dot-row-height spacer below, the pair centered as a group via
+    // the St.Bin wrapper — exactly like St.Button centers a day cell's
+    // content) so the printed week number sits at the same vertical offset
+    // as the day numbers rather than at the row's raw geometric center.
     _makeWeekCell(weekNum) {
-        const box = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'litsycal-cell-box'});
-        const lbl = new St.Label({
-            text: String(weekNum), x_expand: true, y_expand: true,
-            y_align: Clutter.ActorAlign.CENTER, style_class: 'litsycal-week-num',
+        const bin = new St.Bin({
+            x_expand: true, y_expand: true,
+            x_align: Clutter.ActorAlign.FILL, y_align: Clutter.ActorAlign.CENTER,
         });
+        const box = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'litsycal-cell-box'});
+        const lbl = new St.Label({text: String(weekNum), x_expand: true, style_class: 'litsycal-week-num'});
         lbl.clutter_text.set_x_align(Clutter.ActorAlign.CENTER);
         box.add_child(lbl);
-        return box;
+        box.add_child(new St.BoxLayout({style_class: 'litsycal-dot-row', x_expand: true}));
+        bin.set_child(box);
+        return bin;
     }
 
     // Cap the agenda's height to whatever screen space is actually left below

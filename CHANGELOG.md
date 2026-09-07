@@ -9,6 +9,32 @@ GNOME Extensions build number.
 
 ## [Unreleased]
 
+### Changed
+
+- Week numbers in the week-number gutter are now bold.
+
+### Fixed
+
+- Week-number gutter alignment: the `sm-plus` and `md-plus` calendar sizes
+  had no dedicated gutter width/font-size rules and silently fell back to
+  the base (`md`) values, throwing off the column's proportions at those two
+  sizes. Every size class now scales the gutter in step with the day-name
+  column.
+- Week numbers sat at the grid row's raw geometric center, while day numbers
+  sit slightly above it (the number+dot-row stack is centered as a group,
+  and the reserved dot-row space below the number pulls that group's center
+  down). Each week-number cell now reproduces the same number+dot-row
+  composition as a day cell, so it lines up with the day numbers instead of
+  the row's midpoint.
+- The week-number gutter had no row-to-row spacing while the grid itself
+  spaces its rows 4px apart, so each gutter cell drifted another 4px out of
+  line with its row — barely visible on row one, worst by the last row.
+  Matching that spacing on the gutter fixed the drift but also inserted an
+  extra gap between the top spacer and row one (where the real grid has
+  none), pushing every row down by one gap too many. Nesting the row cells
+  in their own box, spaced to match the grid, fixes both: no gap before row
+  one, matching 4px between every row after.
+
 ## [2] - 2026-09-07
 
 ### Added
