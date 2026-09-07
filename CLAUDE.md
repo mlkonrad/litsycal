@@ -28,3 +28,41 @@ every GNOME Shell session (observed on Shell 50 — the old module can stay
 cached even across a clean disable/enable cycle). If behavior still looks
 stale after reloading, a full log out/in is the sure fix — GNOME Shell can't
 restart in place on Wayland like it can on X11 (`Alt+F2` → `r`).
+
+## extensions.gnome.org review guidelines (publishing target)
+
+Full guide: https://gjs.guide/extensions/review-guidelines/review-guidelines.html
+This project is being prepared for submission to the official EGO review, so
+new code should keep meeting these — checked clean as of 2026-09-07:
+
+- **Lifecycle discipline**: nothing gets created, connected, or scheduled at
+  module scope — only in `enable()`. Everything created in `enable()` must be
+  torn down in `disable()` (widgets destroyed, every `connect()` id explicitly
+  disconnected, every `GLib.timeout_add*`/`source_remove`d, instance vars set
+  back to `null`). `LitsycalExtension.enable/disable` in extension.js and the
+  `_settings`/`_iface` id tracking + `destroy()` cleanup in `LitsycalIndicator`
+  already follow this — keep new state on the same pattern.
+- **No deprecated imports**: no `ByteArray`, `Lang`, or `Mainloop`. Use ESM
+  `import`, GLib/GObject natively, `imports.byteArray` replacements, etc.
+- **Don't mix process libraries**: no `Gtk`/`Gdk`/`Adw` in extension.js (Shell
+  process) and no `St`/`Clutter`/`Meta` in prefs.js (separate process, GTK
+  only). Keep that split when adding to either file.
+- **No `eval`, no obfuscated/minified code, no bundled binaries**. If a build
+  step is ever introduced, ship readable transpiled output, not minified.
+- **No telemetry/tracking of users**, no clipboard access without declaring
+  it, no sharing data with third parties without explicit user action.
+- **Logging**: keep `console.log`/`print` out of normal operation (currently
+  zero in the codebase) — noisy logging is a rejection reason.
+- **metadata.json**: uuid must stay in the `litsycal@mlkonrad.github.com` form
+  (no `gnome.org` namespace — already fine); `shell-version` should list
+  stable versions plus at most one unreleased/dev version, trimmed as new
+  Shell versions ship; only necessary keys.
+- **GSettings schema id** must stay under the `org.gnome.shell.extensions.*`
+  base (already true: `org.gnome.shell.extensions.litsycal`).
+- **`GObject.Object.run_dispose()`** must not be called without a documented
+  reason — currently unused, keep it that way unless justified in a comment.
+- Code must be genuinely functional (not a stub) and avoid interfering with
+  other extensions or the shell's own systems.
+- Before submitting: run through metadata.json shell-version pruning, confirm
+  `schemas/gschemas.compiled` isn't committed stale, and skim for any new
+  `enable()`-time side effects introduced since the last review pass.
