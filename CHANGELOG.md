@@ -4,7 +4,9 @@ All notable changes to Litsycal are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project doesn't yet use semantic version tags — entries are grouped by
-release instead.
+release instead, numbered sequentially ([1], [2], [3], …). This counter is
+maintained by hand here and is independent of `metadata.json` (which no
+longer carries a `version` key — see that file's history for why).
 
 ## [Unreleased]
 
