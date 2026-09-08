@@ -4,8 +4,7 @@ All notable changes to Litsycal are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project doesn't yet use semantic version tags — entries are grouped by
-release instead; see `metadata.json`'s `version` field for the current
-GNOME Extensions build number.
+release instead.
 
 ## [Unreleased]
 
