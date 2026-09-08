@@ -533,7 +533,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         about.add(abGroup);
         abGroup.add(new Adw.ActionRow({
             title:    'Litsycal',
-            subtitle: `Version ${this.metadata.version} — Calendar indicator for GNOME`,
+            subtitle: _('Calendar indicator for GNOME'),
         }));
         abGroup.add(new Adw.ActionRow({
             title:    _('Inspired by Itsycal for macOS'),
