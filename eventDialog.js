@@ -284,7 +284,7 @@ export class EventPanel {
             ? (ev.time?.split(' - ')[1]?.trim() ?? this._nextHour()) : this._nextHour();
         this._endsRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
         this._endsRow.add_child(new St.Label({text: _('Ends'), style_class: 'litsycal-panel-lbl'}));
-        this._endDatePicker = this._makeDateField(this._selDate);
+        this._endDatePicker = this._makeDateField(ev?.endDate ?? this._selDate);
         this._endTimePicker = this._makeTimeField(defEndTime);
         this._endsRow.add_child(this._endDatePicker.actor);
         this._endsRow.add_child(this._endTimePicker.actor);

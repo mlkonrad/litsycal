@@ -206,6 +206,7 @@ export class CalendarManager {
 
                 const isAllDay = tObj.is_date();
                 let time = null;
+                let endDate = null;
                 if (!isAllDay) {
                     const pad = n => String(n).padStart(2, '0');
                     const startStr = `${pad(tObj.get_hour())}:${pad(tObj.get_minute())}`;
@@ -214,6 +215,11 @@ export class CalendarManager {
                         ? `${pad(eObj.get_hour())}:${pad(eObj.get_minute())}`
                         : null;
                     time = endStr ? `${startStr} - ${endStr}` : startStr;
+
+                    if (eObj) {
+                        const eDate = `${eObj.get_year()}-${String(eObj.get_month()).padStart(2,'0')}-${String(eObj.get_day()).padStart(2,'0')}`;
+                        if (eDate !== date) endDate = eDate;
+                    }
                 }
 
                 let notes = null, url = null, location = null, recurrence = null, alarm = null,
@@ -240,7 +246,7 @@ export class CalendarManager {
                     }
                 } catch(_) {} // notes/url/location/etc are optional extras; missing data is expected
 
-                this._events.push({date, title, time, color, allDay: isAllDay,
+                this._events.push({date, title, time, color, allDay: isAllDay, endDate,
                                    uid: comp.get_uid(), clientUid, notes, url,
                                    location, recurrence, alarm, recurrenceId});
             } catch(e) {
