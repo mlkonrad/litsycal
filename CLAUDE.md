@@ -69,9 +69,18 @@ new code should keep meeting these — checked clean as of 2026-09-07:
   `.po`/`.pot` files, build/install scripts, and unused media — a reviewer
   *may* reject for an unreasonable amount of unnecessary data. If the EGO
   upload is a zip of the whole repo rather than hand-picked files, exclude
-  `.git`, `.github`, `CLAUDE.md`, `po/*.po`, `po/*.pot`, and `screenshot.png`;
-  keep only the compiled `locale/pt_BR/LC_MESSAGES/*.mo`, which is what
-  actually ships at runtime.
+  `.git`, `.github`, `CLAUDE.md`, `po/` (source `.po`/`.pot`/`LINGUAS`), and
+  `screenshot.png`; keep only the compiled `locale/pt_BR/LC_MESSAGES/*.mo`,
+  which is what actually ships at runtime.
+- **Licensing**: `LICENSE` is MIT (Marlon Konrad, 2026), reproduces Itsycal's
+  original MIT notice (Sanjay Madan, 2016 — litsycal ports/adapts parts of
+  its design and behavior, e.g. `_makeOverflow`'s `MoCalCell` comment and
+  `_updateAgendaMaxHeight`'s `agendaMaxPossibleHeight` comment in
+  extension.js, so MIT's "include the original notice" condition applies),
+  and adds an explicit grant permitting extensions.gnome.org/GNOME Foundation
+  to distribute under GPL-2.0-or-later-compatible terms — the pattern the
+  guide describes for permissively-licensed extension code. Keep all three
+  sections if LICENSE is ever regenerated/reformatted.
 - Before submitting: run through metadata.json shell-version pruning, confirm
   `schemas/gschemas.compiled` isn't committed stale, confirm no unnecessary
   files are in the upload, and skim for any new `enable()`-time side effects
