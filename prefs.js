@@ -9,7 +9,10 @@ import EDataServer from 'gi://EDataServer';
 export default class LitsycalPrefs extends ExtensionPreferences {
 
     fillPreferencesWindow(window) {
-        window.set_default_size(480, 660);
+        // Wide enough to stay above Adw.PreferencesWindow's own adaptive
+        // breakpoint — narrower than this, it drops the General/Appearance/
+        // About switcher from the header down to a bottom bar.
+        window.set_default_size(600, 660);
         const settings = this.getSettings();
 
         // ════════════════════════════════════════════════════════════════════
@@ -552,6 +555,24 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             Gio.AppInfo.launch_default_for_uri('https://github.com/mlkonrad/litsycal', null);
         });
         abGroup.add(ghRow);
+
+        // The settings menu (extension.js) sets this right before calling
+        // openPreferences(), so the window opens on the tab the user actually
+        // asked for. Reset it back to 'general' immediately so an unrelated
+        // direct open (e.g. `gnome-extensions prefs`) doesn't inherit a stale tab.
+        const requestedPage = settings.get_string('prefs-initial-page');
+        if (requestedPage !== 'general') settings.set_string('prefs-initial-page', 'general');
+
+        const pagesByName = {general, appearance, about};
+        if (pagesByName[requestedPage]) {
+            // set_visible_page() here, mid-construction, doesn't stick — the
+            // window's own navigation view isn't ready to switch pages until
+            // it's mapped. Defer to the next idle tick, once it is.
+            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                window.set_visible_page(pagesByName[requestedPage]);
+                return GLib.SOURCE_REMOVE;
+            });
+        }
     }
 
     // Populates `group` with one switch row per enabled calendar source,

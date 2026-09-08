@@ -12,6 +12,15 @@ longer carries a `version` key — see that file's history for why).
 
 ### Added
 
+- Settings menu (gear button in the calendar footer, or right-clicking the
+  panel icon): About, Check for updates (not implemented yet), Go to date,
+  Settings, Appearance, Help, and Quit Litsycal — each with a matching icon.
+  The calendar dropdown stays open behind the menu; selecting About,
+  Settings, Appearance, Help, or Quit closes it afterwards, while Go to date
+  leaves it open and floats a small yyyy-mm-dd entry in front of it that
+  jumps the calendar straight to that day. About, Settings, and Appearance
+  each open the Preferences window on the matching tab; Help opens the
+  project wiki.
 - Resize handle below the calendar grid, mirroring Itsycal's own: drag it
   down to reveal up to five extra weeks of next month's dates (dragging
   back up hides them again). The chosen row count is remembered across
@@ -35,6 +44,17 @@ longer carries a `version` key — see that file's history for why).
   months once navigation moves the selection off the whole rendered grid
   (not merely into a different calendar month).
 
+### Changed
+
+- The gear button in the calendar footer and right-clicking the panel icon
+  now both open the new settings menu above instead of jumping straight to
+  the Preferences window.
+- Preferences window widened slightly (480px → 600px) so its General/
+  Appearance/About tab switcher stays in the header instead of collapsing to
+  a bottom bar — libadwaita's own responsive behaviour, not something this
+  project controls directly, but the extra width keeps clear of the
+  breakpoint.
+
 ### Fixed
 
 - The event dialog's Ends date reverted to the start date every time a
@@ -53,6 +73,12 @@ longer carries a `version` key — see that file's history for why).
   read from EDS, instead of every consumer needing to tolerate whatever
   format a given backend hands back (this is what let Google's `rgb(...)`
   colour reach the Preferences title in the first place).
+- Pinning the calendar (the pin button in its footer) would visibly shrink
+  and shift it: its width was measured right after detaching it from the
+  open popup, when it briefly reads as 0 (no layout pass yet), and its
+  position was re-derived from the panel button's coordinates rather than
+  reused from where it was already showing. Both are now captured from the
+  calendar's actual on-screen size and position just before the detach.
 
 ## [3] - 2026-09-08
 

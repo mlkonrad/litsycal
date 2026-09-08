@@ -598,6 +598,19 @@
     border-radius: 12px;
 }
 
+.litsycal-goto-panel {
+    padding: 12px;
+    spacing: 6px;
+    min-width: 220px;
+    border-radius: 10px;
+}
+
+.litsycal-goto-title {
+    font-size: 0.95em;
+    font-weight: bold;
+    padding-bottom: 2px;
+}
+
 .litsycal-cell-tooltip {
     padding: 10px;
     spacing: 6px;
@@ -650,6 +663,17 @@
     border-radius: 4px;
 }
 .litsycal-panel-cal-option:hover { background-color: rgba(128,128,128,0.18); }
+.litsycal-panel-cal-option:insensitive { opacity: 0.4; }
+
+.litsycal-settings-menu {
+    padding: 6px;
+    spacing: 1px;
+    min-width: 190px;
+    border-radius: 10px;
+}
+
+.litsycal-settings-menu-row  { spacing: 8px; }
+.litsycal-settings-menu-icon { opacity: 0.75; }
 
 .litsycal-panel-sep {
     height: 1px;

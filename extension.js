@@ -13,8 +13,8 @@ import Gio     from 'gi://Gio';
 import Meta    from 'gi://Meta';
 import Shell   from 'gi://Shell';
 
-import {CalendarManager} from './calendarManager.js';
-import {EventPanel}      from './eventDialog.js';
+import {CalendarManager}           from './calendarManager.js';
+import {EventPanel, GoToDatePanel} from './eventDialog.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -242,14 +242,14 @@ class OutlinePainter {
 const LitsycalCalendar = GObject.registerClass(
 class LitsycalCalendar extends St.BoxLayout {
 
-    _init(settings, openPrefs, openCalendar, onPinToggle, onDataChanged) {
+    _init(settings, openSettingsMenu, openCalendar, onPinToggle, onDataChanged) {
         super._init({vertical: true, style_class: 'litsycal-calendar'});
 
-        this._settings     = settings;
-        this._openPrefs    = openPrefs;
-        this._openCalendar = openCalendar;
-        this._onPinToggle  = onPinToggle;
-        this._accent    = readAccent();
+        this._settings         = settings;
+        this._openSettingsMenu = openSettingsMenu;
+        this._openCalendar     = openCalendar;
+        this._onPinToggle      = onPinToggle;
+        this._accent           = readAccent();
 
         const now      = GLib.DateTime.new_now_local();
         this._year     = now.get_year();
@@ -1231,8 +1231,8 @@ class LitsycalCalendar extends St.BoxLayout {
         const calBtn = makeIconBtn('x-office-calendar-symbolic', _('Open Calendar app'));
         calBtn.connect('clicked', () => { if (this._openCalendar) this._openCalendar(); });
 
-        const gear = makeIconBtn('preferences-system-symbolic', _('Preferences'));
-        gear.connect('clicked', () => this._openPrefs());
+        const gear = makeIconBtn('preferences-system-symbolic', _('Settings menu'));
+        gear.connect('clicked', () => this._openSettingsMenu(gear));
 
         footer.add_child(this._addBtn);
         footer.add_child(new St.Widget({x_expand: true}));
@@ -1288,6 +1288,16 @@ class LitsycalCalendar extends St.BoxLayout {
         const now = GLib.DateTime.new_now_local();
         this._year = now.get_year(); this._month = now.get_month();
         this._today = now; this._selected = now;
+        this._updateMonthLabel();
+        this._buildGrid();
+        this._buildAgenda();
+        this._calManager?.fetchMonth(this._year, this._month);
+    }
+
+    // Used by the settings menu's "Go to date" dialog.
+    _goToDate(dt) {
+        this._year = dt.get_year(); this._month = dt.get_month();
+        this._selected = dt;
         this._updateMonthLabel();
         this._buildGrid();
         this._buildAgenda();
@@ -1401,6 +1411,126 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 });
 
+// ── Settings menu (floating, non-modal PopupMenu-wise, but self-grabbed) ────
+//
+// Deliberately not a PopupMenu.PopupMenu/menuManager grab: menuManager closes
+// any other menu it owns the instant a new one opens, which would force the
+// calendar dropdown shut the moment this appears — not what we want, since
+// the calendar should stay open behind it. Built the same way as EventPanel/
+// GoToDatePanel instead — a floating box in uiGroup.
+//
+// It does still need its own Main.pushModal grab, though: `this.menu`'s own
+// grab (see the open-state-changed handler below, "Capture phase on the
+// menu's own actor, not the stage") means input while it's active is
+// redelivered starting from ITS grab actor, not the stage — so without a
+// competing grab of our own, a click on one of our rows is swallowed as a
+// click-outside-of-this.menu (closing nothing visible, since we're not part
+// of it) rather than ever reaching our button, and only a second click, once
+// unrelated to the by-then-released grab, actually lands. Grabbing here (and
+// listening on this._box's own 'captured-event', for the same reason) fixes
+// that the same way this.menu's own keyboard handling already had to.
+class SettingsMenuPanel {
+
+    // items: {label, icon, action}[] rows in display order; `null` renders as
+    // a separator. `action` is called once the panel has fully closed; a row
+    // with `action: null` renders disabled (e.g. "Check for updates").
+    constructor(anchorActor, items) {
+        this._box = new St.BoxLayout({
+            vertical: true,
+            style_class: 'popup-menu-content litsycal-settings-menu',
+            reactive: true,
+        });
+
+        for (const item of items) {
+            if (item === null) {
+                this._box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
+                continue;
+            }
+            const btn = new St.Button({
+                style_class: 'litsycal-panel-cal-option',
+                x_expand: true,
+                reactive: !!item.action,
+            });
+            const row = new St.BoxLayout({style_class: 'litsycal-settings-menu-row'});
+            row.add_child(new St.Icon({
+                icon_name: item.icon, icon_size: 16,
+                style_class: 'litsycal-settings-menu-icon',
+            }));
+            row.add_child(new St.Label({text: item.label, y_align: Clutter.ActorAlign.CENTER}));
+            btn.set_child(row);
+            if (!item.action) {
+                btn.add_style_pseudo_class('insensitive');
+            } else {
+                btn.connect('clicked', () => {
+                    // Tearing this._box down from inside its own child's
+                    // still-live 'clicked' handler is asking for trouble —
+                    // finish the event first (same reasoning as the quit
+                    // action's own idle_add deferral).
+                    GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                        this.close();
+                        item.action();
+                        return GLib.SOURCE_REMOVE;
+                    });
+                });
+            }
+            this._box.add_child(btn);
+        }
+
+        Main.layoutManager.uiGroup.add_child(this._box);
+        this._grab = Main.pushModal(this._box, {actionMode: Shell.ActionMode.POPUP});
+
+        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this._position(anchorActor);
+            return GLib.SOURCE_REMOVE;
+        });
+
+        this._eventId = this._box.connect('captured-event', (_actor, ev) => {
+            if (ev.type() === Clutter.EventType.BUTTON_PRESS) {
+                const [x, y] = ev.get_coords();
+                const actor  = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
+                if (actor && !this._box.contains(actor)) {
+                    this.close();
+                    return Clutter.EVENT_STOP;
+                }
+            } else if (ev.type() === Clutter.EventType.KEY_PRESS &&
+                       ev.get_key_symbol() === Clutter.KEY_Escape) {
+                this.close();
+                return Clutter.EVENT_STOP;
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
+    }
+
+    _position(anchor) {
+        const monitor = Main.layoutManager.primaryMonitor;
+        const panelH  = Main.panel.get_height();
+        const boxW    = this._box.get_width()  || 200;
+        const boxH    = this._box.get_height() || 260;
+
+        const [ax, ay] = anchor.get_transformed_position();
+        const ah = anchor.get_height();
+
+        let x = ax; // left-align with the anchor
+        x = Math.max(monitor.x + 4, Math.min(x, monitor.x + monitor.width - boxW - 4));
+
+        let y = ay + ah + 4;
+        if (y + boxH > monitor.y + monitor.height - 4) y = ay - boxH - 4; // flip above if no room below
+        y = Math.max(monitor.y + panelH + 4, y);
+
+        this._box.set_position(Math.round(x), Math.round(y));
+    }
+
+    close() {
+        if (this._eventId) { this._box?.disconnect(this._eventId); this._eventId = null; }
+        if (this._grab)    { Main.popModal(this._grab); this._grab = null; }
+        if (this._box) {
+            Main.layoutManager.uiGroup.remove_child(this._box);
+            this._box.destroy();
+            this._box = null;
+        }
+    }
+}
+
 // ── Panel indicator ───────────────────────────────────────────────────────────
 
 const LitsycalIndicator = GObject.registerClass(
@@ -1409,8 +1539,9 @@ class LitsycalIndicator extends PanelMenu.Button {
     _init(settings, openPrefs, extPath, uuid) {
         super._init(0.5, 'Litsycal');
 
-        this._settings = settings;
-        this._uuid     = uuid;
+        this._settings    = settings;
+        this._uuid        = uuid;
+        this._openPrefsFn = openPrefs;
 
         this._badge = new St.Label({
             y_align: Clutter.ActorAlign.CENTER,
@@ -1511,7 +1642,7 @@ class LitsycalIndicator extends PanelMenu.Button {
         });
         const cal = new LitsycalCalendar(
             settings,
-            () => openPrefs(),
+            (anchor) => this._openSettingsMenu(anchor),
             () => {
                 const app = Shell.AppSystem.get_default().lookup_app('org.gnome.Calendar.desktop');
                 if (app) app.activate();
@@ -1529,36 +1660,72 @@ class LitsycalIndicator extends PanelMenu.Button {
         this.menu.box.style   = 'padding: 0; background-color: transparent; border: none;';
         try { this.menu.actor.bin.style = 'padding: 0; border: none; background-color: transparent;'; } catch (_) {}
 
-        // Right-click alternative to the calendar dropdown: Preferences / Quit.
-        // A second, independent PopupMenu — `this.menu` above stays reserved
-        // for the left-click calendar popup.
-        this._contextMenu = new PopupMenu.PopupMenu(this, 0.5, St.Side.TOP);
-        Main.panel.menuManager.addMenu(this._contextMenu);
+    }
 
-        const prefsItem = new PopupMenu.PopupMenuItem(_('Preferences…'));
-        prefsItem.connect('activate', () => openPrefs());
-        this._contextMenu.addMenuItem(prefsItem);
+    // Opens the Preferences window on a specific tab. LitsycalPrefs
+    // (prefs.js) reads and immediately resets this key on fillPreferencesWindow.
+    _openPrefsPage(page) {
+        this._settings.set_string('prefs-initial-page', page);
+        this._openPrefsFn();
+    }
 
-        this._contextMenu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+    // Reached either by right-clicking the panel icon or by clicking the
+    // gear button in the calendar footer — anchorActor is whichever of those
+    // triggered it, so the menu appears right next to it. Deliberately
+    // doesn't touch `this.menu`: the calendar dropdown stays open behind it,
+    // same as any other floating panel (EventPanel, GoToDatePanel, ...).
+    // Individual actions below close it themselves where that makes sense.
+    _openSettingsMenu(anchorActor) {
+        this._settingsMenuPanel?.close();
+        this._settingsMenuPanel = new SettingsMenuPanel(anchorActor, [
+            {label: _('About'), icon: 'help-about-symbolic',
+             action: () => { this.menu.close(); this._openPrefsPage('about'); }},
+            {label: _('Check for updates'), icon: 'software-update-available-symbolic', action: null},
+            null,
+            {label: _('Go to date…'), icon: 'go-jump-symbolic',
+             action: () => this._openGoToDateDialog(anchorActor)},
+            null,
+            {label: _('Settings'), icon: 'preferences-system-symbolic',
+             action: () => { this.menu.close(); this._openPrefsPage('general'); }},
+            {label: _('Appearance'), icon: 'preferences-desktop-theme-symbolic',
+             action: () => { this.menu.close(); this._openPrefsPage('appearance'); }},
+            null,
+            {label: _('Help'), icon: 'help-browser-symbolic', action: () => {
+                this.menu.close();
+                Gio.AppInfo.launch_default_for_uri('https://github.com/mlkonrad/litsycal/wiki', null);
+            }},
+            null,
+            {label: _('Quit Litsycal'), icon: 'application-exit-symbolic', action: () => {
+                this.menu.close();
+                // Disabling from inside this handler would tear this actor
+                // down mid-event; defer to the next idle tick.
+                const uuid = this._uuid;
+                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    Main.extensionManager.disableExtension(uuid);
+                    return GLib.SOURCE_REMOVE;
+                });
+            }},
+        ]);
+    }
 
-        const quitItem = new PopupMenu.PopupMenuItem(_('Quit Litsycal'));
-        quitItem.connect('activate', () => {
-            // Disabling from inside this item's own 'activate' handler would
-            // tear this actor down mid-event; defer to the next idle tick.
-            const uuid = this._uuid;
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                Main.extensionManager.disableExtension(uuid);
-                return GLib.SOURCE_REMOVE;
-            });
+    // Unlike the other settings-menu actions, this deliberately leaves the
+    // calendar dropdown open: the date panel floats in front of it, and once
+    // a date is picked the calendar (already open, or opened fresh if this
+    // came from a right-click with it closed) jumps straight to it.
+    _openGoToDateDialog(anchorActor) {
+        this._goToDatePanel?.close();
+        this._goToDatePanel = new GoToDatePanel(anchorActor, (dt) => {
+            this._goToDatePanel = null;
+            if (!dt) return;
+            if (!this._menuIsOpen) this.menu.open();
+            this._calWidget._goToDate(dt);
         });
-        this._contextMenu.addMenuItem(quitItem);
     }
 
     vfunc_event(event) {
         if (event.type() === Clutter.EventType.BUTTON_PRESS &&
             event.get_button() === Clutter.BUTTON_SECONDARY) {
-            this.menu.close();
-            this._contextMenu.toggle();
+            this._openSettingsMenu(this);
             return Clutter.EVENT_STOP;
         }
         return Clutter.EVENT_PROPAGATE;
@@ -1637,20 +1804,26 @@ class LitsycalIndicator extends PanelMenu.Button {
         const monitor = Main.layoutManager.monitors[
             Main.layoutManager.findIndexForActor(this)
         ] ?? Main.layoutManager.primaryMonitor;
-        const panelH = Main.panel.get_height();
-        const [btnX] = this.get_transformed_position();
-        const btnW   = this.get_width();
+        // Captured before reparenting below, from the calendar's actual
+        // rendered position in the still-open popup, and used as-is — any
+        // reprocessing (recentring under the button, snapping to a min/max
+        // gap below the panel) lands a pixel or two off GNOME's own
+        // BoxPointer arrow-offset placement, visibly shifting it as it pins.
+        // Only clamped against actually running off the monitor edge.
+        // get_width() also reads 0 once detached (no layout pass yet), hence
+        // the SIZE_MIN_WIDTHS fallback.
+        const [calX, calY] = this._calWidget.get_transformed_position();
+        const calW = this._calWidget.get_width()
+            || SIZE_MIN_WIDTHS[this._settings.get_int('calendar-size')] || 255;
 
         this._floatingBox = new St.BoxLayout({vertical: true});
         Main.layoutManager.uiGroup.add_child(this._floatingBox);
         this._menuItem.remove_child(this._calWidget);
         this._floatingBox.add_child(this._calWidget);
 
-        const calW = this._calWidget.get_width()
-            || SIZE_MIN_WIDTHS[this._settings.get_int('calendar-size')] || 255;
-        let x = Math.round(btnX + btnW / 2 - calW / 2);
-        x = Math.max(monitor.x + 4, Math.min(x, monitor.x + monitor.width - calW - 4));
-        this._floatingBox.set_position(x, monitor.y + panelH + 4);
+        const x = Math.max(monitor.x, Math.min(Math.round(calX), monitor.x + monitor.width - calW));
+        const y = Math.max(monitor.y, Math.round(calY));
+        this._floatingBox.set_position(x, y);
         this.menu.close();
     }
 
@@ -1675,7 +1848,10 @@ class LitsycalIndicator extends PanelMenu.Button {
         if (this._keyPressId) { this.menu.actor.disconnect(this._keyPressId); this._keyPressId = null; }
         if (this._menuOpenId) { this.menu.disconnect(this._menuOpenId); this._menuOpenId = null; }
         if (this._timer)      { GLib.source_remove(this._timer); this._timer = null; }
-        if (this._contextMenu) { this._contextMenu.destroy(); this._contextMenu = null; }
+        this._goToDatePanel?.close();
+        this._goToDatePanel = null;
+        this._settingsMenuPanel?.close();
+        this._settingsMenuPanel = null;
         for (const id of this._sids) this._settings.disconnect(id);
         super.destroy();
     }

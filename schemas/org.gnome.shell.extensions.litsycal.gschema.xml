@@ -28,6 +28,16 @@
       <default>7</default>
       <summary>How many days ahead the agenda covers: 0 hides it, otherwise 1-7, 14, or 31</summary>
     </key>
+    <key name="prefs-initial-page" type="s">
+      <choices>
+        <choice value="general"/>
+        <choice value="appearance"/>
+        <choice value="about"/>
+      </choices>
+      <default>'general'</default>
+      <summary>Internal: which Preferences tab to show next time the window opens</summary>
+      <description>Set by the settings menu right before it opens the Preferences window; not user-facing.</description>
+    </key>
     <key name="show-week-numbers" type="b">
       <default>false</default>
       <summary>Show an ISO week-number gutter beside the calendar grid</summary>

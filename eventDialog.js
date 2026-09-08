@@ -3,6 +3,7 @@ import St      from 'gi://St';
 import Clutter from 'gi://Clutter';
 import GLib    from 'gi://GLib';
 import Gio     from 'gi://Gio';
+import Shell   from 'gi://Shell';
 
 const _ = str => GLib.dgettext('litsycal@mlkonrad.github.com', str);
 
@@ -905,5 +906,144 @@ export class EventPanel {
             this._box.destroy();
             this._box = null;
         }
+    }
+}
+
+// A tiny floating panel with a single "yyyy-mm-dd" entry and a Go button,
+// used by the settings menu's "Go to date" item. Follows the same floating-
+// panel-in-uiGroup pattern as EventPanel above (own stage click/Escape
+// handling, explicit teardown), just much smaller.
+export class GoToDatePanel {
+
+    // onClose is called exactly once, with the parsed GLib.DateTime on a
+    // successful submit or null on cancel (Escape / click outside).
+    constructor(anchorActor, onClose) {
+        this._onClose = onClose;
+
+        this._box = new St.BoxLayout({
+            vertical: true,
+            style_class: 'popup-menu-content litsycal-goto-panel',
+            reactive: true,
+        });
+
+        this._build();
+        Main.layoutManager.uiGroup.add_child(this._box);
+
+        // Needed because this can now appear while the calendar dropdown
+        // (this.menu) is still open, i.e. still holding its own modal grab:
+        // without a competing grab here, input is redelivered starting from
+        // that grab's actor rather than the stage, so our own stage-level
+        // listeners below would never see it, and even a click on our own
+        // entry/button would be swallowed as a click-outside-of-that-menu
+        // instead of reaching us. See SettingsMenuPanel in extension.js for
+        // the full explanation — same mechanism, same fix.
+        this._grab = Main.pushModal(this._box, {actionMode: Shell.ActionMode.POPUP});
+
+        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this._position(anchorActor);
+            this._entry.grab_key_focus();
+            return GLib.SOURCE_REMOVE;
+        });
+
+        this._eventId = this._box.connect('captured-event', (_actor, ev) => {
+            if (ev.type() === Clutter.EventType.BUTTON_PRESS) {
+                const [x, y] = ev.get_coords();
+                const actor  = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
+                if (actor && !this._box.contains(actor)) {
+                    this._finish(null);
+                    return Clutter.EVENT_STOP;
+                }
+            } else if (ev.type() === Clutter.EventType.KEY_PRESS &&
+                       ev.get_key_symbol() === Clutter.KEY_Escape) {
+                this._finish(null);
+                return Clutter.EVENT_STOP;
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
+    }
+
+    _position(anchor) {
+        const monitor = Main.layoutManager.primaryMonitor;
+        const panelH  = Main.panel.get_height();
+        const boxW    = this._box.get_width()  || 220;
+        const boxH    = this._box.get_height() || 100;
+
+        if (anchor) {
+            const [ax, ay] = anchor.get_transformed_position();
+            const aw = anchor.get_width();
+            const ah = anchor.get_height();
+
+            let x = ax + Math.round((aw - boxW) / 2);
+            x = Math.max(monitor.x + 4, Math.min(x, monitor.x + monitor.width - boxW - 4));
+
+            let y = Math.max(monitor.y + panelH + 4,
+                              Math.min(ay + ah + 6, monitor.y + monitor.height - boxH - 4));
+
+            this._box.set_position(x, y);
+        } else {
+            this._box.set_position(
+                monitor.x + Math.round((monitor.width  - boxW) / 2),
+                monitor.y + panelH + Math.round((monitor.height - panelH) * 0.18)
+            );
+        }
+    }
+
+    _build() {
+        const box = this._box;
+
+        box.add_child(new St.Label({text: _('Go to date'), style_class: 'litsycal-goto-title'}));
+
+        const row = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
+
+        this._entry = new St.Entry({
+            style_class: 'litsycal-panel-text-entry',
+            hint_text: 'yyyy-mm-dd',
+            x_expand: true,
+            can_focus: true,
+        });
+        this._entry.clutter_text.connect('activate', () => this._submit());
+        this._entry.clutter_text.connect('text-changed', () => { this._errorLbl.visible = false; });
+        row.add_child(this._entry);
+
+        const goBtn = new St.Button({label: _('Go'), style_class: 'litsycal-panel-save-btn'});
+        goBtn.connect('clicked', () => this._submit());
+        row.add_child(goBtn);
+
+        box.add_child(row);
+
+        this._errorLbl = new St.Label({
+            text: _('Enter a date as yyyy-mm-dd'),
+            style_class: 'litsycal-panel-error',
+            visible: false,
+        });
+        box.add_child(this._errorLbl);
+    }
+
+    _submit() {
+        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(this._entry.get_text().trim());
+        const y = match ? parseInt(match[1], 10) : NaN;
+        const m = match ? parseInt(match[2], 10) : NaN;
+        const d = match ? parseInt(match[3], 10) : NaN;
+        const valid = !!match && y >= 1 && y <= 9999 && m >= 1 && m <= 12 && d >= 1 && d <= daysInMonth(y, m);
+
+        if (!valid) {
+            this._errorLbl.visible = true;
+            return;
+        }
+        this._finish(GLib.DateTime.new_local(y, m, d, 0, 0, 0));
+    }
+
+    _finish(dt) {
+        if (!this._box) return;
+        if (this._eventId) { this._box.disconnect(this._eventId); this._eventId = null; }
+        if (this._grab)    { Main.popModal(this._grab); this._grab = null; }
+        Main.layoutManager.uiGroup.remove_child(this._box);
+        this._box.destroy();
+        this._box = null;
+        this._onClose(dt);
+    }
+
+    close() {
+        this._finish(null);
     }
 }
