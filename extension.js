@@ -615,6 +615,8 @@ class LitsycalCalendar extends St.BoxLayout {
     _buildGrid() {
         this._cancelCellTooltip(); // cells about to be destroyed would leave a dangling anchor
         this._gridBox.destroy_all_children();
+        this._cellsByDate = new Map();
+        this._rangeHighlightedCells = []; // stale refs to now-destroyed buttons — drop them
 
         const fd       = this._firstDayOfWeek;
         const glibDow  = GLib.DateTime.new_local(this._year, this._month, 1, 0, 0, 0)
@@ -843,7 +845,30 @@ class LitsycalCalendar extends St.BoxLayout {
             if (btn.hover) this._scheduleCellTooltip(ds, btn);
             else this._cancelCellTooltip();
         });
+        this._cellsByDate.set(ds, btn);
         return btn;
+    }
+
+    // ── Range hover highlight ────────────────────────────────────────────────
+    // Hovering a multi-day event in the agenda list highlights every day it
+    // spans in the grid above, using the same tint as a plain cell :hover —
+    // mirrors Itsycal's agendaHoveredOverRow/highlightCellsFromDate, minus
+    // the custom Cairo drawing (a toggled CSS class does the same job here).
+
+    _highlightDateRange(ev) {
+        this._clearDateRangeHighlight();
+        for (const ds of this._calManager.datesSpanned(ev)) {
+            const btn = this._cellsByDate.get(ds);
+            if (!btn) continue; // day not in the currently rendered grid (e.g. overflow/adjacent month)
+            btn.add_style_class_name('litsycal-day-btn-range-highlight');
+            this._rangeHighlightedCells.push(btn);
+        }
+    }
+
+    _clearDateRangeHighlight() {
+        for (const btn of this._rangeHighlightedCells)
+            btn.remove_style_class_name('litsycal-day-btn-range-highlight');
+        this._rangeHighlightedCells = [];
     }
 
     _cellAccessibleName(ds, day, isToday) {
@@ -1072,6 +1097,10 @@ class LitsycalCalendar extends St.BoxLayout {
                     evtBtn.accessible_name = `${ev.title}, ${ev.time ?? _('All day')}` +
                         (ev.location ? `, ${ev.location}` : '');
                     evtBtn.connect('clicked', () => this._openEventDialog(ev));
+                    evtBtn.connect('notify::hover', () => {
+                        if (evtBtn.hover) this._highlightDateRange(ev);
+                        else this._clearDateRangeHighlight();
+                    });
 
                     const evtRow = new St.BoxLayout({x_expand: true});
                     evtRow.add_child(evtBtn);

@@ -426,6 +426,7 @@
 .litsycal-theme-light .litsycal-day-btn          { color: #1a1a1a; }
 .litsycal-theme-light .litsycal-col-hl           { background-color: rgba(0, 0, 0, 0.06); }
 .litsycal-theme-light .litsycal-day-btn:hover    { background-color: rgba(0, 0, 0, 0.08); }
+.litsycal-theme-light .litsycal-day-btn-range-highlight { background-color: rgba(0, 0, 0, 0.08); }
 .litsycal-theme-light .litsycal-sep              { background-color: rgba(0, 0, 0, 0.12); }
 .litsycal-theme-light .litsycal-footer-btn:hover { background-color: rgba(0, 0, 0, 0.08); }
 .litsycal-theme-light .litsycal-weekend          { color: #cc2222; }
@@ -446,6 +447,7 @@
 .litsycal-theme-dark .litsycal-day-btn           { color: white; }
 .litsycal-theme-dark .litsycal-col-hl            { background-color: rgba(255, 255, 255, 0.07); }
 .litsycal-theme-dark .litsycal-day-btn:hover     { background-color: rgba(255, 255, 255, 0.10); }
+.litsycal-theme-dark .litsycal-day-btn-range-highlight   { background-color: rgba(255, 255, 255, 0.10); }
 .litsycal-theme-dark .litsycal-sep               { background-color: rgba(255, 255, 255, 0.12); }
 .litsycal-theme-dark .litsycal-footer-btn:hover  { background-color: rgba(255, 255, 255, 0.10); }
 .litsycal-theme-dark .litsycal-weekend           { color: #e06060; }

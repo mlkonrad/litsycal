@@ -20,9 +20,20 @@ longer carries a `version` key — see that file's history for why).
   Gregorian + 543 in the header, day-cell accessible names, and the event
   creation/editing date pickers. Only the displayed year changes — month
   and day layout, and the dates actually saved to events, stay Gregorian.
+- Multi-day events now show a dot and an agenda entry on every day they
+  span, not just their start day, mirroring Itsycal's own EventCenter,
+  which walks each event's full date range rather than just its start date.
+- Hovering a multi-day event in the agenda list now highlights every day it
+  spans in the calendar grid above, using the same tint as a plain day-cell
+  hover — mirrors Itsycal's `agendaHoveredOverRow`/`highlightCellsFromDate`.
 
 ### Fixed
 
+- The event dialog's Ends date reverted to the start date every time a
+  multi-day event was reopened, even though the correct end date was saved
+  and shown correctly elsewhere (e.g. GNOME Calendar). The calendar reader
+  parsed `DTEND`'s time but never its date, so the dialog had nothing but
+  the start date to fall back to.
 - A calendar row in Preferences → Calendars could render completely blank
   (no colour dot, no name) if its source reported colour as `rgb(...)`
   rather than hex — valid everywhere else in the app, but rejected by the

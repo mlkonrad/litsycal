@@ -325,9 +325,11 @@ export class CalendarManager {
         this._byDate = new Map();
         for (const ev of this._events) {
             if (this._disabled.has(ev.clientUid)) continue;
-            let bucket = this._byDate.get(ev.date);
-            if (!bucket) { bucket = []; this._byDate.set(ev.date, bucket); }
-            bucket.push(ev);
+            for (const ds of this.datesSpanned(ev)) {
+                let bucket = this._byDate.get(ds);
+                if (!bucket) { bucket = []; this._byDate.set(ds, bucket); }
+                bucket.push(ev);
+            }
         }
         for (const bucket of this._byDate.values()) {
             bucket.sort((a, b) => {
@@ -340,6 +342,40 @@ export class CalendarManager {
 
     getEventsForDate(ds) {
         return this._byDate.get(ds) ?? [];
+    }
+
+    // Dates (YYYY-MM-DD, inclusive) a multi-day event's dot/agenda entry
+    // — and its calendar-grid hover highlight — should appear under: every
+    // day it spans, not just its start day. Mirrors Itsycal's EventCenter,
+    // which walks each event's date range and adds it to every day's
+    // bucket rather than just the start date. Public because the hover
+    // highlight (extension.js) needs the identical range.
+    datesSpanned(ev) {
+        if (!ev.endDate || ev.endDate === ev.date) return [ev.date];
+
+        // An event ending exactly at midnight (e.g. 22:00 → 00:00 next day)
+        // occupies zero minutes of its DTEND date — treat the day before as
+        // the last spanned day. Mirrors Itsycal's identical fixup ("Fixup
+        // for endDates that are at midnight") in its hover-highlight code.
+        let lastDate = ev.endDate;
+        if (ev.time?.split(' - ')[1]?.trim() === '00:00') {
+            const [ey, em, ed] = ev.endDate.split('-').map(Number);
+            const prev = GLib.DateTime.new_local(ey, em, ed, 0, 0, 0).add_days(-1);
+            lastDate = `${prev.get_year()}-${String(prev.get_month()).padStart(2,'0')}-${String(prev.get_day_of_month()).padStart(2,'0')}`;
+            if (lastDate === ev.date) return [ev.date];
+        }
+
+        const [sy, sm, sd] = ev.date.split('-').map(Number);
+        let cur = GLib.DateTime.new_local(sy, sm, sd, 0, 0, 0);
+        const dates = [];
+        const MAX_SPAN_DAYS = 366; // guard against malformed/absurd ranges
+        for (let i = 0; i < MAX_SPAN_DAYS; i++) {
+            const ds = `${cur.get_year()}-${String(cur.get_month()).padStart(2,'0')}-${String(cur.get_day_of_month()).padStart(2,'0')}`;
+            dates.push(ds);
+            if (ds === lastDate) break;
+            cur = cur.add_days(1);
+        }
+        return dates;
     }
 
     // ── iCal builder ─────────────────────────────────────────────────────────
