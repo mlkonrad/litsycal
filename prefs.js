@@ -552,27 +552,34 @@ export default class LitsycalPrefs extends ExtensionPreferences {
 
         const abGroup = new Adw.PreferencesGroup();
         about.add(abGroup);
-        abGroup.add(new Adw.ActionRow({
+
+        const titleRow = new Adw.ActionRow({
             title:    'Litsycal',
             subtitle: _('Calendar indicator for GNOME'),
-        }));
-        abGroup.add(new Adw.ActionRow({
-            title:    _('Inspired by Itsycal for macOS'),
-            subtitle: _('Original by Sanjay Madan • Linux port by mlkonrad'),
-        }));
-        const ghRow = new Adw.ActionRow({
-            title:       'GitHub',
-            subtitle:    'https://github.com/mlkonrad/litsycal',
-            activatable: true,
         });
-        ghRow.add_suffix(new Gtk.Image({
-            icon_name: 'adw-external-link-symbolic',
-            valign:    Gtk.Align.CENTER,
-        }));
-        ghRow.connect('activated', () => {
-            Gio.AppInfo.launch_default_for_uri('https://github.com/mlkonrad/litsycal', null);
-        });
-        abGroup.add(ghRow);
+        const logo = Gtk.Image.new_from_gicon(
+            Gio.icon_new_for_string(`${this.path}/litsycal-logo.svg`)
+        );
+        logo.set_pixel_size(40);
+        titleRow.add_prefix(logo);
+        abGroup.add(titleRow);
+
+        const makeLinkRow = (title, subtitle, uri) => {
+            const row = new Adw.ActionRow({title, subtitle, activatable: true});
+            row.add_suffix(new Gtk.Image({
+                icon_name: 'adw-external-link-symbolic',
+                valign:    Gtk.Align.CENTER,
+            }));
+            row.connect('activated', () => {
+                Gio.AppInfo.launch_default_for_uri(uri, null);
+            });
+            abGroup.add(row);
+        };
+
+        makeLinkRow('GitHub', 'https://github.com/mlkonrad/litsycal',
+            'https://github.com/mlkonrad/litsycal');
+        makeLinkRow(_('Report an Issue'), _('Bug reports and feature requests'),
+            'https://github.com/mlkonrad/litsycal/issues');
 
         // The settings menu (extension.js) sets this right before calling
         // openPreferences(), so the window opens on the tab the user actually
