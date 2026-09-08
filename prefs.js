@@ -168,17 +168,6 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         kbRow.add_suffix(recordBtn);
         kbGroup.add(kbRow);
 
-        // ── Startup group ──────────────────────────────────────────────────
-        const startGroup = new Adw.PreferencesGroup({title: _('Startup')});
-        general.add(startGroup);
-
-        const updatesRow = new Adw.SwitchRow({
-            title:    _('Automatically check for updates'),
-            subtitle: _('Check for new versions in the background'),
-        });
-        settings.bind('check-for-updates', updatesRow, 'active', Gio.SettingsBindFlags.DEFAULT);
-        startGroup.add(updatesRow);
-
         // ── Other group ────────────────────────────────────────────────────
         const otherGroup = new Adw.PreferencesGroup({title: _('Other')});
         general.add(otherGroup);

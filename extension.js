@@ -1519,7 +1519,7 @@ class SettingsMenuPanel {
 
     // items: {label, icon, action}[] rows in display order; `null` renders as
     // a separator. `action` is called once the panel has fully closed; a row
-    // with `action: null` renders disabled (e.g. "Check for updates").
+    // with `action: null` renders disabled.
     constructor(anchorActor, items) {
         this._box = new St.BoxLayout({
             vertical: true,
@@ -1772,7 +1772,6 @@ class LitsycalIndicator extends PanelMenu.Button {
         this._settingsMenuPanel = new SettingsMenuPanel(anchorActor, [
             {label: _('About'), icon: 'help-about-symbolic',
              action: () => { this.menu.close(); this._openPrefsPage('about'); }},
-            {label: _('Check for updates'), icon: 'software-update-available-symbolic', action: null},
             null,
             {label: _('Go to date…'), icon: 'go-jump-symbolic',
              action: () => this._openGoToDateDialog(anchorActor)},

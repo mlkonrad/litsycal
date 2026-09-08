@@ -12,10 +12,6 @@
       <default>[]</default>
       <summary>Keyboard shortcut to show/hide the calendar</summary>
     </key>
-    <key name="check-for-updates" type="b">
-      <default>true</default>
-      <summary>Automatically check for updates</summary>
-    </key>
     <key name="beep-on-hour" type="b">
       <default>false</default>
       <summary>Play a sound on the hour</summary>
