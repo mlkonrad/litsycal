@@ -14,7 +14,7 @@ import Meta    from 'gi://Meta';
 import Shell   from 'gi://Shell';
 
 import {CalendarManager}           from './calendarManager.js';
-import {EventPanel, GoToDatePanel} from './eventDialog.js';
+import {EventPanel, GoToDatePanel, confirmDeleteEvent} from './eventDialog.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -366,6 +366,8 @@ class LitsycalCalendar extends St.BoxLayout {
         this.connect('destroy', () => {
             this._eventPanel?.close();
             this._eventPanel = null;
+            this._eventContextMenu?.close();
+            this._eventContextMenu = null;
             this._cancelCellTooltip();
             if (this._dragStartY !== undefined) this._endHandleDrag(this._resizeHandle);
             for (const id of this._sids) this._settings.disconnect(id);
@@ -1011,6 +1013,11 @@ class LitsycalCalendar extends St.BoxLayout {
         const box = new St.BoxLayout({
             vertical: true,
             style_class: 'popup-menu-content litsycal-cell-tooltip',
+            // Painted at (0,0) until the idle-positioning callback below runs
+            // a frame later — stay invisible until then so it doesn't flash
+            // at the screen corner first. Opacity, not `visible`, so it stays
+            // mapped/measurable in the meantime.
+            opacity: 0,
         });
 
         const header = new St.BoxLayout({style_class: 'litsycal-agenda-header'});
@@ -1070,6 +1077,7 @@ class LitsycalCalendar extends St.BoxLayout {
             posY = Math.max(monitor.y + panelH + 4, Math.min(posY, monitor.y + monitor.height - boxH - 4));
 
             box.set_position(x, posY);
+            box.opacity = 255;
             return GLib.SOURCE_REMOVE;
         });
     }
@@ -1186,6 +1194,14 @@ class LitsycalCalendar extends St.BoxLayout {
                         if (evtBtn.hover) this._highlightDateRange(ev);
                         else this._clearDateRangeHighlight();
                     });
+                    // Right-click: same {label, icon, action} SettingsMenuPanel
+                    // used for the panel icon/gear menu, offering the itsycal-
+                    // style Open Calendar / Copy / Delete… trio for this event.
+                    evtBtn.connect('button-press-event', (actor, event) => {
+                        if (event.get_button() !== Clutter.BUTTON_SECONDARY) return Clutter.EVENT_PROPAGATE;
+                        this._openEventContextMenu(evtBtn, ev);
+                        return Clutter.EVENT_STOP;
+                    });
 
                     const evtRow = new St.BoxLayout({x_expand: true});
                     evtRow.add_child(evtBtn);
@@ -1281,6 +1297,66 @@ class LitsycalCalendar extends St.BoxLayout {
             this._calManager, ev, null, this,
             () => { this._eventPanel = null; }, this._calendarSystem
         );
+    }
+
+    // ── Event context menu (right-click on an agenda row) ───────────────────────
+    //
+    // Same {label, icon, action} SettingsMenuPanel used for the panel icon/gear
+    // menu, offering itsycal's own agenda context-menu trio (menuNeedsUpdate in
+    // itsycal's AgendaViewController.m): Open Calendar, Copy, Delete….
+
+    _openEventContextMenu(anchorActor, ev) {
+        this._eventContextMenu?.close();
+        this._eventContextMenu = new SettingsMenuPanel(anchorActor, [
+            {label: _('Open Calendar'), icon: 'x-office-calendar-symbolic',
+             action: () => this._openCalendarAppAtEventDate(ev)},
+            {label: _('Copy'), icon: 'edit-copy-symbolic',
+             action: () => this._copyEventToClipboard(ev)},
+            {label: _('Delete…'), icon: 'edit-delete-symbolic',
+             action: () => this._deleteEventFromAgenda(ev)},
+        ]);
+    }
+
+    // itsycal's showCalendarAppAtDate navigates the system calendar app
+    // straight to the clicked event's date rather than just launching it.
+    // gnome-calendar's own --date flag is the closest GNOME equivalent to
+    // that AppleScript/URL-scheme navigation; fall back to a plain launch
+    // (same as the footer's Open Calendar button) if that's not the
+    // installed calendar app.
+    _openCalendarAppAtEventDate(ev) {
+        try {
+            Gio.Subprocess.new(['gnome-calendar', '--date', ev.date], Gio.SubprocessFlags.NONE);
+        } catch (_) {
+            const app = Shell.AppSystem.get_default().lookup_app('org.gnome.Calendar.desktop');
+            if (app) app.activate();
+        }
+    }
+
+    // Mirrors itsycal's copyEventToPasteboard: title, then date/time, then
+    // location (when present), one per line.
+    _copyEventToClipboard(ev) {
+        const [y, m, d] = ev.date.split('-').map(Number);
+        let when = capitalize(GLib.DateTime.new_local(y, m, d, 0, 0, 0).format('%A, %B %-d, %Y'));
+        if (ev.endDate && ev.endDate !== ev.date) {
+            const [ey, em, ed] = ev.endDate.split('-').map(Number);
+            when += ` – ${capitalize(GLib.DateTime.new_local(ey, em, ed, 0, 0, 0).format('%A, %B %-d, %Y'))}`;
+        }
+        when += `, ${ev.time ?? _('All day')}`;
+
+        const lines = [ev.title, when];
+        if (ev.location) lines.push(ev.location);
+        St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, lines.join('\n'));
+    }
+
+    // Same confirm-then-delete flow as the event edit panel's own Delete
+    // button (see eventDialog.js confirmDeleteEvent), just reached directly
+    // from the agenda row without opening the panel first — mirroring
+    // itsycal's deleteEvent, which is wired to both the popover's delete
+    // button and this context-menu item alike.
+    _deleteEventFromAgenda(ev) {
+        confirmDeleteEvent(this._calManager, ev, err => {
+            if (err) Main.notifyError(_('Litsycal'), err.message);
+        });
     }
 
     // ── Navigation ────────────────────────────────────────────────────────────
@@ -1449,6 +1525,11 @@ class SettingsMenuPanel {
             vertical: true,
             style_class: 'popup-menu-content litsycal-settings-menu',
             reactive: true,
+            // See _showCellTooltip's box for why: hidden via opacity (not
+            // `visible`, which the modal grab below needs the actor mapped
+            // for) until _position() below places it, so it never paints at
+            // its pre-layout (0,0) default first.
+            opacity: 0,
         });
 
         for (const item of items) {
@@ -1491,6 +1572,7 @@ class SettingsMenuPanel {
 
         GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
             this._position(anchorActor);
+            this._box.opacity = 255;
             return GLib.SOURCE_REMOVE;
         });
 

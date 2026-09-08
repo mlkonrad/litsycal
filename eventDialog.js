@@ -76,6 +76,86 @@ function alertLabel(value, allDay) {
     return minutesLabel(parseInt(value), allDay);
 }
 
+// Standalone delete-confirmation flow, usable with or without an open
+// EventPanel (the agenda list's right-click Delete action has no panel open
+// at all). Non-recurring events skip the prompt and delete immediately.
+// Deletion itself always triggers CalendarManager's onEventsChanged, so
+// callers don't need to refresh anything themselves on success.
+//
+// onDone(err) fires once, after the delete attempt (or immediately with
+// undefined if the user cancels the prompt). onOverlayChange, if given, is
+// called with the overlay actor while the prompt is up and with null once
+// it's gone — EventPanel uses this to keep its own click-outside/Escape
+// handling from closing the whole panel out from under the prompt.
+export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
+    const doDelete = (scope) => {
+        const recurrenceId = event.recurrenceId ?? null;
+        calManager.deleteEvent(event.uid, event.clientUid, {scope, recurrenceId}, err => onDone?.(err));
+    };
+
+    const isRecurring = !!(event.recurrence || event.recurrenceId);
+    if (!isRecurring) { doDelete('ALL'); return; }
+
+    const overlay = new St.BoxLayout({
+        vertical: true,
+        style_class: 'popup-menu-content litsycal-confirm-panel',
+        reactive: true,
+        // Hidden via opacity until the idle-positioning callback below
+        // centers it, so it never paints for a frame at its pre-layout
+        // (0,0) default.
+        opacity: 0,
+    });
+    overlay.add_child(new St.Label({
+        text: _('This is a repeating event.'), style_class: 'litsycal-confirm-title',
+    }));
+
+    const closeOverlay = () => {
+        global.stage.disconnect(clickId);
+        global.stage.disconnect(keyId);
+        Main.layoutManager.uiGroup.remove_child(overlay);
+        overlay.destroy();
+        onOverlayChange?.(null);
+    };
+
+    const mkBtn = (label, styleClass, onClick) => {
+        const b = new St.Button({label, style_class: styleClass, x_expand: true});
+        b.connect('clicked', () => { closeOverlay(); onClick(); });
+        return b;
+    };
+
+    overlay.add_child(mkBtn(_('Delete this event'), 'litsycal-confirm-btn litsycal-confirm-btn-danger',
+        () => doDelete('THIS')));
+    overlay.add_child(mkBtn(_('Delete all events'), 'litsycal-confirm-btn litsycal-confirm-btn-danger',
+        () => doDelete('ALL')));
+    overlay.add_child(mkBtn(_('Cancel'), 'litsycal-confirm-btn', () => {}));
+
+    Main.layoutManager.uiGroup.add_child(overlay);
+    onOverlayChange?.(overlay);
+
+    GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+        const monitor = Main.layoutManager.primaryMonitor;
+        const w = overlay.get_width()  || 260;
+        const h = overlay.get_height() || 160;
+        overlay.set_position(
+            monitor.x + Math.round((monitor.width  - w) / 2),
+            monitor.y + Math.round((monitor.height - h) / 2)
+        );
+        overlay.opacity = 255;
+        return GLib.SOURCE_REMOVE;
+    });
+
+    const clickId = global.stage.connect('button-press-event', (_stage, ev) => {
+        const [x, y] = ev.get_coords();
+        const actor  = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
+        if (actor && !overlay.contains(actor)) closeOverlay();
+        return Clutter.EVENT_PROPAGATE;
+    });
+    const keyId = global.stage.connect('key-press-event', (_stage, ev) => {
+        if (ev.get_key_symbol() === Clutter.KEY_Escape) { closeOverlay(); return Clutter.EVENT_STOP; }
+        return Clutter.EVENT_PROPAGATE;
+    });
+}
+
 export class EventPanel {
 
     constructor(calManager, event, selectedDate, anchorActor, onSaved, calendarSystem = 'gregorian') {
@@ -98,6 +178,9 @@ export class EventPanel {
             vertical: true,
             style_class: 'popup-menu-content litsycal-event-panel',
             reactive: true,
+            // Hidden via opacity until _position() below places it, so it
+            // never paints for a frame at its pre-layout (0,0) default.
+            opacity: 0,
         });
 
         this._build();
@@ -107,6 +190,7 @@ export class EventPanel {
         // Defer positioning until after layout pass so actor size is known
         GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
             this._position(anchorActor);
+            this._box.opacity = 255;
             this._titleEntry.grab_key_focus();
             return GLib.SOURCE_REMOVE;
         });
@@ -826,71 +910,11 @@ export class EventPanel {
     }
 
     _confirmDelete() {
-        const isRecurring = !!(this._event.recurrence || this._event.recurrenceId);
-        if (!isRecurring) { this._doDelete('ALL'); return; }
-
-        const overlay = new St.BoxLayout({
-            vertical: true,
-            style_class: 'popup-menu-content litsycal-confirm-panel',
-            reactive: true,
-        });
-        overlay.add_child(new St.Label({
-            text: _('This is a repeating event.'), style_class: 'litsycal-confirm-title',
-        }));
-
-        const closeOverlay = () => {
-            global.stage.disconnect(clickId);
-            global.stage.disconnect(keyId);
-            Main.layoutManager.uiGroup.remove_child(overlay);
-            overlay.destroy();
-            this._confirmOverlay = null;
-        };
-
-        const mkBtn = (label, styleClass, onClick) => {
-            const b = new St.Button({label, style_class: styleClass, x_expand: true});
-            b.connect('clicked', () => { closeOverlay(); onClick(); });
-            return b;
-        };
-
-        overlay.add_child(mkBtn(_('Delete this event'), 'litsycal-confirm-btn litsycal-confirm-btn-danger',
-            () => this._doDelete('THIS')));
-        overlay.add_child(mkBtn(_('Delete all events'), 'litsycal-confirm-btn litsycal-confirm-btn-danger',
-            () => this._doDelete('ALL')));
-        overlay.add_child(mkBtn(_('Cancel'), 'litsycal-confirm-btn', () => {}));
-
-        Main.layoutManager.uiGroup.add_child(overlay);
-        this._confirmOverlay = overlay;
-
-        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-            const monitor = Main.layoutManager.primaryMonitor;
-            const w = overlay.get_width()  || 260;
-            const h = overlay.get_height() || 160;
-            overlay.set_position(
-                monitor.x + Math.round((monitor.width  - w) / 2),
-                monitor.y + Math.round((monitor.height - h) / 2)
-            );
-            return GLib.SOURCE_REMOVE;
-        });
-
-        const clickId = global.stage.connect('button-press-event', (_stage, ev) => {
-            const [x, y] = ev.get_coords();
-            const actor  = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
-            if (actor && !overlay.contains(actor)) closeOverlay();
-            return Clutter.EVENT_PROPAGATE;
-        });
-        const keyId = global.stage.connect('key-press-event', (_stage, ev) => {
-            if (ev.get_key_symbol() === Clutter.KEY_Escape) { closeOverlay(); return Clutter.EVENT_STOP; }
-            return Clutter.EVENT_PROPAGATE;
-        });
-    }
-
-    _doDelete(scope) {
-        const recurrenceId = this._event.recurrenceId ?? null;
-        this._calManager.deleteEvent(this._event.uid, this._event.clientUid, {scope, recurrenceId}, err => {
+        confirmDeleteEvent(this._calManager, this._event, err => {
             if (err) { this._showError(err.message); return; }
             this._onSaved?.();
             this.close();
-        });
+        }, overlay => { this._confirmOverlay = overlay; });
     }
 
     close() {
@@ -924,6 +948,9 @@ export class GoToDatePanel {
             vertical: true,
             style_class: 'popup-menu-content litsycal-goto-panel',
             reactive: true,
+            // Hidden via opacity (not `visible`, which the modal grab below
+            // needs the actor mapped for) until _position() places it.
+            opacity: 0,
         });
 
         this._build();
@@ -941,6 +968,7 @@ export class GoToDatePanel {
 
         GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
             this._position(anchorActor);
+            this._box.opacity = 255;
             this._entry.grab_key_focus();
             return GLib.SOURCE_REMOVE;
         });

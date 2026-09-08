@@ -51,6 +51,16 @@ longer carries a `version` key — see that file's history for why).
   `ShowDaysWithNoEventsInAgenda`. The very first day in the range still
   always shows (with a "No events" label when empty), regardless of the
   latter setting — unchanged from litsycal's existing behaviour.
+- Right-clicking an agenda event now opens a context menu — Open Calendar,
+  Copy, Delete… — mirroring Itsycal's agenda context menu
+  (`AgendaViewController.menuNeedsUpdate:`). Open Calendar launches
+  `gnome-calendar --date` on the event's own date rather than just the app
+  (Itsycal's `showCalendarAppAtDate:`); Copy writes the title, date/time, and
+  location to the clipboard (Itsycal's `copyEventToPasteboard:`); Delete…
+  reuses the same this-event/all-events confirmation as the event edit
+  panel's own Delete button (Itsycal's `deleteEvent:`/
+  `agendaWantsToDeleteEvent:`), now factored out into a shared
+  `confirmDeleteEvent` helper so both places stay in sync.
 
 ### Changed
 
@@ -87,6 +97,13 @@ longer carries a `version` key — see that file's history for why).
   position was re-derived from the panel button's coordinates rather than
   reused from where it was already showing. Both are now captured from the
   calendar's actual on-screen size and position just before the detach.
+- Every floating popup (settings menu, event edit panel, go-to-date panel,
+  delete confirmation, day-cell hover tooltip) briefly flashed its shadow at
+  the screen's top-left corner when opened. Each is added to the screen
+  before its real position can be computed (that needs a layout pass to know
+  the popup's size first), so it was visible at its pre-layout `(0, 0)`
+  default for a frame. Each now starts at `opacity: 0` and only becomes
+  visible once actually positioned.
 
 ## [3] - 2026-09-08
 
