@@ -1183,7 +1183,6 @@ class LitsycalCalendar extends St.BoxLayout {
     _openCreateDialog() {
         if (!this._calManager?.isAvailable()) return;
         this._eventPanel?.close();
-        this._onPinToggle?.(true);  // keep calendar visible while panel is open
         this._eventPanel = new EventPanel(
             this._calManager, null, this._selected, this,
             () => { this._eventPanel = null; }, this._calendarSystem
@@ -1193,7 +1192,6 @@ class LitsycalCalendar extends St.BoxLayout {
     _openEventDialog(ev) {
         if (!this._calManager?.isAvailable()) return;
         this._eventPanel?.close();
-        this._onPinToggle?.(true);
         this._eventPanel = new EventPanel(
             this._calManager, ev, null, this,
             () => { this._eventPanel = null; }, this._calendarSystem
@@ -1421,7 +1419,7 @@ class LitsycalIndicator extends PanelMenu.Button {
         });
         const cal = new LitsycalCalendar(
             settings,
-            () => this._openPrefsAndPin(openPrefs),
+            () => openPrefs(),
             () => {
                 const app = Shell.AppSystem.get_default().lookup_app('org.gnome.Calendar.desktop');
                 if (app) app.activate();
@@ -1540,39 +1538,6 @@ class LitsycalIndicator extends PanelMenu.Button {
         return parts.join(' ');
     }
 
-    // Preferences opens in a separate top-level window; clicking into it
-    // would otherwise register as a click outside the popup menu's modal
-    // grab and dismiss it. Pin the calendar so it becomes a plain floating
-    // widget instead (no grab), then automatically unpin again once
-    // Preferences closes — unless the calendar was already pinned (by the
-    // user, or some other feature), in which case that pin sticks and we
-    // leave it alone.
-    _openPrefsAndPin(openPrefs) {
-        if (!this._pinned) {
-            this._autoPinnedForPrefs = true;
-            this._pinCalendar();
-        }
-        this._watchPrefsWindow();
-        openPrefs();
-    }
-
-    _watchPrefsWindow() {
-        if (this._prefsApp) return; // already watching a prefs window
-        const app = Shell.AppSystem.get_default().lookup_app('org.gnome.Shell.Extensions.desktop');
-        if (!app) return;
-        this._prefsApp = app;
-        this._prefsAppSignalId = app.connect('windows-changed', () => {
-            if (app.get_n_windows() > 0) return; // still open (or just opened)
-            app.disconnect(this._prefsAppSignalId);
-            this._prefsAppSignalId = null;
-            this._prefsApp = null;
-            if (this._autoPinnedForPrefs) {
-                this._autoPinnedForPrefs = false;
-                this._unpinCalendar(false);
-            }
-        });
-    }
-
     _pinCalendar() {
         if (this._pinned) return;
         this._pinned = true;
@@ -1617,7 +1582,6 @@ class LitsycalIndicator extends PanelMenu.Button {
         }
         if (this._keyPressId) { this.menu.actor.disconnect(this._keyPressId); this._keyPressId = null; }
         if (this._menuOpenId) { this.menu.disconnect(this._menuOpenId); this._menuOpenId = null; }
-        if (this._prefsAppSignalId) { this._prefsApp.disconnect(this._prefsAppSignalId); this._prefsAppSignalId = null; this._prefsApp = null; }
         if (this._timer)      { GLib.source_remove(this._timer); this._timer = null; }
         if (this._contextMenu) { this._contextMenu.destroy(); this._contextMenu = null; }
         for (const id of this._sids) this._settings.disconnect(id);
