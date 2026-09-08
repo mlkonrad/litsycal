@@ -51,6 +51,14 @@
       <default>true</default>
       <summary>Show event dots on day cells in the grid</summary>
     </key>
+    <key name="show-event-location" type="b">
+      <default>true</default>
+      <summary>Show each event's location in the agenda list</summary>
+    </key>
+    <key name="show-empty-agenda-days" type="b">
+      <default>false</default>
+      <summary>Show every day in the agenda range, including ones with no events</summary>
+    </key>
     <key name="dot-color-mode" type="s">
       <choices>
         <choice value="calendar"/>

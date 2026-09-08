@@ -415,6 +415,24 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         });
         dotsGroup.add(dotColorRow);
 
+        // ── Agenda ────────────────────────────────────────────────────────
+        const agendaAppearanceGroup = new Adw.PreferencesGroup({title: _('Agenda')});
+        appearance.add(agendaAppearanceGroup);
+
+        const showLocationRow = new Adw.SwitchRow({
+            title:    _('Show event location'),
+            subtitle: _('Under each event’s time, when it has one'),
+        });
+        settings.bind('show-event-location', showLocationRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        agendaAppearanceGroup.add(showLocationRow);
+
+        const showEmptyDaysRow = new Adw.SwitchRow({
+            title:    _('Show days with no events'),
+            subtitle: _('List every day in the agenda range instead of skipping empty ones'),
+        });
+        settings.bind('show-empty-agenda-days', showEmptyDaysRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        agendaAppearanceGroup.add(showEmptyDaysRow);
+
         // ── Highlighted days ───────────────────────────────────────────────
         const hlGroup = new Adw.PreferencesGroup({
             title:       _('Highlighted Days'),

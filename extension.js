@@ -271,6 +271,8 @@ class LitsycalCalendar extends St.BoxLayout {
         this._extraWeekRows    = settings.get_int('extra-week-rows');
         this._showEventDots    = settings.get_boolean('show-event-dots');
         this._dotColorMode     = settings.get_string('dot-color-mode');
+        this._showEventLocation   = settings.get_boolean('show-event-location');
+        this._showEmptyAgendaDays = settings.get_boolean('show-empty-agenda-days');
         this._calendarSystem   = settings.get_string('calendar-system');
         this._applySizeClass();
         this._applyFontSizeClass();
@@ -330,6 +332,14 @@ class LitsycalCalendar extends St.BoxLayout {
             settings.connect('changed::dot-color-mode', () => {
                 this._dotColorMode = settings.get_string('dot-color-mode');
                 this._buildGrid();
+            }),
+            settings.connect('changed::show-event-location', () => {
+                this._showEventLocation = settings.get_boolean('show-event-location');
+                this._buildAgenda();
+            }),
+            settings.connect('changed::show-empty-agenda-days', () => {
+                this._showEmptyAgendaDays = settings.get_boolean('show-empty-agenda-days');
+                this._buildAgenda();
             }),
             settings.connect('changed::calendar-system', () => {
                 this._calendarSystem = settings.get_string('calendar-system');
@@ -1084,7 +1094,7 @@ class LitsycalCalendar extends St.BoxLayout {
             const day = start.add_days(i);
             const ds  = dateStr(day);
             const evs = this._calManager.getEventsForDate(ds);
-            if (i === 0 || evs.length > 0)
+            if (i === 0 || evs.length > 0 || this._showEmptyAgendaDays)
                 groups.push({day, ds, evs, i});
         }
 
@@ -1153,7 +1163,7 @@ class LitsycalCalendar extends St.BoxLayout {
                     }
                     evtBox.add_child(row2);
 
-                    if (ev.location) {
+                    if (ev.location && this._showEventLocation) {
                         const row3 = new St.BoxLayout({style_class: 'litsycal-agenda-location-row'});
                         row3.add_child(new St.Icon({
                             icon_name: 'mark-location-symbolic',

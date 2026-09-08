@@ -43,6 +43,14 @@ longer carries a `version` key — see that file's history for why).
   and the selection lands on the visible overflow cell itself, only jumping
   months once navigation moves the selection off the whole rendered grid
   (not merely into a different calendar month).
+- Two Appearance preferences for the agenda list, mirroring Itsycal: "Show
+  event location" (on by default, matching the existing unconditional
+  behaviour) hides each event's location row when off; "Show days with no
+  events" (off by default) lists every day in the agenda range instead of
+  skipping empty ones, matching Itsycal's `ShowLocation`/
+  `ShowDaysWithNoEventsInAgenda`. The very first day in the range still
+  always shows (with a "No events" label when empty), regardless of the
+  latter setting — unchanged from litsycal's existing behaviour.
 
 ### Changed
 
