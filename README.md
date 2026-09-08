@@ -58,6 +58,9 @@ Litsycal is a Linux port of **[Itsycal](https://github.com/sfsam/itsycal)**, a t
 - Original project: https://github.com/sfsam/itsycal
 - Original author's website: http://www.mowglii.com/itsycal
 
+The name "Litsycal" and its framing as a port of Itsycal were approved by
+Sanjay Madan directly via email.
+
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.

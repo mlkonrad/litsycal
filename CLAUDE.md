@@ -81,6 +81,12 @@ new code should keep meeting these — checked clean as of 2026-09-07:
   to distribute under GPL-2.0-or-later-compatible terms — the pattern the
   guide describes for permissively-licensed extension code. Keep all three
   sections if LICENSE is ever regenerated/reformatted.
+- **Naming**: "Litsycal" echoes "Itsycal" closely enough (same product
+  category, near-identical name, README/LICENSE assert direct lineage) that
+  it was worth clearing with the original author before wider distribution —
+  Sanjay Madan approved the name and the "port of Itsycal" framing directly
+  (contacted by email 2026-09-08, approval received same day). The email
+  thread is the written record — check that if this ever needs revisiting.
 - Before submitting: run through metadata.json shell-version pruning, confirm
   `schemas/gschemas.compiled` isn't committed stale, confirm no unnecessary
   files are in the upload, and skim for any new `enable()`-time side effects
