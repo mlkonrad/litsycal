@@ -644,7 +644,9 @@ class LitsycalCalendar extends St.BoxLayout {
         let col = 0;
 
         for (let i = firstDow - 1; i >= 0; i--) {
-            row.add_child(this._makeOverflow(prevTot - i));
+            const day = prevTot - i;
+            const ds  = `${py}-${String(pm).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+            row.add_child(this._makeOverflow(day, ds));
             col++;
         }
 
@@ -666,19 +668,27 @@ class LitsycalCalendar extends St.BoxLayout {
         // single following month (up to MAX_EXTRA_WEEK_ROWS extra weeks).
         let cursor = GLib.DateTime.new_local(this._year, this._month, total, 0, 0, 0).add_days(1);
         const nextOverflow = () => {
-            const d = cursor.get_day_of_month();
+            const day = cursor.get_day_of_month();
+            const ds  = dateStr(cursor);
             cursor = cursor.add_days(1);
-            return d;
+            return {day, ds};
         };
 
         if (col > 0) {
-            while (col < 7) { row.add_child(this._makeOverflow(nextOverflow())); col++; }
+            while (col < 7) {
+                const {day, ds} = nextOverflow();
+                row.add_child(this._makeOverflow(day, ds));
+                col++;
+            }
             this._gridBox.add_child(row);
         }
 
         for (let r = 0; r < this._extraRows; r++) {
             const extraRow = new St.BoxLayout({style_class: 'litsycal-grid-row'});
-            for (let c = 0; c < 7; c++) extraRow.add_child(this._makeOverflow(nextOverflow()));
+            for (let c = 0; c < 7; c++) {
+                const {day, ds} = nextOverflow();
+                extraRow.add_child(this._makeOverflow(day, ds));
+            }
             this._gridBox.add_child(extraRow);
         }
 
@@ -770,29 +780,94 @@ class LitsycalCalendar extends St.BoxLayout {
         this._agendaScroll.style = `max-height: ${maxAgenda}px;`;
     }
 
-    _makeOverflow(day) {
-        // Uses the exact same St.Button shell (litsycal-day-btn) as a real
-        // day cell — same size, same padding, same layout tree — just
-        // non-interactive and dimmed. Any structural difference here (a
-        // different widget, different padding) throws off that cell's box
-        // model just enough to misalign it and its row within the grid, so
-        // overflow days must stay wire-identical to real ones, differing
-        // only in text color. Mirrors Itsycal's MoCalCell, which is the one
-        // cell class for every day regardless of month.
-        const btn = new St.Button({
-            style_class: 'litsycal-day-btn', x_expand: true,
-            reactive: false, can_focus: false,
-        });
+    // Uses the exact same St.Button shell (litsycal-day-btn) and behaviour as
+    // _makeCell — click/keyboard select, hover tint, the hover-delay day
+    // tooltip, event dots — just visually muted, since it belongs to an
+    // adjacent month. Selecting a visible overflow day does NOT change the
+    // displayed month (see the click handler below and _moveSelectionByDays'
+    // _visibleDateRange check) — only navigating off the rendered grid
+    // entirely does, mirroring Itsycal's MoCalendar (mouseUp: passes its
+    // *current* monthDate through unchanged; moveSelectionByDays: only
+    // re-centers once the new date is outside the whole visible grid, not
+    // just a different month). Any structural difference here (a different
+    // widget, different padding) throws off this cell's box model just
+    // enough to misalign it and its row within the grid, so it must stay
+    // wire-identical to a real cell otherwise. Mirrors Itsycal's MoCalCell,
+    // which is the one cell class for every day regardless of month.
+    _makeOverflow(day, ds) {
+        const isToday = ds === dateStr(this._today);
+        const isSel   = !isToday && ds === dateStr(this._selected);
+        const [y, m, d] = ds.split('-').map(Number);
+        const dow = GLib.DateTime.new_local(y, m, d, 0, 0, 0).get_day_of_week(); // 1=Mon..7=Sun
+        const isWeekend = dow === 6 || dow === 7;
+
+        let sc = 'litsycal-day-btn';
+        if (isToday)    sc += ' litsycal-today';
+        else if (isSel) sc += ' litsycal-selected';
+
+        const btn = new St.Button({style_class: sc, x_expand: true, track_hover: true});
+
+        if (isToday) {
+            btn.style = `background-color: ${this._accent}; color: white;`;
+        } else if (isSel) {
+            btn.style = `background-color: ${accentAlpha(this._accent, 0.25)};`;
+        } else if (isWeekend && this._weekendColorMode === 'custom') {
+            btn.style = `color: ${this._weekendColor};`;
+        } else if (isWeekend && this._weekendColorMode === 'default') {
+            btn.add_style_class_name('litsycal-weekend');
+        }
 
         const box    = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'litsycal-cell-box'});
         const numLbl = new St.Label({
             text: String(day), x_expand: true,
-            style_class: 'litsycal-cell-num litsycal-overflow',
+            // A today-in-overflow cell gets the same accent treatment as a
+            // real today cell, so it shouldn't also look dimmed.
+            style_class: isToday ? 'litsycal-cell-num' : 'litsycal-cell-num litsycal-overflow',
         });
         numLbl.clutter_text.set_x_align(Clutter.ActorAlign.CENTER);
         box.add_child(numLbl);
-        box.add_child(new St.BoxLayout({style_class: 'litsycal-dot-row', x_expand: true}));
+
+        // Same dots as a real day cell (own event colour kept, mirroring
+        // Itsycal), just faded via litsycal-event-dot-overflow so an
+        // overflow week still reads as "not the active month" — unless this
+        // is today, which is already called out via the accent background.
+        const dotRow = new St.BoxLayout({style_class: 'litsycal-dot-row', x_expand: true});
+        dotRow.set_x_align(Clutter.ActorAlign.CENTER);
+        if (this._showEventDots) {
+            for (const ev of this._calManager.getEventsForDate(ds).slice(0, 3)) {
+                const dot = new St.Widget({style_class: 'litsycal-event-dot'});
+                if (this._dotColorMode === 'mono') {
+                    dot.add_style_class_name('litsycal-event-dot-mono');
+                } else {
+                    dot.style = `background-color: ${ev.color};`;
+                    if (!isToday) dot.add_style_class_name('litsycal-event-dot-overflow');
+                }
+                dotRow.add_child(dot);
+            }
+        }
+        box.add_child(dotRow);
         btn.set_child(box);
+
+        btn.accessible_name = this._cellAccessibleName(ds, day, isToday);
+
+        // Mirrors Itsycal's mouseUp: → setMonthDate:self.monthDate
+        // selectedDate:clickedCell.date — the displayed month is passed
+        // through unchanged, so clicking a visible overflow day just moves
+        // the selection onto it in place rather than navigating there.
+        btn.connect('clicked', () => {
+            this._selected = GLib.DateTime.new_local(y, m, d, 0, 0, 0);
+            this._buildGrid();
+            this._buildAgenda();
+        });
+        btn.connect('notify::hover', () => {
+            if (btn.hover) this._scheduleCellTooltip(ds, btn);
+            else this._cancelCellTooltip();
+        });
+
+        // Tracked alongside real cells so a multi-day agenda event's hover
+        // highlight (_highlightDateRange) still reaches days it spans into
+        // an adjacent month, not just the active one.
+        this._cellsByDate.set(ds, btn);
         return btn;
     }
 
@@ -859,7 +934,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._clearDateRangeHighlight();
         for (const ds of this._calManager.datesSpanned(ev)) {
             const btn = this._cellsByDate.get(ds);
-            if (!btn) continue; // day not in the currently rendered grid (e.g. overflow/adjacent month)
+            if (!btn) continue; // day falls entirely outside the rendered grid (overflow cells are tracked here too)
             btn.add_style_class_name('litsycal-day-btn-range-highlight');
             this._rangeHighlightedCells.push(btn);
         }
@@ -1240,11 +1315,28 @@ class LitsycalCalendar extends St.BoxLayout {
     // trigger that direction; the Down/Shift+Down cases below are kept for
     // when the popup isn't anchored to the top (e.g. a bottom panel).
 
+    // The full span of dates the currently rendered grid covers, leading and
+    // trailing overflow days included — _firstCol/_numRows are set by the
+    // last _buildGrid() call. Mirrors Itsycal's moveSelectionByDays:, which
+    // checks the new selection against _dateGrid's first/last cell rather
+    // than against the displayed month.
+    _visibleDateRange() {
+        const monthStart   = GLib.DateTime.new_local(this._year, this._month, 1, 0, 0, 0);
+        const firstVisible = monthStart.add_days(-this._firstCol);
+        const lastVisible  = firstVisible.add_days(this._numRows * 7 - 1);
+        return {firstVisible, lastVisible};
+    }
+
     _moveSelectionByDays(delta) {
         const sel = this._selected.add_days(delta);
+        const {firstVisible, lastVisible} = this._visibleDateRange();
         this._selected = sel;
-        const monthChanged = sel.get_year() !== this._year || sel.get_month() !== this._month;
-        if (monthChanged) {
+
+        // Only jump the displayed month once the selection moves off the
+        // grid entirely — a day that's still visible via overflow (leading,
+        // trailing, or a dragged-in extra week) just gets selected in place,
+        // same as Itsycal.
+        if (sel.compare(firstVisible) < 0 || sel.compare(lastVisible) > 0) {
             this._year  = sel.get_year();
             this._month = sel.get_month();
             this._updateMonthLabel();

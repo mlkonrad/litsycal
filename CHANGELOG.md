@@ -26,6 +26,14 @@ longer carries a `version` key — see that file's history for why).
 - Hovering a multi-day event in the agenda list now highlights every day it
   spans in the calendar grid above, using the same tint as a plain day-cell
   hover — mirrors Itsycal's `agendaHoveredOverRow`/`highlightCellsFromDate`.
+- Overflow (adjacent-month) days now show event dots too, faded to signal
+  they're outside the active month while keeping each event's own colour —
+  matching Itsycal. They're fully interactive like a real day cell: hover
+  tint, the hover-delay day tooltip, and click/keyboard selection. Selecting
+  one mirrors Itsycal's `MoCalendar` exactly: the displayed month stays put
+  and the selection lands on the visible overflow cell itself, only jumping
+  months once navigation moves the selection off the whole rendered grid
+  (not merely into a different calendar month).
 
 ### Fixed
 

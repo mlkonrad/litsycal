@@ -501,6 +501,11 @@
 .litsycal-theme-light .litsycal-event-dot-mono { background-color: rgba(0,0,0,0.45); }
 .litsycal-theme-dark  .litsycal-event-dot-mono { background-color: rgba(255,255,255,0.45); }
 
+/* Overflow (adjacent-month) day dots: same 0.45 fade as .litsycal-overflow's
+   day number, so an event's own colour still shows through but reads as
+   "not the active month" rather than a full-strength dot. */
+.litsycal-event-dot-overflow { opacity: 0.45; }
+
 /* ── Add (+) button ──────────────────────────────────────────────────────── */
 .litsycal-add-btn {
     font-size: 1.29em;

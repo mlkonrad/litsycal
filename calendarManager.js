@@ -115,17 +115,8 @@ export class CalendarManager {
 
     // ── Live view (change notifications) ──────────────────────────────────────
 
-    _sexp() {
-        const pad = n => String(n).padStart(2, '0');
-        const nm  = this._month === 12 ? 1 : this._month + 1;
-        const ny  = this._month === 12 ? this._year + 1 : this._year;
-        return `(occur-in-time-range? ` +
-               `(make-time "${this._year}${pad(this._month)}01T000000Z") ` +
-               `(make-time "${ny}${pad(nm)}01T000000Z"))`;
-    }
-
     _startView(uid, client) {
-        client.get_view(this._sexp(), null, (_obj, res) => {
+        client.get_view(this._rangeSexp(this._year, this._month), null, (_obj, res) => {
             try {
                 const [, view] = client.get_view_finish(res);
                 const refresh = () => {
@@ -167,17 +158,34 @@ export class CalendarManager {
             this._fetchFromClient(uid, year, month);
     }
 
+    // Grid overflow buffer: the calendar can show up to 6 leading days from
+    // the previous month (a partial first row) and, on the trailing side, up
+    // to 6 days filling a partial last row plus MAX_EXTRA_WEEK_ROWS
+    // dragged-in extra weeks (see extension.js's resize handle and
+    // schemas/…gschema.xml's extra-week-rows max — keep these in sync).
+    // Fetching only makes sense in whole-day units, so this pads a bit past
+    // the exact worst case rather than tracking it to the day.
+    _rangeSexp(year, month) {
+        const MAX_EXTRA_WEEK_ROWS   = 5;
+        const LEADING_OVERFLOW_DAYS  = 7;
+        const TRAILING_OVERFLOW_DAYS = 7 + MAX_EXTRA_WEEK_ROWS * 7;
+
+        const monthStart = GLib.DateTime.new_local(year, month, 1, 0, 0, 0);
+        const rangeStart = monthStart.add_days(-LEADING_OVERFLOW_DAYS);
+        const rangeEnd   = monthStart.add_months(1).add_days(TRAILING_OVERFLOW_DAYS);
+        const stamp = dt => `${dt.get_year()}${String(dt.get_month()).padStart(2,'0')}` +
+                             `${String(dt.get_day_of_month()).padStart(2,'0')}T000000Z`;
+        return `(occur-in-time-range? ` +
+               `(make-time "${stamp(rangeStart)}") ` +
+               `(make-time "${stamp(rangeEnd)}"))`;
+    }
+
     _fetchFromClient(uid, year, month) {
         const entry = this._clients.get(uid);
         if (!entry) return;
         const {client, color} = entry;
 
-        const pad = n => String(n).padStart(2, '0');
-        const nm  = month === 12 ? 1 : month + 1;
-        const ny  = month === 12 ? year + 1 : year;
-        const sexp = `(occur-in-time-range? ` +
-                     `(make-time "${year}${pad(month)}01T000000Z") ` +
-                     `(make-time "${ny}${pad(nm)}01T000000Z"))`;
+        const sexp = this._rangeSexp(year, month);
 
         client.get_object_list_as_comps(sexp, null, (_obj, res) => {
             try {
