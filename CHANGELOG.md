@@ -12,6 +12,18 @@ longer carries a `version` key — see that file's history for why).
 
 ### Added
 
+- Rounded out the rest of Itsycal's keyboard shortcuts (mowglii.com/itsycal/help)
+  on top of the existing h/j/k/l day/week/month/year navigation: `#` flashes
+  the selected day's offset from today and day-of-year in the month label;
+  `Ctrl+J`/`Ctrl+K` add/remove a calendar week row; `P` pins/unpins the
+  calendar; `W` and `.` toggle week numbers and agenda event locations;
+  `Ctrl+,` opens Settings; `Ctrl+O` opens the default calendar app; `Ctrl+N`
+  creates a new event; `Ctrl+Shift+T` goes to a date; `Ctrl+Alt+R` refreshes
+  events; `Ctrl+Q` quits Litsycal. Itsycal's Command-tier shortcuts move to
+  Ctrl (no Command key on Linux); opening the first active meeting
+  (Itsycal's `⌘J`) becomes `Ctrl+Shift+J` instead of plain `Ctrl+J`, which
+  is already taken by add-week-row. Documented in the README and wiki's
+  Keyboard Shortcuts sections.
 - Settings menu (gear button in the calendar footer, or right-clicking the
   panel icon): About, Check for updates (not implemented yet), Go to date,
   Settings, Appearance, Help, and Quit Litsycal — each with a matching icon.

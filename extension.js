@@ -87,6 +87,13 @@ function daysInMonth(year, month) {
     return GLib.DateTime.new_local(ny,nm,1,0,0,0).add_days(-1).get_day_of_month();
 }
 
+// Whole calendar days between two GLib.DateTime instants (b - a), independent
+// of any DST shift that falls between them: rounding to the nearest day
+// absorbs the up-to-±1h wall-clock drift a single transition introduces.
+function daysBetween(a, b) {
+    return Math.round(b.difference(a) / (24 * 60 * 60 * 1000000));
+}
+
 function prevMonthOf(year, month) {
     return month===1 ? [year-1,12] : [year,month-1];
 }
@@ -242,13 +249,15 @@ class OutlinePainter {
 const LitsycalCalendar = GObject.registerClass(
 class LitsycalCalendar extends St.BoxLayout {
 
-    _init(settings, openSettingsMenu, openCalendar, onPinToggle, onDataChanged) {
+    _init(settings, openSettingsMenu, openCalendar, onPinToggle, onDataChanged, openGoToDate, quit) {
         super._init({vertical: true, style_class: 'litsycal-calendar'});
 
         this._settings         = settings;
         this._openSettingsMenu = openSettingsMenu;
         this._openCalendar     = openCalendar;
         this._onPinToggle      = onPinToggle;
+        this._openGoToDate     = openGoToDate;
+        this._quit             = quit;
         this._accent           = readAccent();
 
         const now      = GLib.DateTime.new_now_local();
@@ -369,6 +378,7 @@ class LitsycalCalendar extends St.BoxLayout {
             this._eventContextMenu?.close();
             this._eventContextMenu = null;
             this._cancelCellTooltip();
+            if (this._dayInfoTimeoutId) { GLib.source_remove(this._dayInfoTimeoutId); this._dayInfoTimeoutId = null; }
             if (this._dragStartY !== undefined) this._endHandleDrag(this._resizeHandle);
             for (const id of this._sids) this._settings.disconnect(id);
             this._iface.disconnect(this._accentId);
@@ -1086,6 +1096,9 @@ class LitsycalCalendar extends St.BoxLayout {
 
     _buildAgenda() {
         this._agendaBox.destroy_all_children();
+        // Rebuilt on every call, in agenda display order — first entry is
+        // whatever ⌃⇧J ("open first active meeting") should trigger.
+        this._joinButtons = [];
 
         const hidden = this._agendaDays <= 0;
         this._agendaScroll.visible = !hidden;
@@ -1168,6 +1181,7 @@ class LitsycalCalendar extends St.BoxLayout {
                             try { Gio.AppInfo.launch_default_for_uri(meetingUrl, null); } catch(_) {}
                         });
                         row2.add_child(joinBtn);
+                        this._joinButtons.push(joinBtn);
                     }
                     evtBox.add_child(row2);
 
@@ -1259,6 +1273,7 @@ class LitsycalCalendar extends St.BoxLayout {
 
         const gear = makeIconBtn('preferences-system-symbolic', _('Settings menu'));
         gear.connect('clicked', () => this._openSettingsMenu(gear));
+        this._gearBtn = gear; // anchor for keyboard-triggered settings/go-to-date panels
 
         footer.add_child(this._addBtn);
         footer.add_child(new St.Widget({x_expand: true}));
@@ -1410,6 +1425,15 @@ class LitsycalCalendar extends St.BoxLayout {
     // ever reaches actor-level signal handlers). j/J is the reliable way to
     // trigger that direction; the Down/Shift+Down cases below are kept for
     // when the popup isn't anchored to the top (e.g. a bottom panel).
+    //
+    // The rest of the bindings below round out Itsycal's own shortcut list
+    // (mowglii.com/itsycal/help) that isn't day/week/month/year navigation:
+    // #, P, W, . carry straight over unmodified. Itsycal's plain ⌃J/⌃K
+    // (add/remove calendar weeks) also carries straight over — but its
+    // Command-tier bindings (⌘, ⌘O ⌘N ⌘Q ⌥⌘R ⇧⌘T) have no Command key on
+    // Linux, so they're remapped to Ctrl, the nearest GNOME equivalent; ⌘J
+    // (open first active meeting) picks up an extra Shift on top of that
+    // (→ Ctrl+Shift+J) purely to stay clear of the already-taken Ctrl+J.
 
     // The full span of dates the currently rendered grid covers, leading and
     // trailing overflow days included — _firstCol/_numRows are set by the
@@ -1466,7 +1490,8 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     // Returns true if the key was consumed (caller should stop propagation).
-    handleKeyPress(keyval, shift) {
+    // ctrl/alt mirror `shift`: state of the two other modifiers used below.
+    handleKeyPress(keyval, shift, ctrl, alt) {
         switch (keyval) {
             case Clutter.KEY_Left:
             case Clutter.KEY_h:
@@ -1481,19 +1506,98 @@ class LitsycalCalendar extends St.BoxLayout {
             case Clutter.KEY_Up:
             case Clutter.KEY_k:
             case Clutter.KEY_K:
+                // ⌃K (no Shift): remove one calendar week (⌃J's counterpart below).
+                if (ctrl) { this._adjustExtraWeekRows(-1); return true; }
                 shift ? this._moveSelectionByYears(1) : this._moveSelectionByDays(-7);
                 return true;
             case Clutter.KEY_Down:
             case Clutter.KEY_j:
             case Clutter.KEY_J:
+                // ⌃⇧J: open the first active virtual meeting in the agenda
+                // (Itsycal's ⌘J — bumped onto Shift so it doesn't collide
+                // with plain ⌃J just below). ⌃J (no Shift): add one calendar week.
+                if (ctrl && shift) { this._joinFirstMeeting(); return true; }
+                if (ctrl) { this._adjustExtraWeekRows(1); return true; }
                 shift ? this._moveSelectionByYears(-1) : this._moveSelectionByDays(7);
                 return true;
             case Clutter.KEY_space:
                 this._goToday();
                 return true;
+            case Clutter.KEY_numbersign:
+                // Itsycal's #: today-offset and day-of-year, flashed in the
+                // month label for a couple seconds.
+                this._showDayInfo();
+                return true;
+            case Clutter.KEY_p:
+            case Clutter.KEY_P:
+                this._onPinToggle?.(!this._pinBtn.get_checked());
+                return true;
+            case Clutter.KEY_w:
+            case Clutter.KEY_W:
+                this._settings.set_boolean('show-week-numbers', !this._showWeekNumbers);
+                return true;
+            case Clutter.KEY_period:
+                this._settings.set_boolean('show-event-location', !this._showEventLocation);
+                return true;
+            case Clutter.KEY_comma: // Ctrl+, (Itsycal's ⌘,): open Settings
+                if (ctrl) { this._openSettingsMenu?.(this._gearBtn); return true; }
+                return false;
+            case Clutter.KEY_o:
+            case Clutter.KEY_O: // Ctrl+O (Itsycal's ⌘O): open the default calendar app
+                if (ctrl) { this._openCalendar?.(); return true; }
+                return false;
+            case Clutter.KEY_n:
+            case Clutter.KEY_N: // Ctrl+N (Itsycal's ⌘N): create a new event
+                if (ctrl) { this._openCreateDialog(); return true; }
+                return false;
+            case Clutter.KEY_T: // Ctrl+Shift+T (Itsycal's ⇧⌘T): go to date
+                if (ctrl && shift) { this._openGoToDate?.(this._gearBtn); return true; }
+                return false;
+            case Clutter.KEY_r: // Ctrl+Alt+R (Itsycal's ⌥⌘R): refresh events
+                if (ctrl && alt) { this._calManager?.fetchMonth(this._year, this._month); return true; }
+                return false;
+            case Clutter.KEY_q:
+            case Clutter.KEY_Q: // Ctrl+Q (Itsycal's ⌘Q): quit Litsycal
+                if (ctrl) { this._quit?.(); return true; }
+                return false;
             default:
                 return false;
         }
+    }
+
+    // Adjusts the persisted extra-week-rows count (bound [0, MAX_EXTRA_WEEK_ROWS]),
+    // same setting the resize handle below the grid drags. The changed::
+    // listener above rebuilds the grid once this is written.
+    _adjustExtraWeekRows(delta) {
+        const wanted = Math.min(MAX_EXTRA_WEEK_ROWS, Math.max(0, this._extraWeekRows + delta));
+        if (wanted !== this._extraWeekRows) this._settings.set_int('extra-week-rows', wanted);
+    }
+
+    // Clicks the first "join meeting" button in the current agenda, in
+    // display order (mirrors Itsycal's clickFirstActiveZoomButton). Does
+    // nothing if no event in the agenda has an active join button right now.
+    _joinFirstMeeting() {
+        this._joinButtons?.[0]?.emit('clicked');
+    }
+
+    // Mirrors Itsycal's showDateInfo: briefly swaps the month label for the
+    // selected day's offset from today and its ordinal day-of-year, e.g.
+    // "+5 ∕ 253", then restores the plain month label after a couple seconds.
+    _showDayInfo() {
+        if (this._dayInfoTimeoutId) {
+            GLib.source_remove(this._dayInfoTimeoutId);
+            this._dayInfoTimeoutId = null;
+        }
+
+        const diff = daysBetween(this._today, this._selected);
+        const sign = diff >= 0 ? '+' : '−';
+        this._monthLbl.set_text(`${sign}${Math.abs(diff)} ∕ ${this._selected.get_day_of_year()}`);
+
+        this._dayInfoTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2000, () => {
+            this._dayInfoTimeoutId = null;
+            this._updateMonthLabel();
+            return GLib.SOURCE_REMOVE;
+        });
     }
 });
 
@@ -1718,8 +1822,11 @@ class LitsycalIndicator extends PanelMenu.Button {
                     // steal their keystrokes for calendar navigation.
                     if (this._calWidget._eventPanel) return Clutter.EVENT_PROPAGATE;
                     const keyval = ev.get_key_symbol();
-                    const shift  = (ev.get_state() & Clutter.ModifierType.SHIFT_MASK) !== 0;
-                    return this._calWidget.handleKeyPress(keyval, shift)
+                    const state  = ev.get_state();
+                    const shift  = (state & Clutter.ModifierType.SHIFT_MASK)   !== 0;
+                    const ctrl   = (state & Clutter.ModifierType.CONTROL_MASK) !== 0;
+                    const alt    = (state & Clutter.ModifierType.MOD1_MASK)    !== 0;
+                    return this._calWidget.handleKeyPress(keyval, shift, ctrl, alt)
                         ? Clutter.EVENT_STOP : Clutter.EVENT_PROPAGATE;
                 });
             } else if (this._keyPressId) {
@@ -1740,7 +1847,9 @@ class LitsycalIndicator extends PanelMenu.Button {
                 if (app) app.activate();
             },
             (pinned) => { if (pinned) this._pinCalendar(); else this._unpinCalendar(true); },
-            () => this._updateBadge()
+            () => this._updateBadge(),
+            (anchor) => this._openGoToDateDialog(anchor),
+            () => this._quitLitsycal()
         );
         this._calWidget = cal;
         this._menuItem  = item;
@@ -1786,17 +1895,21 @@ class LitsycalIndicator extends PanelMenu.Button {
                 Gio.AppInfo.launch_default_for_uri('https://github.com/mlkonrad/litsycal/wiki', null);
             }},
             null,
-            {label: _('Quit Litsycal'), icon: 'application-exit-symbolic', action: () => {
-                this.menu.close();
-                // Disabling from inside this handler would tear this actor
-                // down mid-event; defer to the next idle tick.
-                const uuid = this._uuid;
-                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                    Main.extensionManager.disableExtension(uuid);
-                    return GLib.SOURCE_REMOVE;
-                });
-            }},
+            {label: _('Quit Litsycal'), icon: 'application-exit-symbolic',
+             action: () => this._quitLitsycal()},
         ]);
+    }
+
+    // Also reachable via Ctrl+Q (Itsycal's ⌘Q) — see LitsycalCalendar.handleKeyPress.
+    _quitLitsycal() {
+        this.menu.close();
+        // Disabling from inside this handler would tear this actor down
+        // mid-event; defer to the next idle tick.
+        const uuid = this._uuid;
+        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            Main.extensionManager.disableExtension(uuid);
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     // Unlike the other settings-menu actions, this deliberately leaves the

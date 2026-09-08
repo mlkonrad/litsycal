@@ -12,10 +12,12 @@ Litsycal brings the simplicity of Itsycal to Linux. Click the panel indicator to
 
 ## Keyboard Shortcuts
 
-While the calendar popup is open, these keys move the selected day around
-(arrow keys and vi-style `h`/`j`/`k`/`l` both work — use `j` in place of
-`Down` if the arrow key doesn't respond, since GNOME Shell reserves it for
-its own menu navigation):
+While the calendar popup is open, these keys work — arrow keys and vi-style
+`h`/`j`/`k`/`l` both move the selected day around (use `j` in place of `Down`
+if the arrow key doesn't respond, since GNOME Shell reserves it for its own
+menu navigation). The rest mirror [Itsycal's own shortcuts](https://www.mowglii.com/itsycal/help),
+with Ctrl standing in for Itsycal's Command key (there's no Command key on
+Linux):
 
 | Key | Action |
 | --- | --- |
@@ -28,6 +30,18 @@ its own menu navigation):
 | `Shift + ↑` / `Shift + K` | Next year |
 | `Shift + ↓` / `Shift + J` | Previous year |
 | `Space` | Jump to today |
+| `#` | Show selected day's offset from today and day of year |
+| `Ctrl + J` / `Ctrl + K` | Add/remove a week row in the calendar |
+| `P` | Pin/unpin the calendar |
+| `W` | Show/hide calendar week numbers |
+| `.` | Show/hide event locations in the agenda |
+| `Ctrl + ,` | Open Settings |
+| `Ctrl + O` | Open the default calendar app |
+| `Ctrl + Shift + J` | Open the first active virtual meeting in the agenda |
+| `Ctrl + N` | Create a new event |
+| `Ctrl + Shift + T` | Go to date |
+| `Ctrl + Alt + R` | Refresh events |
+| `Ctrl + Q` | Quit Litsycal |
 
 ## Installation
 
