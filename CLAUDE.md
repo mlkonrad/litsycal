@@ -56,13 +56,23 @@ new code should keep meeting these — checked clean as of 2026-09-07:
 - **metadata.json**: uuid must stay in the `litsycal@mlkonrad.github.com` form
   (no `gnome.org` namespace — already fine); `shell-version` should list
   stable versions plus at most one unreleased/dev version, trimmed as new
-  Shell versions ship; only necessary keys.
+  Shell versions ship; only necessary keys. Don't hand-set a `version` key —
+  it's marked Deprecated in the guide ("set for internal use by
+  extensions.gnome.org"); EGO assigns it on upload.
 - **GSettings schema id** must stay under the `org.gnome.shell.extensions.*`
   base (already true: `org.gnome.shell.extensions.litsycal`).
 - **`GObject.Object.run_dispose()`** must not be called without a documented
   reason — currently unused, keep it that way unless justified in a comment.
 - Code must be genuinely functional (not a stub) and avoid interfering with
   other extensions or the shell's own systems.
+- **Unnecessary files**: the guide's Recommendations discourage shipping
+  `.po`/`.pot` files, build/install scripts, and unused media — a reviewer
+  *may* reject for an unreasonable amount of unnecessary data. If the EGO
+  upload is a zip of the whole repo rather than hand-picked files, exclude
+  `.git`, `.github`, `CLAUDE.md`, `po/*.po`, `po/*.pot`, and `screenshot.png`;
+  keep only the compiled `locale/pt_BR/LC_MESSAGES/*.mo`, which is what
+  actually ships at runtime.
 - Before submitting: run through metadata.json shell-version pruning, confirm
-  `schemas/gschemas.compiled` isn't committed stale, and skim for any new
-  `enable()`-time side effects introduced since the last review pass.
+  `schemas/gschemas.compiled` isn't committed stale, confirm no unnecessary
+  files are in the upload, and skim for any new `enable()`-time side effects
+  introduced since the last review pass.
