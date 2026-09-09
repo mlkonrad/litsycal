@@ -31,7 +31,8 @@
     background: none;
 }
 
-.litsycal-nav-btn:hover {
+.litsycal-nav-btn:hover,
+.litsycal-nav-btn:focus {
     background-color: rgba(128, 128, 128, 0.15);
 }
 
@@ -637,7 +638,8 @@
     background-color: rgba(128,128,128,0.12);
     text-align: left;
 }
-.litsycal-panel-cal-btn:hover { background-color: rgba(128,128,128,0.22); }
+.litsycal-panel-cal-btn:hover,
+.litsycal-panel-cal-btn:focus { background-color: rgba(128,128,128,0.22); }
 
 .litsycal-panel-dot {
     width: 10px;
@@ -702,7 +704,9 @@
     text-align: left;
 }
 .litsycal-panel-date-btn:hover,
-.litsycal-panel-time-btn:hover { background-color: rgba(128,128,128,0.22); }
+.litsycal-panel-date-btn:focus,
+.litsycal-panel-time-btn:hover,
+.litsycal-panel-time-btn:focus { background-color: rgba(128,128,128,0.22); }
 
 .litsycal-panel-time-btn { min-width: 54px; max-width: 62px; text-align: center; }
 
@@ -733,7 +737,8 @@
     font-size: 0.88em;
     text-align: center;
 }
-.litsycal-panel-date-day:hover        { background-color: rgba(128,128,128,0.18); }
+.litsycal-panel-date-day:hover,
+.litsycal-panel-date-day:focus        { background-color: rgba(128,128,128,0.18); }
 .litsycal-panel-date-day-selected     { background-color: rgba(53,132,228,0.35); }
 .litsycal-panel-date-day-today        { font-weight: bold; }
 
@@ -747,7 +752,8 @@
     font-size: 0.95em;
     border-radius: 4px;
 }
-.litsycal-panel-time-option:hover     { background-color: rgba(128,128,128,0.18); }
+.litsycal-panel-time-option:hover,
+.litsycal-panel-time-option:focus     { background-color: rgba(128,128,128,0.18); }
 .litsycal-panel-time-option-selected  { background-color: rgba(53,132,228,0.35); }
 
 .litsycal-panel-text-entry {
@@ -774,7 +780,8 @@
     background-color: rgba(128,128,128,0.12);
     font-size: 0.95em;
 }
-.litsycal-panel-open-btn:hover { background-color: rgba(128,128,128,0.22); }
+.litsycal-panel-open-btn:hover,
+.litsycal-panel-open-btn:focus { background-color: rgba(128,128,128,0.22); }
 
 .litsycal-panel-toggle {
     border-radius: 6px;
@@ -784,6 +791,8 @@
 }
 .litsycal-panel-toggle-on  { background-color: rgba(128,128,128,0.28); }
 .litsycal-panel-toggle-off { background-color: rgba(128,128,128,0.10); }
+.litsycal-panel-toggle-on:focus,
+.litsycal-panel-toggle-off:focus { background-color: rgba(53,132,228,0.45); }
 
 .litsycal-panel-error { font-size: 0.86em; color: #e62d42; }
 
@@ -796,7 +805,8 @@
     background-color: rgba(128,128,128,0.15);
     font-size: 0.95em;
 }
-.litsycal-panel-cancel-btn:hover { background-color: rgba(128,128,128,0.25); }
+.litsycal-panel-cancel-btn:hover,
+.litsycal-panel-cancel-btn:focus { background-color: rgba(128,128,128,0.25); }
 
 .litsycal-panel-save-btn {
     border-radius: 6px;
@@ -807,7 +817,8 @@
     font-size: 0.95em;
     font-weight: bold;
 }
-.litsycal-panel-save-btn:hover { background-color: #2870c2; }
+.litsycal-panel-save-btn:hover,
+.litsycal-panel-save-btn:focus { background-color: #2870c2; }
 .litsycal-panel-save-btn-disabled,
 .litsycal-panel-save-btn-disabled:hover { background-color: rgba(53,132,228,0.35); }
 
@@ -819,7 +830,8 @@
     font-size: 0.95em;
     text-align: left;
 }
-.litsycal-panel-dropdown-btn:hover { background-color: rgba(128,128,128,0.22); }
+.litsycal-panel-dropdown-btn:hover,
+.litsycal-panel-dropdown-btn:focus { background-color: rgba(128,128,128,0.22); }
 
 .litsycal-panel-dropdown-list {
     spacing: 1px;
@@ -835,7 +847,8 @@
     font-size: 0.95em;
     border-radius: 4px;
 }
-.litsycal-panel-dropdown-option:hover          { background-color: rgba(128,128,128,0.18); }
+.litsycal-panel-dropdown-option:hover,
+.litsycal-panel-dropdown-option:focus          { background-color: rgba(128,128,128,0.18); }
 .litsycal-panel-dropdown-option-selected       { background-color: rgba(53,132,228,0.35); }
 
 .litsycal-panel-delete-btn {
@@ -846,7 +859,8 @@
     color: #e06070;
     font-size: 0.95em;
 }
-.litsycal-panel-delete-btn:hover { background-color: rgba(230,45,66,0.28); }
+.litsycal-panel-delete-btn:hover,
+.litsycal-panel-delete-btn:focus { background-color: rgba(230,45,66,0.28); }
 
 /* ── Delete confirmation overlay ─────────────────────────────────────────── */
 .litsycal-confirm-panel {

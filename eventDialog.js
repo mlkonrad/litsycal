@@ -252,27 +252,60 @@ export class EventPanel {
 
         // Captured (not bubble-phase global.stage) so this fires ahead of
         // PopupMenu's own Escape handling now that our grab above is the
-        // active one — see the comment on this._grab.
-        this._keyId = this._box.connect('captured-event', (_actor, ev) => {
-            if (this._confirmOverlay) return Clutter.EVENT_PROPAGATE; // let it handle Escape itself
-            if (ev.type() !== Clutter.EventType.KEY_PRESS) return Clutter.EVENT_PROPAGATE;
+        // active one — see the comment on this._grab. Confirmed by
+        // instrumentation: under this grab, captured-event never reaches
+        // either global.stage or the grabbed actor itself (this._root) —
+        // only a genuine descendant of it sees the event. So this shared
+        // handler (_handleKeyEvent) is attached directly to this._box AND,
+        // in _attachFloatingDropdown, to every floating dropdown too —
+        // whichever of those actually contains the currently focused actor
+        // is the one that will see it.
+        this._keyId = this._box.connect('captured-event', (_actor, ev) => this._handleKeyEvent(ev));
+    }
 
-            const sym = ev.get_key_symbol();
-            if (sym === Clutter.KEY_Escape) {
-                this.close();
+    _handleKeyEvent(ev) {
+        if (this._confirmOverlay) return Clutter.EVENT_PROPAGATE; // let it handle Escape itself
+        if (ev.type() !== Clutter.EventType.KEY_PRESS) return Clutter.EVENT_PROPAGATE;
+
+        const sym = ev.get_key_symbol();
+        if (sym === Clutter.KEY_Escape) {
+            // Like a native combobox: Escape closes just the open list
+            // first (returning focus to its button), and only closes
+            // the whole panel once nothing is open.
+            if (this._openDropdown) {
+                this._closeDropdown();
                 return Clutter.EVENT_STOP;
             }
-            if (sym === Clutter.KEY_Tab || sym === Clutter.KEY_ISO_Left_Tab) {
-                // Plain St/Clutter widgets have no built-in Tab-traversal
-                // (unlike a GTK dialog's widgets), so intercept it here
-                // before it reaches a focused St.Entry as a literal
-                // tab character.
-                const shift = (ev.get_state() & Clutter.ModifierType.SHIFT_MASK) !== 0;
-                this._moveFocus(sym === Clutter.KEY_Tab && !shift);
+            this.close();
+            return Clutter.EVENT_STOP;
+        }
+        if (sym === Clutter.KEY_Tab || sym === Clutter.KEY_ISO_Left_Tab) {
+            // Plain St/Clutter widgets have no built-in Tab-traversal
+            // (unlike a GTK dialog's widgets), so intercept it here
+            // before it reaches a focused St.Entry as a literal
+            // tab character.
+            const shift = (ev.get_state() & Clutter.ModifierType.SHIFT_MASK) !== 0;
+            this._moveFocus(sym === Clutter.KEY_Tab && !shift);
+            return Clutter.EVENT_STOP;
+        }
+        if (sym === Clutter.KEY_Down || sym === Clutter.KEY_Up) {
+            if (this._openDropdown) {
+                // Arrow keys, not Tab, walk an open list's own items —
+                // same as a native combobox's popup.
+                this._moveInDropdown(sym === Clutter.KEY_Down);
                 return Clutter.EVENT_STOP;
             }
-            return Clutter.EVENT_PROPAGATE;
-        });
+            // Nothing open yet: if the focused button is one of the
+            // dropdown/date/time triggers, Down/Up opens it — same as a
+            // closed native combobox. Reuses the button's own existing
+            // 'clicked' handler rather than duplicating what it does.
+            const focused = global.stage.get_key_focus();
+            if (this._dropdownTriggers?.has(focused)) {
+                focused.emit('clicked');
+                return Clutter.EVENT_STOP;
+            }
+        }
+        return Clutter.EVENT_PROPAGATE;
     }
 
     _position(anchor) {
@@ -348,7 +381,7 @@ export class EventPanel {
                 btn.connect('clicked', () => {
                     this._selSource = src;
                     this._refreshCalBtn();
-                    this._calDropdown.visible = false;
+                    this._closeDropdown();
                 });
                 this._calDropdown.add_child(btn);
             }
@@ -670,8 +703,8 @@ export class EventPanel {
 
     // Depth-first collection of an open floating dropdown's own focusable
     // buttons/entries — e.g. the date picker's prev/next-month buttons plus
-    // its whole day grid, not just its trigger button — so Tab can walk
-    // into a listbox instead of only ever visiting the button that opens it.
+    // its whole day grid, not just its trigger button — used by
+    // _moveInDropdown() and by _toggleDropdown()'s focus-on-open step.
     _collectFocusable(actor, out = []) {
         if (actor instanceof St.Button || actor instanceof St.Entry) {
             if (actor.mapped && actor.reactive !== false) out.push(actor);
@@ -681,27 +714,43 @@ export class EventPanel {
         return out;
     }
 
+    // Closes the currently open dropdown, if any, and returns focus to the
+    // button that opened it — the same "leave the popup" step Escape, Tab,
+    // and picking an option all end up doing.
+    _closeDropdown() {
+        const anchor = this._openDropdownAnchor;
+        this._openDropdown.visible   = false;
+        this._openDropdown           = null;
+        this._openDropdownAnchor     = null;
+        anchor?.grab_key_focus();
+    }
+
+    // Up/Down move the highlight among an open dropdown's own items — same
+    // as a native combobox's popup. Wraps at either end.
+    _moveInDropdown(forward) {
+        const items = this._collectFocusable(this._openDropdown);
+        if (items.length === 0) return;
+
+        const focused = global.stage.get_key_focus();
+        const curIdx  = items.findIndex(a => a === focused || a.clutter_text === focused);
+        const nextIdx = curIdx === -1
+            ? (forward ? 0 : items.length - 1)
+            : (curIdx + (forward ? 1 : -1) + items.length) % items.length;
+        items[nextIdx].grab_key_focus();
+    }
+
     // St.Entry forwards key focus to its internal clutter_text, so that's
     // what global.stage.get_key_focus() actually returns while one is
     // focused — matched here via each actor's own .clutter_text, if it has one.
+    // Tab always leaves an open dropdown (Up/Down navigate within it — see
+    // _moveInDropdown) rather than walking its items one Tab at a time,
+    // which made tabbing past e.g. Alert's 10 options, or the date picker's
+    // whole day grid, painfully slow — same as a native combobox, where Tab
+    // moves between fields and the popup's own list uses arrow keys.
     _moveFocus(forward) {
         if (this._openDropdown) {
-            const items   = this._collectFocusable(this._openDropdown);
-            const focused = global.stage.get_key_focus();
-            const curIdx  = items.findIndex(a => a === focused || a.clutter_text === focused);
-            const nextIdx = curIdx === -1 ? (forward ? 0 : items.length - 1) : curIdx + (forward ? 1 : -1);
-
-            if (nextIdx >= 0 && nextIdx < items.length) {
-                items[nextIdx].grab_key_focus();
-                return;
-            }
-
-            // Tabbed off either end of the open list — close it and resume
-            // the main order right after (or before) its trigger button.
             const anchor = this._openDropdownAnchor;
-            this._openDropdown.visible   = false;
-            this._openDropdown           = null;
-            this._openDropdownAnchor     = null;
+            this._closeDropdown();
 
             const actors    = this._focusableActors();
             const anchorIdx = actors.indexOf(anchor);
@@ -747,9 +796,18 @@ export class EventPanel {
     // receive clicks — see the constructor) rather than into the panel's
     // own layout, so showing it never grows the panel. Tracked for teardown
     // in close().
+    //
+    // Also wired to the same _handleKeyEvent as this._box: captured-event
+    // under this panel's grab only reaches a genuine descendant of the
+    // grabbed actor (this._root) that itself contains the focused actor —
+    // this._box covers focus living in the main fields, but a dropdown is
+    // this._root's *other* child, a sibling of this._box, so it needs its
+    // own connection to see Escape/Tab/arrows while one of its own items
+    // (not the trigger button) has focus.
     _attachFloatingDropdown(dropdown) {
         this._root.add_child(dropdown);
         this._floaters.push(dropdown);
+        dropdown.connect('captured-event', (_actor, ev) => this._handleKeyEvent(ev));
         return dropdown;
     }
 
@@ -780,6 +838,13 @@ export class EventPanel {
 
     // Only one dropdown (calendar picker, date picker, time picker) open at a time.
     _toggleDropdown(dropdown, anchorBtn, onOpen) {
+        // Every button that ever calls this is, by definition, a dropdown
+        // trigger — recorded here (rather than at each _make*Field call
+        // site) so the key handler's Down/Up-opens-a-closed-trigger check
+        // can tell those apart from plain action buttons like Save/Cancel,
+        // where blindly firing 'clicked' on an arrow key would be dangerous.
+        (this._dropdownTriggers ??= new Set()).add(anchorBtn);
+
         const willOpen = !dropdown.visible;
         if (this._openDropdown && this._openDropdown !== dropdown)
             this._openDropdown.visible = false;
@@ -790,6 +855,23 @@ export class EventPanel {
         dropdown.visible = willOpen;
         this._openDropdown       = willOpen ? dropdown : null;
         this._openDropdownAnchor = willOpen ? anchorBtn : null;
+
+        if (willOpen) {
+            // Land keyboard focus on the list's current selection (or its
+            // first item) as soon as it opens, same as a native combobox —
+            // Up/Down then move within it (_moveInDropdown), no extra Tab
+            // press needed to "enter" it. Deferred one idle: becoming
+            // visible this frame means it hasn't been through an allocation
+            // pass yet, so mapped/reactive filtering in _collectFocusable
+            // isn't reliable until then.
+            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                if (this._openDropdown !== dropdown) return GLib.SOURCE_REMOVE;
+                const items = this._collectFocusable(dropdown);
+                const selected = items.find(i => i.style_class?.includes('-selected'));
+                (selected ?? items[0])?.grab_key_focus();
+                return GLib.SOURCE_REMOVE;
+            });
+        }
     }
 
     // options: [{value, label}]. Returns a controller with getValue() and
@@ -823,8 +905,7 @@ export class EventPanel {
                 optBtn.connect('clicked', () => {
                     cur = opt.value;
                     btnLbl.set_text(opt.label);
-                    dropdown.visible   = false;
-                    this._openDropdown = null;
+                    this._closeDropdown();
                     onChange?.(cur);
                 });
                 dropdown.add_child(optBtn);
@@ -834,7 +915,11 @@ export class EventPanel {
         btnLbl.set_text(opts.find(o => o.value === cur)?.label ?? '');
         rebuildList();
 
-        btn.connect('clicked', () => this._toggleDropdown(dropdown, btn));
+        // rebuildList as onOpen: without it, the "-selected" mark (used both
+        // visually and by _toggleDropdown's auto-focus-on-open) would stay
+        // stuck on whatever was selected when the list was last built,
+        // since picking an option updates `cur` but doesn't itself rebuild.
+        btn.connect('clicked', () => this._toggleDropdown(dropdown, btn, rebuildList));
 
         wrap.add_child(btn);
 
@@ -926,8 +1011,7 @@ export class EventPanel {
                 dayBtn.connect('clicked', () => {
                     cur = {y: view.y, m: view.m, d};
                     btnLbl.set_text(labelFor(cur));
-                    dropdown.visible   = false;
-                    this._openDropdown = null;
+                    this._closeDropdown();
                 });
                 row.add_child(dayBtn);
                 col++;
@@ -996,8 +1080,7 @@ export class EventPanel {
                 optBtn.connect('clicked', () => {
                     cur = value;
                     btnLbl.set_text(value);
-                    scroll.visible     = false;
-                    this._openDropdown = null;
+                    this._closeDropdown();
                 });
                 list.add_child(optBtn);
                 optBtns.push(optBtn);
@@ -1007,6 +1090,15 @@ export class EventPanel {
         btn.connect('clicked', () => {
             this._toggleDropdown(scroll, btn, () => {
                 const idx = optBtns.findIndex(b => b.get_label() === cur);
+                // Buttons are built once and never rebuilt, so picking a
+                // time only moves `cur` — the "-selected" mark (used both
+                // visually and by _toggleDropdown's auto-focus-on-open) was
+                // left stuck on whatever was current when they were built.
+                // Re-derive it here every time the list opens.
+                for (const b of optBtns)
+                    b.remove_style_class_name('litsycal-panel-time-option-selected');
+                if (idx >= 0) optBtns[idx].add_style_class_name('litsycal-panel-time-option-selected');
+
                 if (idx < 0) return;
                 GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
                     const adjustment = scroll.vadjustment ?? scroll.vscroll.adjustment;
