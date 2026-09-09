@@ -116,6 +116,17 @@ longer carries a `version` key — see that file's history for why).
   the popup's size first), so it was visible at its pre-layout `(0, 0)`
   default for a frame. Each now starts at `opacity: 0` and only becomes
   visible once actually positioned.
+- Pressing Escape in the event edit panel (or its delete confirmation) closed
+  the whole calendar dropdown instead of just that panel, and afterwards
+  every keyboard shortcut went dead until the extension was reloaded. Two
+  compounding bugs: Escape was only listened for on `global.stage`, which
+  the calendar dropdown's own modal grab intercepts before it gets there, so
+  its built-in close-on-Escape fired instead; and the callback that clears
+  the calendar's reference to the closed panel only ran on a successful
+  save/delete, not on a plain cancel, so that stale reference permanently
+  blocked the in-calendar keyboard handler. Both panels now take their own
+  competing modal grab (matching the settings/go-to-date panels) and notify
+  their caller from a single always-runs `close()`.
 
 ## [3] - 2026-09-08
 
