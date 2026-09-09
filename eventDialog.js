@@ -110,8 +110,8 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
     }));
 
     const closeOverlay = () => {
-        global.stage.disconnect(clickId);
-        global.stage.disconnect(keyId);
+        overlay.disconnect(eventId);
+        if (grab) Main.popModal(grab);
         Main.layoutManager.uiGroup.remove_child(overlay);
         overlay.destroy();
         onOverlayChange?.(null);
@@ -132,6 +132,12 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
     Main.layoutManager.uiGroup.add_child(overlay);
     onOverlayChange?.(overlay);
 
+    // Opens nested inside EventPanel's own modal grab (which itself nests
+    // inside the calendar dropdown's grab) — needs its own competing grab
+    // for the same reason EventPanel does: see the comment on EventPanel's
+    // this._grab.
+    const grab = Main.pushModal(overlay, {actionMode: Shell.ActionMode.POPUP});
+
     GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
         const monitor = Main.layoutManager.primaryMonitor;
         const w = overlay.get_width()  || 260;
@@ -144,24 +150,35 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
         return GLib.SOURCE_REMOVE;
     });
 
-    const clickId = global.stage.connect('button-press-event', (_stage, ev) => {
-        const [x, y] = ev.get_coords();
-        const actor  = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
-        if (actor && !overlay.contains(actor)) closeOverlay();
-        return Clutter.EVENT_PROPAGATE;
-    });
-    const keyId = global.stage.connect('key-press-event', (_stage, ev) => {
-        if (ev.get_key_symbol() === Clutter.KEY_Escape) { closeOverlay(); return Clutter.EVENT_STOP; }
+    const eventId = overlay.connect('captured-event', (_actor, ev) => {
+        if (ev.type() === Clutter.EventType.BUTTON_PRESS) {
+            const [x, y] = ev.get_coords();
+            const actor  = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
+            if (actor && !overlay.contains(actor)) {
+                closeOverlay();
+                return Clutter.EVENT_STOP;
+            }
+        } else if (ev.type() === Clutter.EventType.KEY_PRESS &&
+                   ev.get_key_symbol() === Clutter.KEY_Escape) {
+            closeOverlay();
+            return Clutter.EVENT_STOP;
+        }
         return Clutter.EVENT_PROPAGATE;
     });
 }
 
 export class EventPanel {
 
-    constructor(calManager, event, selectedDate, anchorActor, onSaved, calendarSystem = 'gregorian') {
+    // onClose is called exactly once, however the panel ends up closing —
+    // saved, deleted, cancelled via Escape, or dismissed by clicking
+    // outside. Callers rely on this to know the panel is gone (e.g. to null
+    // out their own reference to it); wiring it to fire only on a
+    // successful save left that reference stuck pointing at a dead panel
+    // after every plain cancel.
+    constructor(calManager, event, selectedDate, anchorActor, onClose, calendarSystem = 'gregorian') {
         this._calManager     = calManager;
         this._event          = event ?? null;
-        this._onSaved        = onSaved;
+        this._onClose        = onClose;
         this._calendarSystem = calendarSystem;
         this._allDay         = event?.allDay ?? false;
         this._selDate        = event?.date
@@ -187,6 +204,17 @@ export class EventPanel {
 
         Main.layoutManager.uiGroup.add_child(this._box);
 
+        // Needed because this opens while the calendar dropdown (a
+        // PopupMenu) is still open, holding its own modal grab: without a
+        // competing grab here, a key event is delivered starting from that
+        // grab's actor, not the stage — and PopupMenu's own built-in
+        // close-on-Escape handling sits upstream of a plain global.stage
+        // listener in that delivery chain, so it was consuming Escape and
+        // closing the whole calendar dropdown before our own key-press-event
+        // handler below ever saw it. See SettingsMenuPanel in extension.js
+        // for the full explanation — same mechanism, same fix.
+        this._grab = Main.pushModal(this._box, {actionMode: Shell.ActionMode.POPUP});
+
         // Defer positioning until after layout pass so actor size is known
         GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
             this._position(anchorActor);
@@ -203,9 +231,13 @@ export class EventPanel {
             return Clutter.EVENT_PROPAGATE;
         });
 
-        this._keyId = global.stage.connect('key-press-event', (_stage, ev) => {
+        // Captured (not bubble-phase global.stage) so this fires ahead of
+        // PopupMenu's own Escape handling now that our grab above is the
+        // active one — see the comment on this._grab.
+        this._keyId = this._box.connect('captured-event', (_actor, ev) => {
             if (this._confirmOverlay) return Clutter.EVENT_PROPAGATE; // let it handle Escape itself
-            if (ev.get_key_symbol() === Clutter.KEY_Escape) {
+            if (ev.type() === Clutter.EventType.KEY_PRESS &&
+                ev.get_key_symbol() === Clutter.KEY_Escape) {
                 this.close();
                 return Clutter.EVENT_STOP;
             }
@@ -898,7 +930,6 @@ export class EventPanel {
 
         const done = err => {
             if (err) { this._showError(err.message); return; }
-            this._onSaved?.();
             this.close();
         };
 
@@ -912,7 +943,6 @@ export class EventPanel {
     _confirmDelete() {
         confirmDeleteEvent(this._calManager, this._event, err => {
             if (err) { this._showError(err.message); return; }
-            this._onSaved?.();
             this.close();
         }, overlay => { this._confirmOverlay = overlay; });
     }
@@ -924,11 +954,16 @@ export class EventPanel {
             this._confirmOverlay = null;
         }
         if (this._clickId) { global.stage.disconnect(this._clickId); this._clickId = null; }
-        if (this._keyId)   { global.stage.disconnect(this._keyId);   this._keyId   = null; }
+        if (this._keyId)   { this._box?.disconnect(this._keyId);     this._keyId   = null; }
+        if (this._grab)    { Main.popModal(this._grab); this._grab = null; }
         if (this._box) {
             Main.layoutManager.uiGroup.remove_child(this._box);
             this._box.destroy();
             this._box = null;
+            // Fire only on the transition that actually tears the box down,
+            // so a redundant close() call (harmless everywhere else here)
+            // can't invoke the caller's callback twice.
+            this._onClose?.();
         }
     }
 }
