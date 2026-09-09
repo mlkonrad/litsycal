@@ -4,6 +4,7 @@ import Clutter from 'gi://Clutter';
 import GLib    from 'gi://GLib';
 import Gio     from 'gi://Gio';
 import Shell   from 'gi://Shell';
+import Pango   from 'gi://Pango';
 
 const _ = str => GLib.dgettext('litsycal@mlkonrad.github.com', str);
 
@@ -200,9 +201,22 @@ export class EventPanel {
             opacity: 0,
         });
 
-        this._build();
+        // Dropdown/date/time pickers float above the panel instead of being
+        // laid out inline, so opening one never grows the panel itself — but
+        // Main.pushModal() scopes input delivery to the grabbed actor's own
+        // subtree, so a floater sitting outside it could be seen (clicks
+        // still hit-test fine) but never actually receive them (nothing
+        // would fire on click). So both this._box and every floater are
+        // parented under one shared this._root, and that's what gets the
+        // grab — same wrapper-actor pattern GNOME Shell's own ModalDialog
+        // uses to host a dialog plus overlays under a single grab.
+        this._root = new St.Widget();
+        Main.layoutManager.uiGroup.add_child(this._root);
 
-        Main.layoutManager.uiGroup.add_child(this._box);
+        this._floaters = [];
+        this._root.add_child(this._box);
+
+        this._build();
 
         // Needed because this opens while the calendar dropdown (a
         // PopupMenu) is still open, holding its own modal grab: without a
@@ -213,7 +227,7 @@ export class EventPanel {
         // closing the whole calendar dropdown before our own key-press-event
         // handler below ever saw it. See SettingsMenuPanel in extension.js
         // for the full explanation — same mechanism, same fix.
-        this._grab = Main.pushModal(this._box, {actionMode: Shell.ActionMode.POPUP});
+        this._grab = Main.pushModal(this._root, {actionMode: Shell.ActionMode.POPUP});
 
         // Defer positioning until after layout pass so actor size is known
         GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
@@ -227,7 +241,12 @@ export class EventPanel {
             if (this._confirmOverlay) return Clutter.EVENT_PROPAGATE; // let it handle its own clicks
             const [x, y] = ev.get_coords();
             const actor  = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
-            if (actor && !this._box.contains(actor)) this.close();
+            // A floating dropdown is a sibling of this._box (not a
+            // descendant, see _attachFloatingDropdown), so a click landing
+            // inside the currently open one must be exempted here too.
+            if (actor && !this._box.contains(actor) &&
+                !(this._openDropdown && this._openDropdown.contains(actor)))
+                this.close();
             return Clutter.EVENT_PROPAGATE;
         });
 
@@ -236,9 +255,20 @@ export class EventPanel {
         // active one — see the comment on this._grab.
         this._keyId = this._box.connect('captured-event', (_actor, ev) => {
             if (this._confirmOverlay) return Clutter.EVENT_PROPAGATE; // let it handle Escape itself
-            if (ev.type() === Clutter.EventType.KEY_PRESS &&
-                ev.get_key_symbol() === Clutter.KEY_Escape) {
+            if (ev.type() !== Clutter.EventType.KEY_PRESS) return Clutter.EVENT_PROPAGATE;
+
+            const sym = ev.get_key_symbol();
+            if (sym === Clutter.KEY_Escape) {
                 this.close();
+                return Clutter.EVENT_STOP;
+            }
+            if (sym === Clutter.KEY_Tab || sym === Clutter.KEY_ISO_Left_Tab) {
+                // Plain St/Clutter widgets have no built-in Tab-traversal
+                // (unlike a GTK dialog's widgets), so intercept it here
+                // before it reaches a focused St.Entry as a literal
+                // tab character.
+                const shift = (ev.get_state() & Clutter.ModifierType.SHIFT_MASK) !== 0;
+                this._moveFocus(sym === Clutter.KEY_Tab && !shift);
                 return Clutter.EVENT_STOP;
             }
             return Clutter.EVENT_PROPAGATE;
@@ -265,10 +295,14 @@ export class EventPanel {
 
             this._box.set_position(x, y);
         } else {
-            this._box.set_position(
-                monitor.x + Math.round((monitor.width  - boxW) / 2),
-                monitor.y + panelH + Math.round((monitor.height - panelH) * 0.18)
-            );
+            // Clamp against boxH too (not just center horizontally) so a tall
+            // panel — e.g. editing an event with a long note — can't have its
+            // bottom pushed off-screen; it settles against the bottom margin
+            // instead of overflowing past it.
+            const idealY = monitor.y + panelH + Math.round((monitor.height - panelH) * 0.18);
+            const y = Math.max(monitor.y + panelH + 4,
+                                Math.min(idealY, monitor.y + monitor.height - boxH - 4));
+            this._box.set_position(monitor.x + Math.round((monitor.width - boxW) / 2), y);
         }
     }
 
@@ -318,14 +352,12 @@ export class EventPanel {
                 });
                 this._calDropdown.add_child(btn);
             }
+            this._attachFloatingDropdown(this._calDropdown);
             this._calPickerBtn.connect('clicked', () => {
-                this._toggleDropdown(this._calDropdown);
+                this._toggleDropdown(this._calDropdown, this._calPickerBtn);
             });
-            calBox.add_child(this._calPickerBtn);
-            calBox.add_child(this._calDropdown);
-        } else {
-            calBox.add_child(this._calPickerBtn);
         }
+        calBox.add_child(this._calPickerBtn);
         box.add_child(calBox);
 
         box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
@@ -454,6 +486,12 @@ export class EventPanel {
         // ── Notes ──────────────────────────────────────────────────────────────
         const notesRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
         notesRow.add_child(new St.Label({text: _('Notes'), style_class: 'litsycal-panel-lbl'}));
+        const notesScroll = new St.ScrollView({
+            style_class: 'litsycal-panel-notes-scroll',
+            x_expand: true,
+            hscrollbar_policy: St.PolicyType.NEVER,
+            vscrollbar_policy: St.PolicyType.AUTOMATIC,
+        });
         this._notesEntry = new St.Entry({
             style_class: 'litsycal-panel-notes-entry',
             hint_text: _('Add notes…'),
@@ -463,9 +501,20 @@ export class EventPanel {
         this._notesEntry.clutter_text.set_single_line_mode(false);
         this._notesEntry.clutter_text.set_activatable(false);
         this._notesEntry.clutter_text.set_line_wrap(true);
+        // Default word-wrap has no break point in a run of text with no
+        // spaces, so it just requests a wider box instead of wrapping —
+        // this is what was stretching the whole dialog. WORD_CHAR falls
+        // back to breaking mid-word once a line has nowhere else to wrap.
+        this._notesEntry.clutter_text.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR);
         if (ev?.notes) this._notesEntry.set_text(ev.notes);
         this._focusOnClick(this._notesEntry);
-        notesRow.add_child(this._notesEntry);
+        // St.ScrollView.set_child() requires an St.Scrollable child, which
+        // St.Entry doesn't implement (only container types like BoxLayout
+        // do) — go through a plain wrapper, same as the time picker's list.
+        const notesInner = new St.BoxLayout({vertical: true, x_expand: true});
+        notesInner.add_child(this._notesEntry);
+        notesScroll.set_child(notesInner);
+        notesRow.add_child(notesScroll);
         box.add_child(notesRow);
 
         // ── Error ──────────────────────────────────────────────────────────────
@@ -477,21 +526,39 @@ export class EventPanel {
         // ── Buttons ────────────────────────────────────────────────────────────
         const btnRow = new St.BoxLayout({style_class: 'litsycal-panel-btn-row', x_expand: true});
         if (ev) {
-            const delBtn = new St.Button({label: _('Delete'), style_class: 'litsycal-panel-delete-btn'});
-            delBtn.connect('clicked', () => this._confirmDelete());
-            btnRow.add_child(delBtn);
+            this._deleteBtn = new St.Button({label: _('Delete'), style_class: 'litsycal-panel-delete-btn'});
+            this._deleteBtn.connect('clicked', () => this._confirmDelete());
+            btnRow.add_child(this._deleteBtn);
         }
         btnRow.add_child(new St.Widget({x_expand: true}));
-        const cancelBtn = new St.Button({label: _('Cancel'), style_class: 'litsycal-panel-cancel-btn'});
-        cancelBtn.connect('clicked', () => this.close());
+        this._cancelBtn = new St.Button({label: _('Cancel'), style_class: 'litsycal-panel-cancel-btn'});
+        this._cancelBtn.connect('clicked', () => this.close());
         this._saveBtn = new St.Button({label: _('Save Event'), style_class: 'litsycal-panel-save-btn'});
         this._saveBtn.connect('clicked', () => this._save());
-        btnRow.add_child(cancelBtn);
+        btnRow.add_child(this._cancelBtn);
         btnRow.add_child(this._saveBtn);
         box.add_child(btnRow);
 
         this._titleEntry.clutter_text.connect('text-changed', () => this._updateSaveEnabled());
         this._updateSaveEnabled();
+
+        // ── Tab order ──────────────────────────────────────────────────────────
+        // Plain St/Clutter widgets don't get Tab-traversal for free the way a
+        // GTK dialog's widgets do — see _moveFocus() for the key handling.
+        // Listed in visual order; _focusableActors() filters to whatever is
+        // currently mapped/reactive (rows like Ends' time or Repeat's Until
+        // come and go based on All-day/Repeat/Alert state).
+        this._focusOrder = [
+            this._titleEntry, this._calPickerBtn,
+            this._locationEntry, this._urlEntry, this._openUrlBtn,
+            this._allDayBtn,
+            this._startDatePicker.btn, this._startTimePicker.btn,
+            this._endDatePicker.btn, this._endTimePicker.btn,
+            this._repeatPicker.btn, this._repeatEndPicker.btn, this._repeatUntilPicker.btn,
+            this._alertPicker.btn,
+            this._notesEntry,
+            this._deleteBtn, this._cancelBtn, this._saveBtn,
+        ].filter(Boolean);
     }
 
     _nowHour() {
@@ -593,6 +660,69 @@ export class EventPanel {
         this._repeatUntilPicker.actor.visible = this._repeatEndPicker.getValue() === 'ON_DATE';
     }
 
+    // Actors from this._focusOrder that are actually reachable right now —
+    // a hidden row (Ends' time while All-day is on, Repeat's Until, the
+    // disabled Save button, ...) leaves its actor un-mapped rather than
+    // removed, so `mapped` is what tells us it's currently skippable.
+    _focusableActors() {
+        return this._focusOrder.filter(a => a.mapped && a.reactive !== false);
+    }
+
+    // Depth-first collection of an open floating dropdown's own focusable
+    // buttons/entries — e.g. the date picker's prev/next-month buttons plus
+    // its whole day grid, not just its trigger button — so Tab can walk
+    // into a listbox instead of only ever visiting the button that opens it.
+    _collectFocusable(actor, out = []) {
+        if (actor instanceof St.Button || actor instanceof St.Entry) {
+            if (actor.mapped && actor.reactive !== false) out.push(actor);
+            return out;
+        }
+        for (const child of actor.get_children?.() ?? []) this._collectFocusable(child, out);
+        return out;
+    }
+
+    // St.Entry forwards key focus to its internal clutter_text, so that's
+    // what global.stage.get_key_focus() actually returns while one is
+    // focused — matched here via each actor's own .clutter_text, if it has one.
+    _moveFocus(forward) {
+        if (this._openDropdown) {
+            const items   = this._collectFocusable(this._openDropdown);
+            const focused = global.stage.get_key_focus();
+            const curIdx  = items.findIndex(a => a === focused || a.clutter_text === focused);
+            const nextIdx = curIdx === -1 ? (forward ? 0 : items.length - 1) : curIdx + (forward ? 1 : -1);
+
+            if (nextIdx >= 0 && nextIdx < items.length) {
+                items[nextIdx].grab_key_focus();
+                return;
+            }
+
+            // Tabbed off either end of the open list — close it and resume
+            // the main order right after (or before) its trigger button.
+            const anchor = this._openDropdownAnchor;
+            this._openDropdown.visible   = false;
+            this._openDropdown           = null;
+            this._openDropdownAnchor     = null;
+
+            const actors    = this._focusableActors();
+            const anchorIdx = actors.indexOf(anchor);
+            const resumeIdx = anchorIdx === -1
+                ? (forward ? 0 : actors.length - 1)
+                : (anchorIdx + (forward ? 1 : -1) + actors.length) % actors.length;
+            actors[resumeIdx]?.grab_key_focus();
+            return;
+        }
+
+        const actors = this._focusableActors();
+        if (actors.length === 0) return;
+
+        const focused = global.stage.get_key_focus();
+        const curIdx  = actors.findIndex(a => a === focused || a.clutter_text === focused);
+        const nextIdx = curIdx === -1
+            ? (forward ? 0 : actors.length - 1)
+            : (curIdx + (forward ? 1 : -1) + actors.length) % actors.length;
+        actors[nextIdx].grab_key_focus();
+    }
+
     _updateSaveEnabled() {
         const hasTitle = this._titleEntry.get_text().trim().length > 0;
         this._saveBtn.reactive  = hasTitle;
@@ -611,14 +741,55 @@ export class EventPanel {
         });
     }
 
+    // Registers a dropdown/date/time list as a floating overlay: added to
+    // this._root (a later sibling of this._box there, so it paints on top
+    // of it, and still inside the grabbed subtree so its buttons actually
+    // receive clicks — see the constructor) rather than into the panel's
+    // own layout, so showing it never grows the panel. Tracked for teardown
+    // in close().
+    _attachFloatingDropdown(dropdown) {
+        this._root.add_child(dropdown);
+        this._floaters.push(dropdown);
+        return dropdown;
+    }
+
+    // Positions a floating dropdown directly under its anchor button (or
+    // above it, if it wouldn't fit on screen below), matching at least the
+    // anchor's width. Uses get_preferred_*() rather than get_width/height()
+    // since the dropdown, as a manually-positioned this._root child, may not
+    // have been through an allocation cycle yet.
+    _positionFloatingDropdown(dropdown, anchorBtn) {
+        const monitor  = Main.layoutManager.primaryMonitor;
+        const [ax, ay] = anchorBtn.get_transformed_position();
+        const aw       = anchorBtn.get_width();
+        const ah       = anchorBtn.get_height();
+
+        const [, natW] = dropdown.get_preferred_width(-1);
+        const w        = Math.max(aw, natW);
+        const [, natH] = dropdown.get_preferred_height(w);
+
+        let x = Math.max(monitor.x + 4, Math.min(ax, monitor.x + monitor.width - w - 4));
+
+        let y = ay + ah + 2;
+        if (y + natH > monitor.y + monitor.height - 4) y = ay - natH - 2;
+        y = Math.max(monitor.y + 4, y);
+
+        dropdown.set_width(w);
+        dropdown.set_position(x, y);
+    }
+
     // Only one dropdown (calendar picker, date picker, time picker) open at a time.
-    _toggleDropdown(dropdown, onOpen) {
+    _toggleDropdown(dropdown, anchorBtn, onOpen) {
         const willOpen = !dropdown.visible;
         if (this._openDropdown && this._openDropdown !== dropdown)
             this._openDropdown.visible = false;
+        if (willOpen) {
+            onOpen?.();
+            this._positionFloatingDropdown(dropdown, anchorBtn);
+        }
         dropdown.visible = willOpen;
-        this._openDropdown = willOpen ? dropdown : null;
-        if (willOpen) onOpen?.();
+        this._openDropdown       = willOpen ? dropdown : null;
+        this._openDropdownAnchor = willOpen ? anchorBtn : null;
     }
 
     // options: [{value, label}]. Returns a controller with getValue() and
@@ -635,6 +806,7 @@ export class EventPanel {
             style_class: 'popup-menu-content litsycal-panel-dropdown-list',
             visible: false,
         });
+        this._attachFloatingDropdown(dropdown);
 
         let opts = options;
         let cur  = initialValue;
@@ -662,13 +834,13 @@ export class EventPanel {
         btnLbl.set_text(opts.find(o => o.value === cur)?.label ?? '');
         rebuildList();
 
-        btn.connect('clicked', () => this._toggleDropdown(dropdown));
+        btn.connect('clicked', () => this._toggleDropdown(dropdown, btn));
 
         wrap.add_child(btn);
-        wrap.add_child(dropdown);
 
         return {
             actor: wrap,
+            btn,
             getValue: () => cur,
             setOptions(newOpts, newValue) {
                 opts = newOpts;
@@ -701,6 +873,7 @@ export class EventPanel {
             style_class: 'popup-menu-content litsycal-panel-date-dropdown',
             visible: false,
         });
+        this._attachFloatingDropdown(dropdown);
 
         const header    = new St.BoxLayout({style_class: 'litsycal-panel-date-header'});
         const prevBtn   = new St.Button({label: '‹', style_class: 'litsycal-nav-btn',
@@ -779,15 +952,15 @@ export class EventPanel {
             rebuild();
         });
         btn.connect('clicked', () => {
-            this._toggleDropdown(dropdown, () => { view = {y: cur.y, m: cur.m}; rebuild(); });
+            this._toggleDropdown(dropdown, btn, () => { view = {y: cur.y, m: cur.m}; rebuild(); });
         });
 
         rebuild();
         wrap.add_child(btn);
-        wrap.add_child(dropdown);
 
         return {
             actor: wrap,
+            btn,
             getValue: () => `${cur.y}-${pad(cur.m)}-${pad(cur.d)}`,
         };
     }
@@ -807,6 +980,7 @@ export class EventPanel {
             vertical: true, style_class: 'popup-menu-content litsycal-panel-time-dropdown',
         });
         scroll.set_child(list);
+        this._attachFloatingDropdown(scroll);
 
         let cur = initialStr;
         const optBtns = [];
@@ -831,7 +1005,7 @@ export class EventPanel {
         }
 
         btn.connect('clicked', () => {
-            this._toggleDropdown(scroll, () => {
+            this._toggleDropdown(scroll, btn, () => {
                 const idx = optBtns.findIndex(b => b.get_label() === cur);
                 if (idx < 0) return;
                 GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
@@ -845,10 +1019,10 @@ export class EventPanel {
         });
 
         wrap.add_child(btn);
-        wrap.add_child(scroll);
 
         return {
             actor: wrap,
+            btn,
             getValue: () => cur,
         };
     }
@@ -956,14 +1130,28 @@ export class EventPanel {
         if (this._clickId) { global.stage.disconnect(this._clickId); this._clickId = null; }
         if (this._keyId)   { this._box?.disconnect(this._keyId);     this._keyId   = null; }
         if (this._grab)    { Main.popModal(this._grab); this._grab = null; }
+        if (this._floaters) {
+            for (const f of this._floaters) {
+                this._root.remove_child(f);
+                f.destroy();
+            }
+            this._floaters = null;
+        }
+        this._openDropdown       = null;
+        this._openDropdownAnchor = null;
         if (this._box) {
-            Main.layoutManager.uiGroup.remove_child(this._box);
+            this._root.remove_child(this._box);
             this._box.destroy();
             this._box = null;
             // Fire only on the transition that actually tears the box down,
             // so a redundant close() call (harmless everywhere else here)
             // can't invoke the caller's callback twice.
             this._onClose?.();
+        }
+        if (this._root) {
+            Main.layoutManager.uiGroup.remove_child(this._root);
+            this._root.destroy();
+            this._root = null;
         }
     }
 }

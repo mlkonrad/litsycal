@@ -594,7 +594,9 @@
 .litsycal-event-panel {
     padding: 16px;
     spacing: 10px;
-    min-width: 360px;
+    /* Fixed, not min/max — the dialog must never change width, only grow
+       downward (e.g. for a long wrapped Notes value). */
+    width: 460px;
     border-radius: 12px;
 }
 
@@ -754,11 +756,15 @@
     font-size: 0.95em;
 }
 
+.litsycal-panel-notes-scroll {
+    min-height: 52px;
+    max-height: 120px;
+}
+
 .litsycal-panel-notes-entry {
     border-radius: 6px;
     padding: 4px 8px;
     font-size: 0.95em;
-    min-height: 52px;
 }
 
 .litsycal-panel-open-btn {
