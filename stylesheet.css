@@ -662,7 +662,8 @@
     font-size: 0.95em;
     border-radius: 4px;
 }
-.litsycal-panel-cal-option:hover { background-color: rgba(128,128,128,0.18); }
+.litsycal-panel-cal-option:hover,
+.litsycal-panel-cal-option:focus { background-color: rgba(128,128,128,0.18); }
 .litsycal-panel-cal-option:insensitive { opacity: 0.4; }
 
 .litsycal-settings-menu {

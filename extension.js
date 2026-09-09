@@ -1636,6 +1636,12 @@ class SettingsMenuPanel {
             opacity: 0,
         });
 
+        // Rows with an action, in display order — what arrow-key navigation
+        // moves through. Disabled (action-less) rows are skipped since
+        // there's nothing to activate on them.
+        this._focusable  = [];
+        this._focusIndex = -1;
+
         for (const item of items) {
             if (item === null) {
                 this._box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
@@ -1670,6 +1676,13 @@ class SettingsMenuPanel {
                         return GLib.SOURCE_REMOVE;
                     });
                 });
+                // Keep the keyboard-navigated row in sync with whatever the
+                // mouse is over, so the two selection mechanisms never show
+                // two different rows highlighted at once.
+                btn.connect('notify::hover', () => {
+                    if (btn.hover) this._setFocusIndex(this._focusable.indexOf(btn));
+                });
+                this._focusable.push(btn);
             }
             this._box.add_child(btn);
         }
@@ -1680,6 +1693,11 @@ class SettingsMenuPanel {
         GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
             this._position(anchorActor);
             this._box.opacity = 255;
+            // No actor here actually holds Clutter key focus — the modal
+            // grab above delivers key events to this._box regardless (see
+            // the captured-event handler below) — so keyboard selection is
+            // tracked by hand via a pseudo-class rather than real focus.
+            this._setFocusIndex(0);
             return GLib.SOURCE_REMOVE;
         });
 
@@ -1691,13 +1709,38 @@ class SettingsMenuPanel {
                     this.close();
                     return Clutter.EVENT_STOP;
                 }
-            } else if (ev.type() === Clutter.EventType.KEY_PRESS &&
-                       ev.get_key_symbol() === Clutter.KEY_Escape) {
-                this.close();
-                return Clutter.EVENT_STOP;
+            } else if (ev.type() === Clutter.EventType.KEY_PRESS) {
+                switch (ev.get_key_symbol()) {
+                    case Clutter.KEY_Escape:
+                        this.close();
+                        return Clutter.EVENT_STOP;
+                    case Clutter.KEY_Up:
+                        this._setFocusIndex(this._focusIndex - 1);
+                        return Clutter.EVENT_STOP;
+                    case Clutter.KEY_Down:
+                        this._setFocusIndex(this._focusIndex + 1);
+                        return Clutter.EVENT_STOP;
+                    case Clutter.KEY_Return:
+                    case Clutter.KEY_KP_Enter:
+                    case Clutter.KEY_space:
+                        this._focusable[this._focusIndex]?.emit('clicked', 1);
+                        return Clutter.EVENT_STOP;
+                }
             }
             return Clutter.EVENT_PROPAGATE;
         });
+    }
+
+    // Moves the keyboard selection to index `i` (wrapping around), updating
+    // the visual highlight. `i` is a plain index into this._focusable, not
+    // clamped by the caller.
+    _setFocusIndex(i) {
+        if (this._focusable.length === 0) return;
+        i = (i + this._focusable.length) % this._focusable.length;
+        if (i === this._focusIndex) return;
+        this._focusable[this._focusIndex]?.remove_style_pseudo_class('focus');
+        this._focusIndex = i;
+        this._focusable[this._focusIndex]?.add_style_pseudo_class('focus');
     }
 
     _position(anchor) {
