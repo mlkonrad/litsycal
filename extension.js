@@ -1646,7 +1646,10 @@ class SettingsMenuPanel {
                 x_expand: true,
                 reactive: !!item.action,
             });
-            const row = new St.BoxLayout({style_class: 'litsycal-settings-menu-row'});
+            const row = new St.BoxLayout({
+                style_class: 'litsycal-settings-menu-row',
+                x_expand: true,
+            });
             row.add_child(new St.Icon({
                 icon_name: item.icon, icon_size: 16,
                 style_class: 'litsycal-settings-menu-icon',
