@@ -127,6 +127,15 @@ longer carries a `version` key — see that file's history for why).
   blocked the in-calendar keyboard handler. Both panels now take their own
   competing modal grab (matching the settings/go-to-date panels) and notify
   their caller from a single always-runs `close()`.
+- An agenda event's right-click "Open Calendar" always opened GNOME Calendar
+  on today's date instead of the event's date. It passed the event date in
+  ISO `YYYY-MM-DD` to `gnome-calendar --date`, but that flag is parsed with
+  evolution-data-server's `e_time_parse_date_and_time()`, which expects the
+  locale's own short-date order (`MM/DD/YYYY` for en_US, `DD/MM/YYYY`
+  elsewhere, ...) — the ISO string never matched, so gnome-calendar silently
+  fell back to today. The date is now formatted with GLib's own `%x` first,
+  matching whatever order `gnome-calendar` itself expects on the running
+  system.
 
 ## [3] - 2026-09-08
 
