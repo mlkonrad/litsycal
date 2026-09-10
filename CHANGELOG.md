@@ -10,6 +10,8 @@ longer carries a `version` key — see that file's history for why).
 
 ## [Unreleased]
 
+## [4] - 2026-09-10
+
 ### Added
 
 - Clicking an event in the agenda now opens a compact, read-only info
@@ -228,7 +230,8 @@ longer carries a `version` key — see that file's history for why).
 - Internationalization via gettext, including a Brazilian Portuguese
   translation.
 
-[Unreleased]: https://github.com/mlkonrad/litsycal/compare/776d203...HEAD
+[Unreleased]: https://github.com/mlkonrad/litsycal/compare/b9c302f...HEAD
+[4]: https://github.com/mlkonrad/litsycal/compare/776d203...b9c302f
 [3]: https://github.com/mlkonrad/litsycal/compare/9c3a415...776d203
 [2]: https://github.com/mlkonrad/litsycal/compare/dbfda84...9c3a415
 [1]: https://github.com/mlkonrad/litsycal/commit/dbfda84
