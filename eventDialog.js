@@ -301,8 +301,20 @@ export class EventPanel {
             // 'clicked' handler rather than duplicating what it does.
             const focused = global.stage.get_key_focus();
             if (this._dropdownTriggers?.has(focused)) {
-                focused.emit('clicked');
+                focused.emit('clicked', 1);
                 return Clutter.EVENT_STOP;
+            }
+        }
+        if (sym === Clutter.KEY_Return || sym === Clutter.KEY_KP_Enter || sym === Clutter.KEY_space) {
+            // Enter/Space activates the highlighted item in an open list —
+            // same as a native combobox's popup — instead of falling through
+            // to whatever St.Button's own default key handling would do.
+            if (this._openDropdown) {
+                const focused = global.stage.get_key_focus();
+                if (focused instanceof St.Button && this._openDropdown.contains(focused)) {
+                    focused.emit('clicked', 1);
+                    return Clutter.EVENT_STOP;
+                }
             }
         }
         return Clutter.EVENT_PROPAGATE;
@@ -385,7 +397,7 @@ export class EventPanel {
                 });
                 this._calDropdown.add_child(btn);
             }
-            this._attachFloatingDropdown(this._calDropdown);
+            this._attachFloatingDropdown(this._calDropdown, this._calPickerBtn);
             this._calPickerBtn.connect('clicked', () => {
                 this._toggleDropdown(this._calDropdown, this._calPickerBtn);
             });
@@ -804,10 +816,24 @@ export class EventPanel {
     // this._root's *other* child, a sibling of this._box, so it needs its
     // own connection to see Escape/Tab/arrows while one of its own items
     // (not the trigger button) has focus.
-    _attachFloatingDropdown(dropdown) {
+    _attachFloatingDropdown(dropdown, anchorBtn) {
         this._root.add_child(dropdown);
         this._floaters.push(dropdown);
+        // St.BoxLayout/St.ScrollView default to non-reactive, and a
+        // non-reactive actor is skipped entirely by Clutter's key-event
+        // capture-phase walk — without this, 'captured-event' below never
+        // fires once focus is on one of the dropdown's own items, so
+        // Escape/arrows silently do nothing (confirmed via instrumentation:
+        // the item itself still received the raw bubble-phase event, but
+        // it never reached this container or anything above it).
+        dropdown.reactive = true;
         dropdown.connect('captured-event', (_actor, ev) => this._handleKeyEvent(ev));
+        // Registered here, at construction, rather than lazily inside
+        // _toggleDropdown() (which only ever runs once the button has
+        // already been clicked once) — otherwise Down/Up-opens-a-closed-
+        // trigger in _handleKeyEvent can't recognize a field that hasn't
+        // been interacted with yet, and does nothing on it.
+        (this._dropdownTriggers ??= new Set()).add(anchorBtn);
         return dropdown;
     }
 
@@ -838,13 +864,6 @@ export class EventPanel {
 
     // Only one dropdown (calendar picker, date picker, time picker) open at a time.
     _toggleDropdown(dropdown, anchorBtn, onOpen) {
-        // Every button that ever calls this is, by definition, a dropdown
-        // trigger — recorded here (rather than at each _make*Field call
-        // site) so the key handler's Down/Up-opens-a-closed-trigger check
-        // can tell those apart from plain action buttons like Save/Cancel,
-        // where blindly firing 'clicked' on an arrow key would be dangerous.
-        (this._dropdownTriggers ??= new Set()).add(anchorBtn);
-
         const willOpen = !dropdown.visible;
         if (this._openDropdown && this._openDropdown !== dropdown)
             this._openDropdown.visible = false;
@@ -888,7 +907,7 @@ export class EventPanel {
             style_class: 'popup-menu-content litsycal-panel-dropdown-list',
             visible: false,
         });
-        this._attachFloatingDropdown(dropdown);
+        this._attachFloatingDropdown(dropdown, btn);
 
         let opts = options;
         let cur  = initialValue;
@@ -958,7 +977,7 @@ export class EventPanel {
             style_class: 'popup-menu-content litsycal-panel-date-dropdown',
             visible: false,
         });
-        this._attachFloatingDropdown(dropdown);
+        this._attachFloatingDropdown(dropdown, btn);
 
         const header    = new St.BoxLayout({style_class: 'litsycal-panel-date-header'});
         const prevBtn   = new St.Button({label: '‹', style_class: 'litsycal-nav-btn',
@@ -1064,7 +1083,7 @@ export class EventPanel {
             vertical: true, style_class: 'popup-menu-content litsycal-panel-time-dropdown',
         });
         scroll.set_child(list);
-        this._attachFloatingDropdown(scroll);
+        this._attachFloatingDropdown(scroll, btn);
 
         let cur = initialStr;
         const optBtns = [];
