@@ -169,6 +169,46 @@ function meetingIsJoinable(ev) {
     return now.compare(range.start.add_minutes(-15)) >= 0 && now.compare(range.end) <= 0;
 }
 
+// Human date(+time) string for an event, e.g. "Monday, September 7, 2026,
+// 23:00 - 00:00" (or a date range for multi-day events, or "All day" with no
+// time). Shared by the agenda row's Copy action and the event info popover.
+function formatEventWhen(ev) {
+    const [y, m, d] = ev.date.split('-').map(Number);
+    let when = capitalize(GLib.DateTime.new_local(y, m, d, 0, 0, 0).format('%A, %B %-d, %Y'));
+    if (ev.endDate && ev.endDate !== ev.date) {
+        const [ey, em, ed] = ev.endDate.split('-').map(Number);
+        when += ` – ${capitalize(GLib.DateTime.new_local(ey, em, ed, 0, 0, 0).format('%A, %B %-d, %Y'))}`;
+    }
+    when += `, ${ev.time ?? _('All day')}`;
+    return when;
+}
+
+// Short recurrence summary for the event info popover, matching the wording
+// eventDialog.js's own Repeat dropdown uses for the same presets (see
+// REPEAT_PRESETS there) so the two never disagree on phrasing. Recurrences
+// outside that simple FREQ/INTERVAL set (stored as {raw}) fall back to a
+// generic label rather than trying to describe arbitrary BYDAY/COUNT rules.
+function recurrenceSummary(recurrence) {
+    if (!recurrence) return null;
+    if (recurrence.raw || !recurrence.freq) return _('Repeats');
+    const interval = recurrence.interval || 1;
+    if (interval === 1) {
+        return {
+            DAILY:   _('Every day'),
+            WEEKLY:  _('Every week'),
+            MONTHLY: _('Every month'),
+            YEARLY:  _('Every year'),
+        }[recurrence.freq] ?? _('Repeats');
+    }
+    const template = {
+        DAILY:   ngettext('Every %d day',   'Every %d days',   interval),
+        WEEKLY:  ngettext('Every %d week',  'Every %d weeks',  interval),
+        MONTHLY: ngettext('Every %d month', 'Every %d months', interval),
+        YEARLY:  ngettext('Every %d year',  'Every %d years',  interval),
+    }[recurrence.freq];
+    return template ? template.replace('%d', String(interval)) : _('Repeats');
+}
+
 // ── Outline painter ───────────────────────────────────────────────────────────
 
 class OutlinePainter {
@@ -377,6 +417,8 @@ class LitsycalCalendar extends St.BoxLayout {
             this._eventPanel = null;
             this._eventContextMenu?.close();
             this._eventContextMenu = null;
+            this._eventInfoPopover?.close();
+            this._eventInfoPopover = null;
             this._cancelCellTooltip();
             if (this._dayInfoTimeoutId) { GLib.source_remove(this._dayInfoTimeoutId); this._dayInfoTimeoutId = null; }
             if (this._dragStartY !== undefined) this._endHandleDrag(this._resizeHandle);
@@ -1145,6 +1187,10 @@ class LitsycalCalendar extends St.BoxLayout {
                     const evtBtn = new St.Button({
                         style_class: 'litsycal-agenda-event-btn', x_expand: true,
                     });
+                    // Tagged so a click that lands on this row while an
+                    // EventInfoPopover's backdrop is up can be traced back to
+                    // the event it belongs to — see _eventButtonAt().
+                    evtBtn._litsycalEvent = ev;
                     const evtBox = new St.BoxLayout({vertical: true, x_expand: true});
 
                     const row1 = new St.BoxLayout({style_class: 'litsycal-agenda-row'});
@@ -1203,7 +1249,7 @@ class LitsycalCalendar extends St.BoxLayout {
                     evtBtn.set_child(evtBox);
                     evtBtn.accessible_name = `${ev.title}, ${ev.time ?? _('All day')}` +
                         (ev.location ? `, ${ev.location}` : '');
-                    evtBtn.connect('clicked', () => this._openEventDialog(ev));
+                    evtBtn.connect('clicked', () => this._openEventInfoPopover(evtBtn, ev));
                     evtBtn.connect('notify::hover', () => {
                         if (evtBtn.hover) this._highlightDateRange(ev);
                         else this._clearDateRangeHighlight();
@@ -1299,6 +1345,7 @@ class LitsycalCalendar extends St.BoxLayout {
     _openCreateDialog() {
         if (!this._calManager?.isAvailable()) return;
         this._eventPanel?.close();
+        this._eventInfoPopover?.close();
         this._eventPanel = new EventPanel(
             this._calManager, null, this._selected, this,
             () => { this._eventPanel = null; }, this._calendarSystem
@@ -1308,21 +1355,62 @@ class LitsycalCalendar extends St.BoxLayout {
     _openEventDialog(ev) {
         if (!this._calManager?.isAvailable()) return;
         this._eventPanel?.close();
+        this._eventInfoPopover?.close();
         this._eventPanel = new EventPanel(
             this._calManager, ev, null, this,
             () => { this._eventPanel = null; }, this._calendarSystem
         );
     }
 
+    // ── Event info popover (left-click on an agenda row) ─────────────────────────
+    //
+    // itsycal's own agenda click behavior: a compact, read-only card next to the
+    // clicked row (AgendaPopoverVC in AgendaViewController.m) rather than jumping
+    // straight into the full edit form. Editing is still one step away via the
+    // row's right-click menu's new Edit… entry, just not from this popover itself.
+
+    _openEventInfoPopover(anchorActor, ev) {
+        this._eventInfoPopover?.close();
+        this._eventContextMenu?.close();
+        this._eventInfoPopover = new EventInfoPopover(
+            this._calManager, ev, anchorActor,
+            () => { this._eventInfoPopover = null; },
+            (under) => {
+                const btn = this._eventButtonAt(under);
+                if (btn) this._openEventInfoPopover(btn, btn._litsycalEvent);
+            },
+            this._settings.get_int('font-size')
+        );
+    }
+
+    // Walks up from `actor` (whatever the popover's backdrop found under an
+    // outside click) looking for the agenda-row button it belongs to — a
+    // click can land on a child of evtBtn (its title label, its time row,
+    // …) rather than evtBtn itself, so this can't just check `actor`
+    // directly. Returns null for a click on empty space or anything that
+    // isn't an agenda row (in which case the popover just stays closed).
+    _eventButtonAt(actor) {
+        for (let a = actor; a; a = a.get_parent()) {
+            if (a._litsycalEvent) return a;
+        }
+        return null;
+    }
+
     // ── Event context menu (right-click on an agenda row) ───────────────────────
     //
     // Same {label, icon, action} SettingsMenuPanel used for the panel icon/gear
-    // menu, offering itsycal's own agenda context-menu trio (menuNeedsUpdate in
-    // itsycal's AgendaViewController.m): Open Calendar, Copy, Delete….
+    // menu. Open Calendar/Copy/Delete… mirror itsycal's own agenda context-menu
+    // trio (menuNeedsUpdate in itsycal's AgendaViewController.m); Edit… is a
+    // litsycal-only addition — itsycal has no in-app event editing at all — since
+    // clicking a row now opens the read-only info popover instead of this dialog.
 
     _openEventContextMenu(anchorActor, ev) {
         this._eventContextMenu?.close();
+        this._eventInfoPopover?.close();
         this._eventContextMenu = new SettingsMenuPanel(anchorActor, [
+            {label: _('Edit…'), icon: 'document-edit-symbolic',
+             action: () => this._openEventDialog(ev)},
+            null,
             {label: _('Open Calendar'), icon: 'x-office-calendar-symbolic',
              action: () => this._openCalendarAppAtEventDate(ev)},
             {label: _('Copy'), icon: 'edit-copy-symbolic',
@@ -1360,15 +1448,7 @@ class LitsycalCalendar extends St.BoxLayout {
     // Mirrors itsycal's copyEventToPasteboard: title, then date/time, then
     // location (when present), one per line.
     _copyEventToClipboard(ev) {
-        const [y, m, d] = ev.date.split('-').map(Number);
-        let when = capitalize(GLib.DateTime.new_local(y, m, d, 0, 0, 0).format('%A, %B %-d, %Y'));
-        if (ev.endDate && ev.endDate !== ev.date) {
-            const [ey, em, ed] = ev.endDate.split('-').map(Number);
-            when += ` – ${capitalize(GLib.DateTime.new_local(ey, em, ed, 0, 0, 0).format('%A, %B %-d, %Y'))}`;
-        }
-        when += `, ${ev.time ?? _('All day')}`;
-
-        const lines = [ev.title, when];
+        const lines = [ev.title, formatEventWhen(ev)];
         if (ev.location) lines.push(ev.location);
         St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, lines.join('\n'));
     }
@@ -1610,6 +1690,342 @@ class LitsycalCalendar extends St.BoxLayout {
         });
     }
 });
+
+// ── Event info popover ───────────────────────────────────────────────────────
+//
+// itsycal's AgendaPopoverVC, ported: a compact, read-only card showing an
+// event's details, opened right next to the clicked agenda row with a small
+// diamond "arrow" pointing at it — the itsycal-style popover the row's click
+// now opens instead of the full edit form. Built the same hand-rolled way as
+// EventPanel/SettingsMenuPanel (own Main.pushModal grab, own click-outside/
+// Escape handling) for the same reason: it opens while the calendar dropdown
+// (a PopupMenu) still holds its own grab — see SettingsMenuPanel below for the
+// full explanation of why that needs a competing grab here too.
+class EventInfoPopover {
+
+    // onClose is called exactly once, however the popover ends up closing —
+    // deleted, dismissed via Escape, or force-closed by the watchdog below.
+    // onOutsideClick, if given, is called (after the popover has already
+    // closed) with whatever actor was actually under an outside click — see
+    // this._backdrop below — so a click on a different agenda row can open
+    // its popover in the same click rather than requiring a second one.
+    // fontSize is the raw 'font-size' setting value (0=S, 1=M, 2=L) — this
+    // popover lives in Main.layoutManager.uiGroup, a sibling of the calendar
+    // widget rather than a descendant of it, so it doesn't inherit the
+    // litsycal-font-sm/-lg class LitsycalCalendar._applyFontSizeClass()
+    // applies to itself; it has to apply the same class to its own box.
+    constructor(calManager, ev, anchorActor, onClose, onOutsideClick, fontSize) {
+        this._calManager    = calManager;
+        this._event         = ev;
+        this._onClose       = onClose;
+        this._onOutsideClick = onOutsideClick;
+
+        this._root = new St.Widget();
+        Main.layoutManager.uiGroup.add_child(this._root);
+
+        // The arrow: a plain square, rotated 45° into a diamond. Added to
+        // this._root before this._box so the box (opaque, painted after)
+        // covers the half of the diamond that overlaps it, leaving only the
+        // outward-pointing triangle visible — the standard CSS/GUI
+        // speech-bubble-arrow trick, done here with real actor z-order
+        // instead of CSS since St has no z-index/clip-to-sibling concept.
+        // Hidden via opacity (not `visible`, which the modal grab below
+        // needs the actor mapped for) until _position() below places it.
+        this._arrow = new St.Widget({style_class: 'litsycal-info-popover-arrow', opacity: 0});
+        this._arrow.set_pivot_point(0.5, 0.5);
+        this._arrow.rotation_angle_z = 45;
+        this._root.add_child(this._arrow);
+
+        // Use popup-menu-content so background/text follow the user's shell
+        // theme, same as EventPanel — the arrow's fill is read from this
+        // box's own resolved theme in the idle_add below, once it applies.
+        // litsycal-font-sm/-lg (see the constructor comment above) makes
+        // this respect the font-size setting the same way the main calendar
+        // widget does; fontSize 1 (Medium) needs no extra class.
+        const fontSizeCls = FONT_SIZE_CLASSES[fontSize] ?? null;
+        this._box = new St.BoxLayout({
+            vertical: true,
+            style_class: 'popup-menu-content litsycal-info-popover'
+                + (fontSizeCls ? ` ${fontSizeCls}` : ''),
+            reactive: true,
+            opacity: 0,
+        });
+        this._root.add_child(this._box);
+
+        this._build();
+
+        // See SettingsMenuPanel's own this._grab comment for why this needs
+        // a competing grab of its own rather than relying on the calendar
+        // dropdown's.
+        this._grab = Main.pushModal(this._root, {actionMode: Shell.ActionMode.POPUP});
+
+        // Safety net: unconditionally force this._grab to release after a
+        // while no matter what, regardless of whether Escape/backdrop-click/
+        // delete ever fire correctly. This popover held a stuck
+        // Main.pushModal() grab and locked up all desktop input twice during
+        // development, each time requiring a hard reset — click-outside and
+        // Escape/Backspace/Delete are now on a proven-reliable path (see
+        // this._btnKeyId/this._backdrop below), but this stays in as cheap
+        // insurance against ever regressing back to that failure mode. Long
+        // enough that it never fires in normal use (reading a popover for
+        // over a minute shouldn't auto-dismiss it).
+        this._watchdogId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => {
+            // Don't force through a live delete confirmation — it has its
+            // own, separately-scoped grab/close logic; just check back later.
+            if (this._confirmOverlay) return GLib.SOURCE_CONTINUE;
+            this._watchdogId = null;
+            this.close();
+            return GLib.SOURCE_REMOVE;
+        });
+
+        // Defer positioning until after layout pass so actor size is known.
+        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this._position(anchorActor);
+            const bg = this._box.get_theme_node().get_background_color();
+            this._arrow.set_style(
+                `background-color: rgba(${bg.red}, ${bg.green}, ${bg.blue}, ${bg.alpha / 255});`);
+            this._box.opacity   = 255;
+            this._arrow.opacity = 255;
+            this._deleteBtn.grab_key_focus();
+            return GLib.SOURCE_REMOVE;
+        });
+
+        // Established by direct instrumentation (see project memory
+        // litsycal-modal-grab-pitfall / this session's history), not theory:
+        // under this competing Main.pushModal() grab, NOTHING reaches
+        // capture-phase 'captured-event' listeners — not on this._root, not
+        // on this._box, not on global.stage itself, regardless of focus.
+        // The only delivery path that ever actually fires is a plain
+        // (bubble-phase) signal connected directly to the specific actor
+        // that was clicked or currently holds key focus. Both mechanisms
+        // below are built on that one proven-working path, not on capture
+        // phase or a second stage-level listener.
+
+        // Escape/Backspace/Delete: a plain 'key-press-event' on this._deleteBtn
+        // itself, which holds real key focus (grabbed above) — not captured-
+        // event on an ancestor, which the instrumentation showed never fires.
+        this._btnKeyId = this._deleteBtn.connect('key-press-event', (_actor, event) => {
+            if (this._confirmOverlay) return Clutter.EVENT_PROPAGATE; // let it handle its own keys
+            const sym = event.get_key_symbol();
+            if (sym === Clutter.KEY_Escape) {
+                this.close();
+                return Clutter.EVENT_STOP;
+            }
+            // Backspace/Delete deletes, like itsycal's own popover
+            // (AgendaPopoverVC.btnDelete.keyEquivalent is backspace).
+            if (sym === Clutter.KEY_BackSpace || sym === Clutter.KEY_Delete) {
+                this._deleteBtn.emit('clicked', 1);
+                return Clutter.EVENT_STOP;
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
+
+        // Click-outside: a full-stage, invisible, reactive backdrop — a real
+        // actor inside our own grabbed subtree, added to this._root BEFORE
+        // this._arrow/this._box so it sits behind them in z-order. A click
+        // anywhere on screen picks whichever reactive actor is topmost at
+        // that point: this._box (or its children) when it lands on the
+        // popover itself, this backdrop everywhere else — and since it's a
+        // genuine pick target being clicked directly, its own plain
+        // 'button-press-event' is the same proven-working delivery path as
+        // Escape above, not a global/stage-level listener trying to observe
+        // clicks that land elsewhere.
+        this._backdrop = new St.Widget({reactive: true, opacity: 0});
+        this._backdrop.set_position(0, 0);
+        this._backdrop.set_size(global.stage.width, global.stage.height);
+        this._root.insert_child_at_index(this._backdrop, 0);
+        this._backdropId = this._backdrop.connect('button-press-event', (_actor, event) => {
+            if (this._confirmOverlay) return Clutter.EVENT_PROPAGATE; // let it handle its own clicks
+            // Resolve what's actually under the click before tearing
+            // anything down: with the backdrop itself excluded, picking
+            // falls through to whatever real actor is there (another agenda
+            // row, or nothing) — this is a synchronous geometry query, not
+            // event delivery, so it works fine even though nothing besides a
+            // plain signal on the exact clicked actor is ever *delivered* an
+            // event under this grab (see the comment above this._btnKeyId).
+            const [x, y] = event.get_coords();
+            this._backdrop.reactive = false;
+            const under = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
+            this._backdrop.reactive = true;
+            const onOutsideClick = this._onOutsideClick;
+            this.close();
+            onOutsideClick?.(under);
+            return Clutter.EVENT_STOP;
+        });
+    }
+
+    _build() {
+        const ev  = this._event;
+        const box = this._box;
+
+        // ── Header: colored dot, title, delete button ────────────────────────
+        const header = new St.BoxLayout({style_class: 'litsycal-panel-icon-row', x_expand: true});
+        header.add_child(new St.Widget({
+            style_class: 'litsycal-panel-dot',
+            style: `background-color: ${ev.color};`,
+            y_align: Clutter.ActorAlign.START,
+        }));
+        const titleLbl = new St.Label({
+            text: ev.title || _('(No title)'),
+            style_class: 'litsycal-info-popover-title',
+            x_expand: true,
+        });
+        titleLbl.clutter_text.set_line_wrap(true);
+        titleLbl.clutter_text.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR);
+        header.add_child(titleLbl);
+
+        this._deleteBtn = new St.Button({
+            style_class: 'litsycal-info-popover-delete-btn',
+            accessible_name: _('Delete event'),
+            child: new St.Icon({icon_name: 'edit-delete-symbolic', icon_size: 14}),
+            y_align: Clutter.ActorAlign.START,
+            can_focus: true,
+        });
+        this._deleteBtn.connect('clicked', () => this._confirmDelete());
+        header.add_child(this._deleteBtn);
+        box.add_child(header);
+
+        // ── Duration ───────────────────────────────────────────────────────
+        const whenLbl = new St.Label({text: formatEventWhen(ev), style_class: 'litsycal-info-popover-text'});
+        whenLbl.clutter_text.set_line_wrap(true);
+        whenLbl.clutter_text.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR);
+        box.add_child(whenLbl);
+
+        const addIconRow = (iconName, text) => {
+            const row = new St.BoxLayout({style_class: 'litsycal-panel-icon-row'});
+            row.add_child(new St.Icon({
+                icon_name: iconName, icon_size: 14,
+                style_class: 'litsycal-info-popover-icon', y_align: Clutter.ActorAlign.START,
+            }));
+            const lbl = new St.Label({text, style_class: 'litsycal-info-popover-text', x_expand: true});
+            lbl.clutter_text.set_line_wrap(true);
+            lbl.clutter_text.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR);
+            row.add_child(lbl);
+            box.add_child(row);
+        };
+
+        // ── Location / recurrence ─────────────────────────────────────────
+        if (ev.location) addIconRow('mark-location-symbolic', ev.location);
+
+        const recurrence = recurrenceSummary(ev.recurrence);
+        if (recurrence) addIconRow('media-playlist-repeat-symbolic', recurrence);
+
+        // ── Join meeting (same detection as the agenda row's own button) ───
+        const meetingUrl = findMeetingUrl(ev);
+        if (meetingUrl && meetingIsJoinable(ev)) {
+            const joinBtn = new St.Button({style_class: 'litsycal-info-popover-link-btn', x_expand: true});
+            const joinRow = new St.BoxLayout({style_class: 'litsycal-panel-icon-row'});
+            joinRow.add_child(new St.Icon({
+                icon_name: 'camera-video-symbolic', icon_size: 14,
+                style_class: 'litsycal-info-popover-icon',
+            }));
+            joinRow.add_child(new St.Label({text: _('Join meeting'), x_expand: true}));
+            joinBtn.set_child(joinRow);
+            joinBtn.connect('clicked', () => {
+                try { Gio.AppInfo.launch_default_for_uri(meetingUrl, null); } catch (_) {}
+            });
+            box.add_child(joinBtn);
+        }
+
+        // ── Notes / URL ────────────────────────────────────────────────────
+        if (ev.notes || ev.url) box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
+
+        if (ev.notes) {
+            const notesLbl = new St.Label({text: ev.notes, style_class: 'litsycal-info-popover-text'});
+            notesLbl.clutter_text.set_line_wrap(true);
+            notesLbl.clutter_text.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR);
+            box.add_child(notesLbl);
+        }
+
+        if (ev.url) {
+            const urlBtn = new St.Button({style_class: 'litsycal-info-popover-link-btn', x_expand: true});
+            const urlRow = new St.BoxLayout({style_class: 'litsycal-panel-icon-row'});
+            urlRow.add_child(new St.Icon({
+                icon_name: 'web-browser-symbolic', icon_size: 14,
+                style_class: 'litsycal-info-popover-icon', y_align: Clutter.ActorAlign.START,
+            }));
+            const urlLbl = new St.Label({text: ev.url, style_class: 'litsycal-info-popover-text', x_expand: true});
+            urlLbl.clutter_text.set_line_wrap(true);
+            urlLbl.clutter_text.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR);
+            urlRow.add_child(urlLbl);
+            urlBtn.set_child(urlRow);
+            urlBtn.connect('clicked', () => {
+                try { Gio.AppInfo.launch_default_for_uri(ev.url, null); } catch (_) {}
+            });
+            box.add_child(urlBtn);
+        }
+    }
+
+    // Same confirm-then-delete flow as the event edit panel's own Delete
+    // button (eventDialog.js EventPanel._confirmDelete/confirmDeleteEvent) —
+    // itsycal wires its popover's delete button to the exact same delete
+    // path as its agenda context menu's Delete item.
+    _confirmDelete() {
+        confirmDeleteEvent(this._calManager, this._event, err => {
+            if (err) { Main.notifyError(_('Litsycal'), err.message); return; }
+            this.close();
+        }, overlay => { this._confirmOverlay = overlay; });
+    }
+
+    // Anchors to the clicked agenda row: opens to whichever side of it has
+    // room (preferring the left, itsycal's own convention), with the arrow
+    // vertically centered on the row and clamped clear of the box's own
+    // rounded corners.
+    _position(anchor) {
+        const monitor = Main.layoutManager.primaryMonitor;
+        const panelH  = Main.panel.get_height();
+        const boxW    = this._box.get_width()  || 320;
+        const boxH    = this._box.get_height() || 160;
+        const ARROW   = 14;
+        const GAP     = 8;
+        const CORNER  = 16;
+
+        const [ax, ay] = anchor.get_transformed_position();
+        const aw = anchor.get_width();
+        const ah = anchor.get_height();
+        const anchorCenterY = ay + ah / 2;
+
+        let onLeft = true;
+        let x = ax - boxW - GAP - ARROW / 2;
+        if (x < monitor.x + 4) {
+            onLeft = false;
+            x = ax + aw + GAP + ARROW / 2;
+        }
+        x = Math.max(monitor.x + 4, Math.min(x, monitor.x + monitor.width - boxW - 4));
+
+        let y = Math.round(anchorCenterY - boxH / 2);
+        const minY = monitor.y + panelH + 4;
+        const maxY = monitor.y + monitor.height - boxH - 4;
+        y = Math.max(minY, Math.min(y, maxY));
+
+        this._box.set_position(Math.round(x), y);
+
+        let arrowY = Math.round(anchorCenterY - ARROW / 2);
+        arrowY = Math.max(y + CORNER, Math.min(arrowY, y + boxH - CORNER - ARROW));
+        const arrowX = onLeft
+            ? Math.round(x + boxW - ARROW / 2)  // straddles the box's right edge
+            : Math.round(x - ARROW / 2);        // straddles the box's left edge
+        this._arrow.set_position(arrowX, arrowY);
+    }
+
+    close() {
+        if (this._watchdogId) { GLib.source_remove(this._watchdogId); this._watchdogId = null; }
+        if (this._confirmOverlay) {
+            Main.layoutManager.uiGroup.remove_child(this._confirmOverlay);
+            this._confirmOverlay.destroy();
+            this._confirmOverlay = null;
+        }
+        if (this._btnKeyId)  { this._deleteBtn?.disconnect(this._btnKeyId); this._btnKeyId  = null; }
+        if (this._backdropId) { this._backdrop?.disconnect(this._backdropId); this._backdropId = null; }
+        if (this._grab)    { Main.popModal(this._grab); this._grab = null; }
+        if (this._root) {
+            Main.layoutManager.uiGroup.remove_child(this._root);
+            this._root.destroy();
+            this._root = null;
+        }
+        this._onClose?.();
+    }
+}
 
 // ── Settings menu (floating, non-modal PopupMenu-wise, but self-grabbed) ────
 //

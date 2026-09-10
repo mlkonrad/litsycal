@@ -12,6 +12,18 @@ longer carries a `version` key — see that file's history for why).
 
 ### Added
 
+- Clicking an event in the agenda now opens a compact, read-only info
+  popover next to the row — itsycal's own AgendaPopoverVC, ported — instead
+  of jumping straight into the full edit form: title, date/time, location,
+  recurrence, a Join meeting button when applicable, notes, and URL, with a
+  small arrow pointing at the clicked row and a delete button. `Esc` closes
+  it, `Backspace`/`Delete` deletes the event (with the same repeating-event
+  confirmation prompt as the edit dialog's own Delete button), clicking
+  outside or on a different event closes it and — for a different event —
+  opens that one's popover in the same click, and it respects the
+  font-size setting. Editing an event now lives one step further away, in
+  the row's right-click menu's new Edit… entry. Documented in the wiki's
+  Keyboard Shortcuts page.
 - Rounded out the rest of Itsycal's keyboard shortcuts (mowglii.com/itsycal/help)
   on top of the existing h/j/k/l day/week/month/year navigation: `#` flashes
   the selected day's offset from today and day-of-year in the month label;

@@ -622,6 +622,49 @@
     border-radius: 10px;
 }
 
+/* Event info popover — a read-only sibling of litsycal-event-panel above
+   (same popup-menu-content background/text), itsycal's AgendaPopoverVC. */
+.litsycal-info-popover {
+    padding: 14px 16px;
+    spacing: 8px;
+    width: 320px;
+    border-radius: 12px;
+}
+
+/* Sized/rotated in JS (EventInfoPopover) into a diamond straddling the
+   popover's edge; its background-color is set in JS too, read from the
+   popover box's own resolved theme so it matches exactly in any shell theme. */
+.litsycal-info-popover-arrow {
+    width: 14px;
+    height: 14px;
+}
+
+.litsycal-info-popover-title {
+    font-size: 1.05em;
+    font-weight: bold;
+}
+
+.litsycal-info-popover-delete-btn {
+    border: none;
+    background: none;
+    padding: 2px 4px;
+    border-radius: 4px;
+    opacity: 0.55;
+}
+.litsycal-info-popover-delete-btn:hover { opacity: 1.0; background-color: rgba(230,45,66,0.18); }
+
+.litsycal-info-popover-icon { opacity: 0.65; }
+.litsycal-info-popover-text { opacity: 0.85; }
+
+.litsycal-info-popover-link-btn {
+    border: none;
+    background: none;
+    padding: 2px 4px;
+    margin: -2px -4px;
+    border-radius: 4px;
+}
+.litsycal-info-popover-link-btn:hover { background-color: rgba(128,128,128,0.12); }
+
 .litsycal-panel-title-entry {
     font-size: 1.13em;
     font-weight: bold;
