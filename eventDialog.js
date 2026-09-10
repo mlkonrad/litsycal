@@ -288,21 +288,40 @@ export class EventPanel {
             this._moveFocus(sym === Clutter.KEY_Tab && !shift);
             return Clutter.EVENT_STOP;
         }
-        if (sym === Clutter.KEY_Down || sym === Clutter.KEY_Up) {
+        if (sym === Clutter.KEY_Down || sym === Clutter.KEY_Up ||
+            sym === Clutter.KEY_Left || sym === Clutter.KEY_Right) {
             if (this._openDropdown) {
-                // Arrow keys, not Tab, walk an open list's own items —
-                // same as a native combobox's popup.
-                this._moveInDropdown(sym === Clutter.KEY_Down);
-                return Clutter.EVENT_STOP;
+                // The date picker's grid wants 2D navigation (Left/Right by
+                // day, Up/Down by week, crossing month boundaries) rather
+                // than the flat-list walk every other dropdown uses —
+                // _makeDateField tags its floater with _dateNav for that.
+                const dateNav = this._openDropdown._dateNav;
+                if (dateNav) {
+                    dateNav(
+                        sym === Clutter.KEY_Left ? -1 : sym === Clutter.KEY_Right ? 1 : 0,
+                        sym === Clutter.KEY_Up   ? -1 : sym === Clutter.KEY_Down  ? 1 : 0,
+                    );
+                    return Clutter.EVENT_STOP;
+                }
+                if (sym === Clutter.KEY_Down || sym === Clutter.KEY_Up) {
+                    // Arrow keys, not Tab, walk an open list's own items —
+                    // same as a native combobox's popup.
+                    this._moveInDropdown(sym === Clutter.KEY_Down);
+                    return Clutter.EVENT_STOP;
+                }
+                // Left/Right have no meaning in a plain single-column list.
+                return Clutter.EVENT_PROPAGATE;
             }
             // Nothing open yet: if the focused button is one of the
             // dropdown/date/time triggers, Down/Up opens it — same as a
             // closed native combobox. Reuses the button's own existing
             // 'clicked' handler rather than duplicating what it does.
-            const focused = global.stage.get_key_focus();
-            if (this._dropdownTriggers?.has(focused)) {
-                focused.emit('clicked', 1);
-                return Clutter.EVENT_STOP;
+            if (sym === Clutter.KEY_Down || sym === Clutter.KEY_Up) {
+                const focused = global.stage.get_key_focus();
+                if (this._dropdownTriggers?.has(focused)) {
+                    focused.emit('clicked', 1);
+                    return Clutter.EVENT_STOP;
+                }
             }
         }
         if (sym === Clutter.KEY_Return || sym === Clutter.KEY_KP_Enter || sym === Clutter.KEY_space) {
@@ -1024,6 +1043,10 @@ export class EventPanel {
                 if (isSel)   sc += ' litsycal-panel-date-day-selected';
                 if (isToday) sc += ' litsycal-panel-date-day-today';
                 const dayBtn = new St.Button({label: String(d), x_expand: true, style_class: sc});
+                // Read back by _dateNav to know which day a given button is,
+                // and by _dateNav's post-rebuild lookup to refocus the right
+                // one after crossing a month boundary.
+                dayBtn._date = {y: view.y, m: view.m, d};
                 dayBtn.accessible_name =
                     capitalize(GLib.DateTime.new_local(view.y, view.m, d, 0, 0, 0).format('%A, %B %-d')) +
                     `, ${displayYear(view.y, this._calendarSystem)}`;
@@ -1044,6 +1067,30 @@ export class EventPanel {
                 while (col < 7) { row.add_child(new St.Widget({x_expand: true})); col++; }
                 gridBox.add_child(row);
             }
+        };
+
+        // 2D grid navigation for the date picker specifically — Left/Right
+        // move a day, Up/Down move a week — rather than the flat-list walk
+        // every other dropdown uses (see _handleKeyEvent's dateNav check).
+        // GLib.DateTime.add_days() does the month/year-boundary crossing
+        // (e.g. Left from the 1st lands on the last day of the prior month)
+        // so this doesn't have to special-case row/month edges by hand.
+        dropdown._dateNav = (dx, dy) => {
+            const focused  = global.stage.get_key_focus();
+            const from     = focused?._date ?? cur;
+            const deltaDays = dx + dy * 7;
+            if (deltaDays === 0) return;
+
+            const dt = GLib.DateTime.new_local(from.y, from.m, from.d, 0, 0, 0).add_days(deltaDays);
+            const to = {y: dt.get_year(), m: dt.get_month(), d: dt.get_day_of_month()};
+
+            if (to.y !== view.y || to.m !== view.m) {
+                view = {y: to.y, m: to.m};
+                rebuild();
+            }
+            const items = this._collectFocusable(dropdown);
+            items.find(b => b._date?.y === to.y && b._date?.m === to.m && b._date?.d === to.d)
+                ?.grab_key_focus();
         };
 
         prevBtn.connect('clicked', () => {
