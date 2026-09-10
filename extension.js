@@ -1368,6 +1368,8 @@ class LitsycalCalendar extends St.BoxLayout {
     // clicked row (AgendaPopoverVC in AgendaViewController.m) rather than jumping
     // straight into the full edit form. Editing is still one step away via the
     // row's right-click menu's new Edit… entry, just not from this popover itself.
+    // Clicking a row toggles: opens that event's popover, clicking the same row
+    // again closes it, clicking a different row switches straight to that one.
 
     _openEventInfoPopover(anchorActor, ev) {
         this._eventInfoPopover?.close();
@@ -1375,12 +1377,26 @@ class LitsycalCalendar extends St.BoxLayout {
         this._eventInfoPopover = new EventInfoPopover(
             this._calManager, ev, anchorActor,
             () => { this._eventInfoPopover = null; },
-            (under) => {
+            (under, closingEvent) => {
                 const btn = this._eventButtonAt(under);
-                if (btn) this._openEventInfoPopover(btn, btn._litsycalEvent);
+                if (!btn) return;
+                // Re-clicking the same row that was already open is a
+                // toggle: leave it closed rather than reopening it.
+                if (this._sameEvent(btn._litsycalEvent, closingEvent)) return;
+                this._openEventInfoPopover(btn, btn._litsycalEvent);
             },
             this._settings.get_int('font-size')
         );
+    }
+
+    // Identifies one specific event occurrence the same way delete/edit
+    // already do elsewhere (uid + clientUid + recurrenceId) — title/date
+    // aren't unique enough (two events can share a title; a recurring
+    // series' own uid repeats across its occurrences, recurrenceId is what
+    // tells those apart).
+    _sameEvent(a, b) {
+        return !!a && !!b && a.uid === b.uid && a.clientUid === b.clientUid
+            && (a.recurrenceId ?? null) === (b.recurrenceId ?? null);
     }
 
     // Walks up from `actor` (whatever the popover's backdrop found under an
@@ -1706,9 +1722,13 @@ class EventInfoPopover {
     // onClose is called exactly once, however the popover ends up closing —
     // deleted, dismissed via Escape, or force-closed by the watchdog below.
     // onOutsideClick, if given, is called (after the popover has already
-    // closed) with whatever actor was actually under an outside click — see
-    // this._backdrop below — so a click on a different agenda row can open
-    // its popover in the same click rather than requiring a second one.
+    // closed) as (actorUnderClick, thisPopoversEvent) with whatever actor
+    // was actually under an outside click and the event this popover was
+    // showing — see this._backdrop below — so a click on a different agenda
+    // row can open its popover in the same click rather than requiring a
+    // second one, while a second click on the *same* row's event (the
+    // caller compares actorUnderClick's event against thisPopoversEvent)
+    // just leaves it closed instead of reopening — a toggle.
     // fontSize is the raw 'font-size' setting value (0=S, 1=M, 2=L) — this
     // popover lives in Main.layoutManager.uiGroup, a sibling of the calendar
     // widget rather than a descendant of it, so it doesn't inherit the
@@ -1848,8 +1868,9 @@ class EventInfoPopover {
             const under = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
             this._backdrop.reactive = true;
             const onOutsideClick = this._onOutsideClick;
+            const closingEvent   = this._event; // so the caller can tell "reopen this" from "toggle closed"
             this.close();
-            onOutsideClick?.(under);
+            onOutsideClick?.(under, closingEvent);
             return Clutter.EVENT_STOP;
         });
     }

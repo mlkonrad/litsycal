@@ -18,12 +18,12 @@ longer carries a `version` key — see that file's history for why).
   recurrence, a Join meeting button when applicable, notes, and URL, with a
   small arrow pointing at the clicked row and a delete button. `Esc` closes
   it, `Backspace`/`Delete` deletes the event (with the same repeating-event
-  confirmation prompt as the edit dialog's own Delete button), clicking
-  outside or on a different event closes it and — for a different event —
-  opens that one's popover in the same click, and it respects the
-  font-size setting. Editing an event now lives one step further away, in
-  the row's right-click menu's new Edit… entry. Documented in the wiki's
-  Keyboard Shortcuts page.
+  confirmation prompt as the edit dialog's own Delete button), and clicking
+  toggles it: clicking outside or on the same event again closes it,
+  clicking a different event switches straight to that one's popover in
+  the same click. Respects the font-size setting. Editing an event now
+  lives one step further away, in the row's right-click menu's new Edit…
+  entry. Documented in the wiki's Keyboard Shortcuts page.
 - Rounded out the rest of Itsycal's keyboard shortcuts (mowglii.com/itsycal/help)
   on top of the existing h/j/k/l day/week/month/year navigation: `#` flashes
   the selected day's offset from today and day-of-year in the month label;
