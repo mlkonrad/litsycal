@@ -38,6 +38,13 @@ function localeDayAbbrs() {
     );
 }
 
+// First letter of each locale weekday abbreviation, e.g. M T W T F S S
+// (S T Q Q S S D for pt_BR) — matches the single-char labels already used
+// for the highlight-days picker in prefs.js.
+function localeDayAbbrsShort() {
+    return localeDayAbbrs().map(s => s.charAt(0));
+}
+
 const DAY_COL = {mo:0, tu:1, we:2, th:3, fr:4, sa:5, su:6};
 
 // calendar-size index -> style class (index 2 "Medium" is the base CSS, no class needed).
@@ -309,6 +316,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._firstCol = 0; this._lastCol = 6; this._lastRow = 0; this._numRows = 1;
 
         this._firstDayOfWeek   = settings.get_int('first-day-of-week');
+        this._shortDayNames    = settings.get_boolean('short-day-names');
         this._highlightCols    = this._readHighlight();
         this._calSize          = settings.get_int('calendar-size');
         this._fontSize         = settings.get_int('font-size');
@@ -339,6 +347,10 @@ class LitsycalCalendar extends St.BoxLayout {
                 this._painter.configure(this._isDark, this._highlightCols, OUTLINE_TOP_INSET[this._calSize]);
                 this._buildDayNameRow(true);
                 this._buildGrid();
+            }),
+            settings.connect('changed::short-day-names', () => {
+                this._shortDayNames = settings.get_boolean('short-day-names');
+                this._buildDayNameRow(true);
             }),
             settings.connect('changed::calendar-size', () => {
                 this._calSize = settings.get_int('calendar-size');
@@ -570,7 +582,7 @@ class LitsycalCalendar extends St.BoxLayout {
         }
 
         const fd          = this._firstDayOfWeek;
-        const dayAbbrs    = localeDayAbbrs();
+        const dayAbbrs    = this._shortDayNames ? localeDayAbbrsShort() : localeDayAbbrs();
         const orderedAbbr = [...dayAbbrs.slice(fd), ...dayAbbrs.slice(0, fd)];
 
         const row = new St.BoxLayout({style_class: 'litsycal-day-names'});

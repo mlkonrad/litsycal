@@ -435,6 +435,13 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         settings.bind('show-week-numbers', weekNumRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         sizeGroup.add(weekNumRow);
 
+        const shortDayNamesRow = new Adw.SwitchRow({
+            title:    _('Short day names'),
+            subtitle: _('Single-letter weekday headers instead of three-letter abbreviations'),
+        });
+        settings.bind('short-day-names', shortDayNamesRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        sizeGroup.add(shortDayNamesRow);
+
         // ── Event dots ────────────────────────────────────────────────────
         const dotsGroup = new Adw.PreferencesGroup({title: _('Event Dots')});
         appearance.add(dotsGroup);

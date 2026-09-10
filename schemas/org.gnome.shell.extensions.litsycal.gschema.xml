@@ -117,6 +117,10 @@
       <default>['sa','su']</default>
       <summary>Day abbreviations whose columns are highlighted (mo tu we th fr sa su)</summary>
     </key>
+    <key name="short-day-names" type="b">
+      <default>false</default>
+      <summary>Show single-letter weekday headers instead of three-letter abbreviations</summary>
+    </key>
     <key name="theme" type="s">
       <choices>
         <choice value="system"/>

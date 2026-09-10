@@ -10,6 +10,14 @@ longer carries a `version` key — see that file's history for why).
 
 ## [Unreleased]
 
+### Added
+
+- Appearance now has a "Short day names" toggle for the grid's weekday
+  header row: single-letter labels (M T W T F S S) instead of the default
+  three-letter abbreviations, derived from the same locale data so it works
+  in any language (e.g. S T Q Q S S D for pt_BR) without new translation
+  strings for the letters themselves.
+
 ## [4] - 2026-09-10
 
 ### Added
