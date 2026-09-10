@@ -15,6 +15,17 @@ jobs:
       - name: Compile schemas (strict)
         run: glib-compile-schemas schemas/ --strict --dry-run
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install lint dependencies
+        run: npm ci
+
+      - name: ESLint (GNOME Shell ruleset)
+        run: npm run lint
+
       - name: Syntax-check JS
         run: |
           cat > /tmp/check-syntax.js <<'EOF'
