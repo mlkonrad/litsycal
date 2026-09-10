@@ -2027,8 +2027,16 @@ class LitsycalIndicator extends PanelMenu.Button {
         const h   = now.get_hour();
         if (h !== this._lastHour) {
             this._lastHour = h;
-            if (this._settings.get_boolean('beep-on-hour'))
-                global.display.get_sound_player().play_from_theme('bell', 'Hour bell', null);
+            if (this._settings.get_boolean('beep-on-hour')) {
+                const customFile = this._settings.get_string('hour-sound-file');
+                if (customFile) {
+                    try {
+                        Gio.Subprocess.new(['paplay', customFile], Gio.SubprocessFlags.NONE);
+                    } catch (_) { /* paplay unavailable or file missing */ }
+                } else {
+                    global.display.get_sound_player().play_from_theme('bell', 'Hour bell', null);
+                }
+            }
         }
     }
 

@@ -196,10 +196,13 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             tooltip_text: _('Preview the sound'),
         });
         speakerBtn.connect('clicked', () => {
-            const candidates = [
-                ['paplay', '/usr/share/sounds/freedesktop/stereo/bell.oga'],
-                ['canberra-gtk-play', '-i', 'bell'],
-            ];
+            const customFile = settings.get_string('hour-sound-file');
+            const candidates = customFile
+                ? [['paplay', customFile]]
+                : [
+                    ['paplay', '/usr/share/sounds/freedesktop/stereo/bell.oga'],
+                    ['canberra-gtk-play', '-i', 'bell'],
+                ];
             for (const argv of candidates) {
                 try {
                     Gio.Subprocess.new(argv, Gio.SubprocessFlags.NONE);
@@ -212,6 +215,62 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         beepRow.add_suffix(speakerBtn);
         beepRow.set_activatable_widget(beepSwitch);
         otherGroup.add(beepRow);
+
+        // Sound file row — pick a custom file for the hourly beep, or reset
+        // back to the system theme's default bell.
+        const soundRow = new Adw.ActionRow({
+            title:    _('Sound file'),
+            subtitle: _('Choose a custom sound for the hourly beep'),
+        });
+
+        const basename = path => path ? GLib.path_get_basename(path) : _('Default');
+
+        const soundFileLabel = new Gtk.Label({
+            label:       basename(settings.get_string('hour-sound-file')),
+            css_classes: ['dim-label'],
+            valign:      Gtk.Align.CENTER,
+        });
+        settings.connect('changed::hour-sound-file', () => {
+            soundFileLabel.set_label(basename(settings.get_string('hour-sound-file')));
+        });
+
+        const resetBtn = new Gtk.Button({
+            icon_name:    'edit-clear-symbolic',
+            has_frame:    false,
+            valign:       Gtk.Align.CENTER,
+            tooltip_text: _('Reset to default sound'),
+            visible:      !!settings.get_string('hour-sound-file'),
+        });
+        settings.connect('changed::hour-sound-file', () => {
+            resetBtn.set_visible(!!settings.get_string('hour-sound-file'));
+        });
+        resetBtn.connect('clicked', () => settings.set_string('hour-sound-file', ''));
+
+        const chooseBtn = new Gtk.Button({
+            label:  _('Choose…'),
+            valign: Gtk.Align.CENTER,
+        });
+        chooseBtn.connect('clicked', () => {
+            const dialog = new Gtk.FileDialog({title: _('Choose a sound file')});
+            const filter = new Gtk.FileFilter();
+            filter.add_mime_type('audio/*');
+            filter.set_name(_('Audio files'));
+            const filters = new Gio.ListStore({item_type: Gtk.FileFilter});
+            filters.append(filter);
+            dialog.set_filters(filters);
+            dialog.open(window, null, (dlg, result) => {
+                try {
+                    const file = dlg.open_finish(result);
+                    if (file)
+                        settings.set_string('hour-sound-file', file.get_path());
+                } catch (_) { /* dialog cancelled */ }
+            });
+        });
+
+        soundRow.add_suffix(soundFileLabel);
+        soundRow.add_suffix(resetBtn);
+        soundRow.add_suffix(chooseBtn);
+        otherGroup.add(soundRow);
 
         // ════════════════════════════════════════════════════════════════════
         // APPEARANCE PAGE  (options that were previously in "General")

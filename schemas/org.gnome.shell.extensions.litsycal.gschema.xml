@@ -16,6 +16,11 @@
       <default>false</default>
       <summary>Play a sound on the hour</summary>
     </key>
+    <key name="hour-sound-file" type="s">
+      <default>''</default>
+      <summary>Custom sound file path for the hourly beep</summary>
+      <description>Empty string means use the system theme's default bell sound.</description>
+    </key>
     <key name="disabled-calendars" type="as">
       <default>[]</default>
       <summary>UIDs of calendar sources hidden from the grid and agenda</summary>
