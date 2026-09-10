@@ -1338,9 +1338,19 @@ class LitsycalCalendar extends St.BoxLayout {
     // that AppleScript/URL-scheme navigation; fall back to a plain launch
     // (same as the footer's Open Calendar button) if that's not the
     // installed calendar app.
+    //
+    // gnome-calendar parses --date with evolution-data-server's
+    // e_time_parse_date_and_time(), which tries strptime("%x", ...) against
+    // the locale's own short-date order (MM/DD/YYYY for en_US, DD/MM/YYYY
+    // elsewhere, ...) — it does NOT accept the ISO "YYYY-MM-DD" ev.date is
+    // stored in. Reformat with GLib's own "%x" so it matches whatever order
+    // strptime("%x") expects on this system; passing ev.date as-is silently
+    // fails (gnome-calendar logs "Date ... is invalid" and opens on today).
     _openCalendarAppAtEventDate(ev) {
         try {
-            Gio.Subprocess.new(['gnome-calendar', '--date', ev.date], Gio.SubprocessFlags.NONE);
+            const [y, m, d] = ev.date.split('-').map(Number);
+            const dateStr = GLib.DateTime.new_local(y, m, d, 0, 0, 0).format('%x');
+            Gio.Subprocess.new(['gnome-calendar', '--date', dateStr], Gio.SubprocessFlags.NONE);
         } catch (_) {
             const app = Shell.AppSystem.get_default().lookup_app('org.gnome.Calendar.desktop');
             if (app) app.activate();
