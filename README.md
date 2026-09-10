@@ -43,6 +43,17 @@ Linux):
 | `Ctrl + Alt + R` | Refresh events |
 | `Ctrl + Q` | Quit Litsycal |
 
+### Event info popover
+
+Clicking an event in the agenda opens a small read-only popover with its details, right next to the row — itsycal's own popover, ported. These keys work while it's open:
+
+| Key | Action |
+| --- | --- |
+| `Esc` | Close the popover |
+| `Backspace` / `Delete` | Delete the event (repeating events ask you to confirm first, same as the edit dialog's own Delete button) |
+
+Clicking anywhere outside the popover closes it; clicking a different event closes this one and opens that event's popover in the same click. Editing an event is one step further away now — right-click the event and choose **Edit…**.
+
 ## Installation
 
 1. Clone the repository:
