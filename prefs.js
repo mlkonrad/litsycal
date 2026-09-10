@@ -7,7 +7,6 @@ import GLib from 'gi://GLib';
 import EDataServer from 'gi://EDataServer';
 
 export default class LitsycalPrefs extends ExtensionPreferences {
-
     fillPreferencesWindow(window) {
         // Wide enough to stay above Adw.PreferencesWindow's own adaptive
         // breakpoint — narrower than this, it drops the General/Appearance/
@@ -30,7 +29,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
 
         // First day of the week — locale-aware names via GLib
         const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-        const DOW_NAMES = Array.from({length: 7}, (_, i) =>
+        const DOW_NAMES = Array.from({length: 7}, (unused, i) =>
             cap(GLib.DateTime.new_local(2025, 1, 6 + i, 0, 0, 0).format('%A'))
         );
         const fdowRow = new Adw.ComboRow({
@@ -57,7 +56,8 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         );
         calSystemRow.connect('notify::selected', () => {
             const i = calSystemRow.get_selected();
-            if (i < CAL_SYSTEM_IDS.length) settings.set_string('calendar-system', CAL_SYSTEM_IDS[i]);
+            if (i < CAL_SYSTEM_IDS.length)
+                settings.set_string('calendar-system', CAL_SYSTEM_IDS[i]);
         });
         calGroup.add(calSystemRow);
 
@@ -88,7 +88,8 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         );
         agendaDaysRow.connect('notify::selected', () => {
             const i = agendaDaysRow.get_selected();
-            if (i < AGENDA_DAYS_IDS.length) settings.set_int('agenda-days', AGENDA_DAYS_IDS[i]);
+            if (i < AGENDA_DAYS_IDS.length)
+                settings.set_int('agenda-days', AGENDA_DAYS_IDS[i]);
         });
         agendaGroup.add(agendaDaysRow);
 
@@ -104,7 +105,8 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         // Label that shows the current shortcut (or placeholder)
         const shortcutLabel = () => {
             const strv = settings.get_strv('litsycal-toggle-shortcut');
-            if (strv.length === 0) return _('Not set');
+            if (strv.length === 0)
+                return _('Not set');
             const [ok, kv, mods] = Gtk.accelerator_parse(strv[0]);
             return ok ? Gtk.accelerator_get_label(kv, mods) : strv[0];
         };
@@ -207,7 +209,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                 try {
                     Gio.Subprocess.new(argv, Gio.SubprocessFlags.NONE);
                     break;
-                } catch (_) { /* try next */ }
+                } catch { /* try next */ }
             }
         });
 
@@ -263,7 +265,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                     const file = dlg.open_finish(result);
                     if (file)
                         settings.set_string('hour-sound-file', file.get_path());
-                } catch (_) { /* dialog cancelled */ }
+                } catch { /* dialog cancelled */ }
             });
         });
 
@@ -296,7 +298,8 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         styleRow.set_selected(currentIdx);
         styleRow.connect('notify::selected', () => {
             const i = styleRow.get_selected();
-            if (i < STYLE_IDS.length) settings.set_string('badge-style', STYLE_IDS[i]);
+            if (i < STYLE_IDS.length)
+                settings.set_string('badge-style', STYLE_IDS[i]);
         });
         iconGroup.add(styleRow);
 
@@ -322,7 +325,8 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         timeFmtRow.set_selected(Math.max(0, TIME_FMT_IDS.indexOf(settings.get_string('time-format'))));
         timeFmtRow.connect('notify::selected', () => {
             const i = timeFmtRow.get_selected();
-            if (i < TIME_FMT_IDS.length) settings.set_string('time-format', TIME_FMT_IDS[i]);
+            if (i < TIME_FMT_IDS.length)
+                settings.set_string('time-format', TIME_FMT_IDS[i]);
         });
         settings.connect('changed::show-time', () => {
             timeFmtRow.visible = settings.get_boolean('show-time');
@@ -396,7 +400,8 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             hexpand:       true,
             width_request: 140,
         });
-        for (let i = 0; i <= 4; i++) scale.add_mark(i, Gtk.PositionType.BOTTOM, null);
+        for (let i = 0; i <= 4; i++)
+            scale.add_mark(i, Gtk.PositionType.BOTTOM, null);
         scale.set_value(settings.get_int('calendar-size'));
         scale.connect('value-changed', () => {
             settings.set_int('calendar-size', Math.round(scale.get_value()));
@@ -418,7 +423,8 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             hexpand:       true,
             width_request: 140,
         });
-        for (let i = 0; i <= 2; i++) fontScale.add_mark(i, Gtk.PositionType.BOTTOM, null);
+        for (let i = 0; i <= 2; i++)
+            fontScale.add_mark(i, Gtk.PositionType.BOTTOM, null);
         fontScale.set_value(settings.get_int('font-size'));
         fontScale.connect('value-changed', () => {
             settings.set_int('font-size', Math.round(fontScale.get_value()));
@@ -463,7 +469,8 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         dotColorRow.set_selected(Math.max(0, DOT_COLOR_IDS.indexOf(settings.get_string('dot-color-mode'))));
         dotColorRow.connect('notify::selected', () => {
             const i = dotColorRow.get_selected();
-            if (i < DOT_COLOR_IDS.length) settings.set_string('dot-color-mode', DOT_COLOR_IDS[i]);
+            if (i < DOT_COLOR_IDS.length)
+                settings.set_string('dot-color-mode', DOT_COLOR_IDS[i]);
         });
         settings.connect('changed::show-event-dots', () => {
             dotColorRow.visible = settings.get_boolean('show-event-dots');
@@ -497,9 +504,9 @@ export default class LitsycalPrefs extends ExtensionPreferences {
 
         const hlRow  = new Adw.ActionRow({title: _('Highlight columns')});
         const hlBox  = new Gtk.Box({spacing: 2, valign: Gtk.Align.CENTER});
-        const DAY_KEYS   = ['mo','tu','we','th','fr','sa','su'];
+        const DAY_KEYS   = ['mo', 'tu', 'we', 'th', 'fr', 'sa', 'su'];
         // Locale-aware single-char day labels (Mon=0 … Sun=6)
-        const DAY_LABELS = Array.from({length: 7}, (_, i) =>
+        const DAY_LABELS = Array.from({length: 7}, (unused, i) =>
             GLib.DateTime.new_local(2025, 1, 6 + i, 0, 0, 0).format('%a').charAt(0).toUpperCase()
         );
         const hlSet  = new Set(settings.get_strv('highlight-days'));
@@ -510,8 +517,10 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             vbox.append(new Gtk.Label({label: DAY_LABELS[i], css_classes: ['dim-label']}));
             const chk = new Gtk.CheckButton({active: hlSet.has(key), halign: Gtk.Align.CENTER});
             chk.connect('toggled', () => {
-                if (chk.get_active()) hlSet.add(key);
-                else hlSet.delete(key);
+                if (chk.get_active())
+                    hlSet.add(key);
+                else
+                    hlSet.delete(key);
                 settings.set_strv('highlight-days', [...hlSet]);
             });
             vbox.append(chk);
@@ -551,7 +560,8 @@ export default class LitsycalPrefs extends ExtensionPreferences {
 
         themeRow.connect('notify::selected', () => {
             const i = themeRow.get_selected();
-            if (i < THEME_IDS.length) settings.set_string('theme', THEME_IDS[i]);
+            if (i < THEME_IDS.length)
+                settings.set_string('theme', THEME_IDS[i]);
             updateThemeSubtitle();
         });
         themeGroup.add(themeRow);
@@ -641,7 +651,8 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         // asked for. Reset it back to 'general' immediately so an unrelated
         // direct open (e.g. `gnome-extensions prefs`) doesn't inherit a stale tab.
         const requestedPage = settings.get_string('prefs-initial-page');
-        if (requestedPage !== 'general') settings.set_string('prefs-initial-page', 'general');
+        if (requestedPage !== 'general')
+            settings.set_string('prefs-initial-page', 'general');
 
         const pagesByName = {general, appearance, about};
         if (pagesByName[requestedPage]) {
@@ -669,7 +680,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                 let registry;
                 try {
                     registry = EDataServer.SourceRegistry.new_finish(res);
-                } catch (e) {
+                } catch {
                     loadingRow.set_title(_('Could not load calendars'));
                     return;
                 }
@@ -726,14 +737,16 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                     }
 
                     row.connect('notify::active', () => {
-                        if (row.get_active()) disabled.delete(uid);
-                        else disabled.add(uid);
+                        if (row.get_active())
+                            disabled.delete(uid);
+                        else
+                            disabled.add(uid);
                         settings.set_strv('disabled-calendars', [...disabled]);
                     });
                     group.add(row);
                 }
             });
-        } catch (e) {
+        } catch {
             loadingRow.set_title(_('Could not load calendars'));
         }
     }
@@ -755,15 +768,18 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         if (calendarAppInfo) {
             const openCalBtn = new Gtk.Button({label: _('Open Calendar'), valign: Gtk.Align.CENTER});
             openCalBtn.connect('clicked', () => {
-                try { calendarAppInfo.launch([], null); } catch (_) { /* best effort */ }
+                try {
+                    calendarAppInfo.launch([], null);
+                } catch { /* best effort */ }
             });
             row.add_suffix(openCalBtn);
         }
 
         const openAccountsBtn = new Gtk.Button({label: _('Online Accounts…'), valign: Gtk.Align.CENTER});
         openAccountsBtn.connect('clicked', () => {
-            try { Gio.Subprocess.new(['gnome-control-center', 'online-accounts'], Gio.SubprocessFlags.NONE); }
-            catch (_) { /* best effort */ }
+            try {
+                Gio.Subprocess.new(['gnome-control-center', 'online-accounts'], Gio.SubprocessFlags.NONE);
+            } catch { /* best effort */ }
         });
         row.add_suffix(openAccountsBtn);
 

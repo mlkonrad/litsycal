@@ -8,7 +8,6 @@ import GLib    from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Clutter from 'gi://Clutter';
 import Pango   from 'gi://Pango';
-import Cairo   from 'gi://cairo';
 import Gio     from 'gi://Gio';
 import Meta    from 'gi://Meta';
 import Shell   from 'gi://Shell';
@@ -27,13 +26,14 @@ function formatPattern(dt, pattern) {
     let p = pattern;
     for (const token of ['%A', '%B', '%a', '%b']) {
         const val = dt.format(token);
-        if (val) p = p.split(token).join(capitalize(val));
+        if (val)
+            p = p.split(token).join(capitalize(val));
     }
     return dt.format(p) ?? '';
 }
 
 function localeDayAbbrs() {
-    return Array.from({length: 7}, (_, i) =>
+    return Array.from({length: 7}, (unused, i) =>
         capitalize(GLib.DateTime.new_local(2025, 1, 6 + i, 0, 0, 0).format('%a'))
     );
 }
@@ -45,7 +45,7 @@ function localeDayAbbrsShort() {
     return localeDayAbbrs().map(s => s.charAt(0));
 }
 
-const DAY_COL = {mo:0, tu:1, we:2, th:3, fr:4, sa:5, su:6};
+const DAY_COL = {mo: 0, tu: 1, we: 2, th: 3, fr: 4, sa: 5, su: 6};
 
 // calendar-size index -> style class (index 2 "Medium" is the base CSS, no class needed).
 const SIZE_CLASSES = ['litsycal-size-sm', 'litsycal-size-sm-plus', null, 'litsycal-size-md-plus', 'litsycal-size-lg'];
@@ -65,33 +65,35 @@ const OUTLINE_TOP_INSET = [0, 2, 4, 4, 4];
 // ── Accent colour ─────────────────────────────────────────────────────────────
 
 const ACCENT_MAP = {
-    blue:'#3584e4', teal:'#2190a4', green:'#3a944a', yellow:'#c88800',
-    orange:'#e66100', red:'#e62d42', pink:'#d56199', purple:'#9141ac', slate:'#6f8396',
+    blue: '#3584e4', teal: '#2190a4', green: '#3a944a', yellow: '#c88800',
+    orange: '#e66100', red: '#e62d42', pink: '#d56199', purple: '#9141ac', slate: '#6f8396',
 };
 
 function readAccent() {
     try {
         const s = new Gio.Settings({schema: 'org.gnome.desktop.interface'});
         return ACCENT_MAP[s.get_string('accent-color')] ?? ACCENT_MAP.blue;
-    } catch { return ACCENT_MAP.blue; }
+    } catch {
+        return ACCENT_MAP.blue;
+    }
 }
 
 function accentAlpha(hex, a) {
-    const r = parseInt(hex.slice(1,3),16);
-    const g = parseInt(hex.slice(3,5),16);
-    const b = parseInt(hex.slice(5,7),16);
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
     return `rgba(${r},${g},${b},${a})`;
 }
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
 function dateStr(dt) {
-    return `${dt.get_year()}-${String(dt.get_month()).padStart(2,'0')}-${String(dt.get_day_of_month()).padStart(2,'0')}`;
+    return `${dt.get_year()}-${String(dt.get_month()).padStart(2, '0')}-${String(dt.get_day_of_month()).padStart(2, '0')}`;
 }
 
 function daysInMonth(year, month) {
-    const nm = month===12?1:month+1, ny = month===12?year+1:year;
-    return GLib.DateTime.new_local(ny,nm,1,0,0,0).add_days(-1).get_day_of_month();
+    const nm = month === 12 ? 1 : month + 1, ny = month === 12 ? year + 1 : year;
+    return GLib.DateTime.new_local(ny, nm, 1, 0, 0, 0).add_days(-1).get_day_of_month();
 }
 
 // Whole calendar days between two GLib.DateTime instants (b - a), independent
@@ -102,7 +104,7 @@ function daysBetween(a, b) {
 }
 
 function prevMonthOf(year, month) {
-    return month===1 ? [year-1,12] : [year,month-1];
+    return month === 1 ? [year - 1, 12] : [year, month - 1];
 }
 
 // Buddhist Era year = Gregorian + 543. Months/days/leap years are identical
@@ -140,17 +142,20 @@ const MEETING_PATTERNS = [
 // dial-in link into notes/location rather than the dedicated URL field.
 function findMeetingUrl(ev) {
     for (const text of [ev.url, ev.location, ev.notes]) {
-        if (!text) continue;
+        if (!text)
+            continue;
         const urls = text.match(/https?:\/\/[^\s<>"']+/gi) ?? [];
         for (const url of urls) {
-            if (MEETING_PATTERNS.some(re => re.test(url))) return url;
+            if (MEETING_PATTERNS.some(re => re.test(url)))
+                return url;
         }
     }
     return null;
 }
 
 function eventTimeRange(ev) {
-    if (ev.allDay || !ev.time) return null;
+    if (ev.allDay || !ev.time)
+        return null;
     const [y, m, d] = ev.date.split('-').map(Number);
     const [startStr, endStr] = ev.time.split(' - ');
     const [sh, sm] = startStr.split(':').map(Number);
@@ -159,7 +164,8 @@ function eventTimeRange(ev) {
     if (endStr) {
         const [eh, em] = endStr.trim().split(':').map(Number);
         end = GLib.DateTime.new_local(y, m, d, eh, em, 0);
-        if (end.compare(start) < 0) end = end.add_days(1); // crosses midnight
+        if (end.compare(start) < 0)
+            end = end.add_days(1); // crosses midnight
     } else {
         end = start.add_hours(1);
     }
@@ -171,7 +177,8 @@ function eventTimeRange(ev) {
 // are treated as joinable any time, since there's no meaningful window.
 function meetingIsJoinable(ev) {
     const range = eventTimeRange(ev);
-    if (!range) return true;
+    if (!range)
+        return true;
     const now = GLib.DateTime.new_now_local();
     return now.compare(range.start.add_minutes(-15)) >= 0 && now.compare(range.end) <= 0;
 }
@@ -196,8 +203,10 @@ function formatEventWhen(ev) {
 // outside that simple FREQ/INTERVAL set (stored as {raw}) fall back to a
 // generic label rather than trying to describe arbitrary BYDAY/COUNT rules.
 function recurrenceSummary(recurrence) {
-    if (!recurrence) return null;
-    if (recurrence.raw || !recurrence.freq) return _('Repeats');
+    if (!recurrence)
+        return null;
+    if (recurrence.raw || !recurrence.freq)
+        return _('Repeats');
     const interval = recurrence.interval || 1;
     if (interval === 1) {
         return {
@@ -252,7 +261,7 @@ class OutlinePainter {
         const SPACING = 4;
         const rowGap  = i => i * ch + INSET + SPACING * (i / numRows - 0.5);
         const C = (px, py, dx, dy) =>
-            cr.curveTo(px, py, px, py, px + r*dx, py + r*dy);
+            cr.curveTo(px, py, px, py, px + r * dx, py + r * dy);
 
         const [ar, ag, ab] = dark ? [1, 1, 1] : [0, 0, 0];
         cr.setLineWidth(2.5);
@@ -263,28 +272,38 @@ class OutlinePainter {
         const stepY  = rowGap(lr);
         const notchY = rowGap(1);
 
-        cr.moveTo(fc*cw + r, top);
-        cr.lineTo(7*cw - r, top);  C(7*cw, top, 0, +1);
+        cr.moveTo(fc * cw + r, top);
+        cr.lineTo(7 * cw - r, top);
+        C(7 * cw, top, 0, +1);
 
         if (lc < 6) {
-            cr.lineTo(7*cw, stepY - r);         C(7*cw, stepY, -1, 0);
-            cr.lineTo((lc+1)*cw + r, stepY);    C((lc+1)*cw, stepY, 0, +1);
-            cr.lineTo((lc+1)*cw, bottom - r);   C((lc+1)*cw, bottom, -1, 0);
+            cr.lineTo(7 * cw, stepY - r);
+            C(7 * cw, stepY, -1, 0);
+            cr.lineTo((lc + 1) * cw + r, stepY);
+            C((lc + 1) * cw, stepY, 0, +1);
+            cr.lineTo((lc + 1) * cw, bottom - r);
+            C((lc + 1) * cw, bottom, -1, 0);
         } else {
-            cr.lineTo(7*cw, bottom - r);         C(7*cw, bottom, -1, 0);
+            cr.lineTo(7 * cw, bottom - r);
+            C(7 * cw, bottom, -1, 0);
         }
 
-        cr.lineTo(r, bottom);  C(0, bottom, 0, -1);
+        cr.lineTo(r, bottom);
+        C(0, bottom, 0, -1);
 
         if (fc > 0) {
-            cr.lineTo(0, notchY + r);     C(0, notchY, +1, 0);
-            cr.lineTo(fc*cw - r, notchY); C(fc*cw, notchY, 0, -1);
-            cr.lineTo(fc*cw, top + r);    C(fc*cw, top, +1, 0);
+            cr.lineTo(0, notchY + r);
+            C(0, notchY, +1, 0);
+            cr.lineTo(fc * cw - r, notchY);
+            C(fc * cw, notchY, 0, -1);
+            cr.lineTo(fc * cw, top + r);
+            C(fc * cw, top, +1, 0);
         } else {
-            cr.lineTo(0, top + r);  C(0, top, +1, 0);
+            cr.lineTo(0, top + r);
+            C(0, top, +1, 0);
         }
 
-        cr.lineTo(fc*cw + r, top);
+        cr.lineTo(fc * cw + r, top);
         cr.closePath();
         cr.stroke();
         cr.$dispose();
@@ -295,7 +314,6 @@ class OutlinePainter {
 
 const LitsycalCalendar = GObject.registerClass(
 class LitsycalCalendar extends St.BoxLayout {
-
     _init(settings, openSettingsMenu, openCalendar, onPinToggle, onDataChanged, openGoToDate, quit) {
         super._init({vertical: true, style_class: 'litsycal-calendar'});
 
@@ -313,7 +331,10 @@ class LitsycalCalendar extends St.BoxLayout {
         this._today    = now;
         this._selected = now;
 
-        this._firstCol = 0; this._lastCol = 6; this._lastRow = 0; this._numRows = 1;
+        this._firstCol = 0;
+        this._lastCol = 6;
+        this._lastRow = 0;
+        this._numRows = 1;
 
         this._firstDayOfWeek   = settings.get_int('first-day-of-week');
         this._shortDayNames    = settings.get_boolean('short-day-names');
@@ -372,7 +393,8 @@ class LitsycalCalendar extends St.BoxLayout {
             }),
             settings.connect('changed::weekend-color', () => {
                 this._weekendColor = settings.get_string('weekend-color');
-                if (this._weekendColorMode === 'custom') this._buildGrid();
+                if (this._weekendColorMode === 'custom')
+                    this._buildGrid();
             }),
             settings.connect('changed::agenda-days', () => {
                 this._agendaDays = settings.get_int('agenda-days');
@@ -421,7 +443,8 @@ class LitsycalCalendar extends St.BoxLayout {
             this._buildGrid();
         });
         this._schemeId = this._iface.connect('changed::color-scheme', () => {
-            if (this._theme === 'system') this._applyTheme();
+            if (this._theme === 'system')
+                this._applyTheme();
         });
 
         this.connect('destroy', () => {
@@ -432,9 +455,14 @@ class LitsycalCalendar extends St.BoxLayout {
             this._eventInfoPopover?.close();
             this._eventInfoPopover = null;
             this._cancelCellTooltip();
-            if (this._dayInfoTimeoutId) { GLib.source_remove(this._dayInfoTimeoutId); this._dayInfoTimeoutId = null; }
-            if (this._dragStartY !== undefined) this._endHandleDrag(this._resizeHandle);
-            for (const id of this._sids) this._settings.disconnect(id);
+            if (this._dayInfoTimeoutId) {
+                GLib.source_remove(this._dayInfoTimeoutId);
+                this._dayInfoTimeoutId = null;
+            }
+            if (this._dragStartY !== undefined)
+                this._endHandleDrag(this._resizeHandle);
+            for (const id of this._sids)
+                this._settings.disconnect(id);
             this._iface.disconnect(this._accentId);
             this._iface.disconnect(this._schemeId);
             this._calManager?.destroy();
@@ -505,8 +533,10 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     _computeIsDark() {
-        if (this._theme === 'dark')  return true;
-        if (this._theme === 'light') return false;
+        if (this._theme === 'dark')
+            return true;
+        if (this._theme === 'light')
+            return false;
         return this._iface.get_string('color-scheme') === 'prefer-dark';
     }
 
@@ -517,19 +547,25 @@ class LitsycalCalendar extends St.BoxLayout {
     // calendar-size: 0=S, 1=S+, 2=M (no class — the base CSS values), 3=M+, 4=L
     _applySizeClass() {
         for (const cls of SIZE_CLASSES) {
-            if (cls) this.remove_style_class_name(cls);
+            if (cls)
+                this.remove_style_class_name(cls);
         }
+
         const cls = SIZE_CLASSES[this._calSize];
-        if (cls) this.add_style_class_name(cls);
+        if (cls)
+            this.add_style_class_name(cls);
     }
 
     // font-size: 0=S, 1=M (no class — the base CSS values), 2=L
     _applyFontSizeClass() {
         for (const cls of FONT_SIZE_CLASSES) {
-            if (cls) this.remove_style_class_name(cls);
+            if (cls)
+                this.remove_style_class_name(cls);
         }
+
         const cls = FONT_SIZE_CLASSES[this._fontSize];
-        if (cls) this.add_style_class_name(cls);
+        if (cls)
+            this.add_style_class_name(cls);
     }
 
     _applyTheme() {
@@ -538,10 +574,12 @@ class LitsycalCalendar extends St.BoxLayout {
         this.remove_style_class_name('litsycal-theme-dark');
         this.add_style_class_name(this._isDark ? 'litsycal-theme-dark' : 'litsycal-theme-light');
         this._painter.configure(this._isDark, this._highlightCols, OUTLINE_TOP_INSET[this._calSize]);
-        if (this._prevBtn) this._updateHeaderColors();
+        if (this._prevBtn)
+            this._updateHeaderColors();
         this._buildDayNameRow(true);
         this._buildGrid();
-        if (this._agendaBox) this._buildAgenda();
+        if (this._agendaBox)
+            this._buildAgenda();
         this._outline?.queue_repaint();
     }
 
@@ -552,12 +590,18 @@ class LitsycalCalendar extends St.BoxLayout {
 
         this._monthLbl = new St.Label({style_class: 'litsycal-month-lbl', x_expand: true});
 
-        this._prevBtn  = new St.Button({label: '‹', style_class: 'litsycal-nav-btn',
-                                         accessible_name: _('Previous month')});
-        this._dotBtn   = new St.Button({label: '●', style_class: 'litsycal-nav-btn litsycal-dot-btn',
-                                         accessible_name: _('Go to today')});
-        this._nextBtn  = new St.Button({label: '›', style_class: 'litsycal-nav-btn',
-                                         accessible_name: _('Next month')});
+        this._prevBtn  = new St.Button({
+            label: '‹', style_class: 'litsycal-nav-btn',
+            accessible_name: _('Previous month'),
+        });
+        this._dotBtn   = new St.Button({
+            label: '●', style_class: 'litsycal-nav-btn litsycal-dot-btn',
+            accessible_name: _('Go to today'),
+        });
+        this._nextBtn  = new St.Button({
+            label: '›', style_class: 'litsycal-nav-btn',
+            accessible_name: _('Next month'),
+        });
 
         this._prevBtn.connect('clicked', () => this._shiftMonth(-1));
         this._dotBtn.connect('clicked',  () => this._goToday());
@@ -599,8 +643,10 @@ class LitsycalCalendar extends St.BoxLayout {
         }
 
         this._dayNameRow = row;
-        if (rebuild) this._calRight.insert_child_at_index(row, 0);
-        else         this._calRight.add_child(row);
+        if (rebuild)
+            this._calRight.insert_child_at_index(row, 0);
+        else
+            this._calRight.add_child(row);
     }
 
     // ── Grid container ────────────────────────────────────────────────────────
@@ -617,11 +663,12 @@ class LitsycalCalendar extends St.BoxLayout {
         });
 
         this._outline = new St.DrawingArea({x_expand: true, y_expand: true, reactive: false});
-        this._outline.connect('repaint', (area) => {
+        this._outline.connect('repaint', area => {
             const [w, h] = area.get_surface_size();
-            if (w > 0 && h > 0 && this._numRows > 0)
+            if (w > 0 && h > 0 && this._numRows > 0) {
                 this._painter.paint(area.get_context(), w, h,
                     this._numRows, this._firstCol, this._lastCol, this._lastRow);
+            }
         });
 
         overlay.add_child(this._gridBox);
@@ -653,7 +700,8 @@ class LitsycalCalendar extends St.BoxLayout {
         }));
 
         handle.connect('button-press-event', (actor, event) => {
-            if (event.get_button() !== Clutter.BUTTON_PRIMARY) return Clutter.EVENT_PROPAGATE;
+            if (event.get_button() !== Clutter.BUTTON_PRIMARY)
+                return Clutter.EVENT_PROPAGATE;
             this._dragStartY     = event.get_coords()[1];
             this._dragStartExtra = this._extraWeekRows;
             this._dragRowHeight  = this._gridBox.get_height() / Math.max(1, this._numRows);
@@ -668,19 +716,27 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     _onHandleDrag(event) {
-        if (this._dragStartY === undefined || !this._dragRowHeight) return Clutter.EVENT_PROPAGATE;
+        if (this._dragStartY === undefined || !this._dragRowHeight)
+            return Clutter.EVENT_PROPAGATE;
 
         const delta  = event.get_coords()[1] - this._dragStartY;
         const rows   = Math.round(delta / this._dragRowHeight);
         const wanted = Math.min(MAX_EXTRA_WEEK_ROWS, Math.max(0, this._dragStartExtra + rows));
 
-        if (wanted !== this._extraWeekRows) this._settings.set_int('extra-week-rows', wanted);
+        if (wanted !== this._extraWeekRows)
+            this._settings.set_int('extra-week-rows', wanted);
         return Clutter.EVENT_STOP;
     }
 
     _endHandleDrag(actor) {
-        if (this._dragMotionId)  { actor.disconnect(this._dragMotionId);  this._dragMotionId  = null; }
-        if (this._dragReleaseId) { actor.disconnect(this._dragReleaseId); this._dragReleaseId = null; }
+        if (this._dragMotionId)  {
+            actor.disconnect(this._dragMotionId);
+            this._dragMotionId  = null;
+        }
+        if (this._dragReleaseId) {
+            actor.disconnect(this._dragReleaseId);
+            this._dragReleaseId = null;
+        }
         this._resizeGrab?.dismiss();
         this._resizeGrab  = null;
         this._dragStartY  = undefined;
@@ -721,16 +777,16 @@ class LitsycalCalendar extends St.BoxLayout {
 
         for (let i = firstDow - 1; i >= 0; i--) {
             const day = prevTot - i;
-            const ds  = `${py}-${String(pm).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+            const ds  = `${py}-${String(pm).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             row.add_child(this._makeOverflow(day, ds));
             col++;
         }
 
         for (let d = 1; d <= total; d++) {
-            const ds = `${this._year}-${String(this._month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const ds = `${this._year}-${String(this._month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const actualDay = (col + fd) % 7;
             const isWeekend = actualDay === 5 || actualDay === 6;
-            row.add_child(this._makeCell(d, ds, ds===todayStr, ds===selStr, isWeekend));
+            row.add_child(this._makeCell(d, ds, ds === todayStr, ds === selStr, isWeekend));
             col++;
             if (col === 7) {
                 this._gridBox.add_child(row);
@@ -783,7 +839,8 @@ class LitsycalCalendar extends St.BoxLayout {
     _buildWeekGutter() {
         this._weekGutter.visible = this._showWeekNumbers;
         this._weekGutter.destroy_all_children();
-        if (!this._showWeekNumbers) return;
+        if (!this._showWeekNumbers)
+            return;
 
         const spacer = new St.BoxLayout({style_class: 'litsycal-day-name-cell'});
         spacer.add_child(new St.Label({text: '', style_class: 'litsycal-day-name'}));
@@ -837,7 +894,8 @@ class LitsycalCalendar extends St.BoxLayout {
     // the calendar/header/footer, mirroring Itsycal's agendaMaxPossibleHeight —
     // rather than letting a busy week grow the popup past the monitor edge.
     _updateAgendaMaxHeight() {
-        if (!this._agendaScroll) return;
+        if (!this._agendaScroll)
+            return;
 
         const monitor = Main.layoutManager.monitors[
             Main.layoutManager.findIndexForActor(this)
@@ -846,7 +904,8 @@ class LitsycalCalendar extends St.BoxLayout {
 
         let othersHeight = 0;
         for (const child of this.get_children()) {
-            if (child === this._agendaScroll) continue;
+            if (child === this._agendaScroll)
+                continue;
             othersHeight += child.get_preferred_height(-1)[1];
         }
 
@@ -878,20 +937,22 @@ class LitsycalCalendar extends St.BoxLayout {
         const isWeekend = dow === 6 || dow === 7;
 
         let sc = 'litsycal-day-btn';
-        if (isToday)    sc += ' litsycal-today';
-        else if (isSel) sc += ' litsycal-selected';
+        if (isToday)
+            sc += ' litsycal-today';
+        else if (isSel)
+            sc += ' litsycal-selected';
 
         const btn = new St.Button({style_class: sc, x_expand: true, track_hover: true});
 
-        if (isToday) {
+        if (isToday)
             btn.style = `background-color: ${this._accent}; color: white;`;
-        } else if (isSel) {
+        else if (isSel)
             btn.style = `background-color: ${accentAlpha(this._accent, 0.25)};`;
-        } else if (isWeekend && this._weekendColorMode === 'custom') {
+        else if (isWeekend && this._weekendColorMode === 'custom')
             btn.style = `color: ${this._weekendColor};`;
-        } else if (isWeekend && this._weekendColorMode === 'default') {
+        else if (isWeekend && this._weekendColorMode === 'default')
             btn.add_style_class_name('litsycal-weekend');
-        }
+
 
         const box    = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'litsycal-cell-box'});
         const numLbl = new St.Label({
@@ -916,7 +977,8 @@ class LitsycalCalendar extends St.BoxLayout {
                     dot.add_style_class_name('litsycal-event-dot-mono');
                 } else {
                     dot.style = `background-color: ${ev.color};`;
-                    if (!isToday) dot.add_style_class_name('litsycal-event-dot-overflow');
+                    if (!isToday)
+                        dot.add_style_class_name('litsycal-event-dot-overflow');
                 }
                 dotRow.add_child(dot);
             }
@@ -936,8 +998,10 @@ class LitsycalCalendar extends St.BoxLayout {
             this._buildAgenda();
         });
         btn.connect('notify::hover', () => {
-            if (btn.hover) this._scheduleCellTooltip(ds, btn);
-            else this._cancelCellTooltip();
+            if (btn.hover)
+                this._scheduleCellTooltip(ds, btn);
+            else
+                this._cancelCellTooltip();
         });
 
         // Tracked alongside real cells so a multi-day agenda event's hover
@@ -949,20 +1013,22 @@ class LitsycalCalendar extends St.BoxLayout {
 
     _makeCell(day, ds, isToday, isSel, isWeekend) {
         let sc = 'litsycal-day-btn';
-        if (isToday)    sc += ' litsycal-today';
-        else if (isSel) sc += ' litsycal-selected';
+        if (isToday)
+            sc += ' litsycal-today';
+        else if (isSel)
+            sc += ' litsycal-selected';
 
         const btn = new St.Button({style_class: sc, x_expand: true, track_hover: true});
 
-        if (isToday) {
+        if (isToday)
             btn.style = `background-color: ${this._accent}; color: white;`;
-        } else if (isSel) {
+        else if (isSel)
             btn.style = `background-color: ${accentAlpha(this._accent, 0.25)};`;
-        } else if (isWeekend && this._weekendColorMode === 'custom') {
+        else if (isWeekend && this._weekendColorMode === 'custom')
             btn.style = `color: ${this._weekendColor};`;
-        } else if (isWeekend && this._weekendColorMode === 'default') {
+        else if (isWeekend && this._weekendColorMode === 'default')
             btn.add_style_class_name('litsycal-weekend');
-        }
+
 
         const box    = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'litsycal-cell-box'});
         const numLbl = new St.Label({text: String(day), x_expand: true, style_class: 'litsycal-cell-num'});
@@ -993,8 +1059,10 @@ class LitsycalCalendar extends St.BoxLayout {
             this._buildAgenda();
         });
         btn.connect('notify::hover', () => {
-            if (btn.hover) this._scheduleCellTooltip(ds, btn);
-            else this._cancelCellTooltip();
+            if (btn.hover)
+                this._scheduleCellTooltip(ds, btn);
+            else
+                this._cancelCellTooltip();
         });
         this._cellsByDate.set(ds, btn);
         return btn;
@@ -1010,7 +1078,8 @@ class LitsycalCalendar extends St.BoxLayout {
         this._clearDateRangeHighlight();
         for (const ds of this._calManager.datesSpanned(ev)) {
             const btn = this._cellsByDate.get(ds);
-            if (!btn) continue; // day falls entirely outside the rendered grid (overflow cells are tracked here too)
+            if (!btn)
+                continue; // day falls entirely outside the rendered grid (overflow cells are tracked here too)
             btn.add_style_class_name('litsycal-day-btn-range-highlight');
             this._rangeHighlightedCells.push(btn);
         }
@@ -1027,7 +1096,8 @@ class LitsycalCalendar extends St.BoxLayout {
         const cellDate  = GLib.DateTime.new_local(y, m, d, 0, 0, 0);
         let name = `${capitalize(cellDate.format('%A'))}, ${capitalize(cellDate.format('%B'))} ${day}, ` +
                    `${displayYear(y, this._calendarSystem)}`;
-        if (isToday) name += `, ${_('Today')}`;
+        if (isToday)
+            name += `, ${_('Today')}`;
 
         const count = this._calManager.getEventsForDate(ds).length;
         if (count > 0) {
@@ -1068,7 +1138,8 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     _showCellTooltip(ds, anchorBtn) {
-        if (!anchorBtn.hover) return; // pointer left before the delay elapsed
+        if (!anchorBtn.hover)
+            return; // pointer left before the delay elapsed
 
         const [y, m, d] = ds.split('-').map(Number);
         const date = GLib.DateTime.new_local(y, m, d, 0, 0, 0);
@@ -1122,7 +1193,8 @@ class LitsycalCalendar extends St.BoxLayout {
         this._tooltipBox = box;
 
         GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-            if (!this._tooltipBox) return GLib.SOURCE_REMOVE; // hidden again already
+            if (!this._tooltipBox)
+                return GLib.SOURCE_REMOVE; // hidden again already
 
             const monitor = Main.layoutManager.monitors[
                 Main.layoutManager.findIndexForActor(this)
@@ -1134,7 +1206,8 @@ class LitsycalCalendar extends St.BoxLayout {
             const boxH = box.get_height() || 60;
 
             let x = ax + aw + 8;
-            if (x + boxW > monitor.x + monitor.width - 4) x = ax - boxW - 8;
+            if (x + boxW > monitor.x + monitor.width - 4)
+                x = ax - boxW - 8;
             x = Math.max(monitor.x + 4, Math.min(x, monitor.x + monitor.width - boxW - 4));
 
             let posY = ay;
@@ -1157,7 +1230,10 @@ class LitsycalCalendar extends St.BoxLayout {
         const hidden = this._agendaDays <= 0;
         this._agendaScroll.visible = !hidden;
         this._agendaSep.visible    = !hidden;
-        if (hidden) { this._updateAgendaMaxHeight(); return; }
+        if (hidden) {
+            this._updateAgendaMaxHeight();
+            return;
+        }
 
         const todayStr    = dateStr(this._today);
         const tomorrowStr = dateStr(this._today.add_days(1));
@@ -1175,9 +1251,12 @@ class LitsycalCalendar extends St.BoxLayout {
 
         groups.forEach(({day, ds, evs}, g) => {
             let dayLabel;
-            if (ds === todayStr)      dayLabel = _('Today');
-            else if (ds === tomorrowStr) dayLabel = _('Tomorrow');
-            else                      dayLabel = capitalize(day.format('%A'));
+            if (ds === todayStr)
+                dayLabel = _('Today');
+            else if (ds === tomorrowStr)
+                dayLabel = _('Tomorrow');
+            else
+                dayLabel = capitalize(day.format('%A'));
 
             const header  = new St.BoxLayout({style_class: 'litsycal-agenda-header'});
             const nameLbl = new St.Label({text: dayLabel, style_class: 'litsycal-agenda-day-name'});
@@ -1236,7 +1315,9 @@ class LitsycalCalendar extends St.BoxLayout {
                             child: joinIcon,
                         });
                         joinBtn.connect('clicked', () => {
-                            try { Gio.AppInfo.launch_default_for_uri(meetingUrl, null); } catch(_) {}
+                            try {
+                                Gio.AppInfo.launch_default_for_uri(meetingUrl, null);
+                            } catch {}
                         });
                         row2.add_child(joinBtn);
                         this._joinButtons.push(joinBtn);
@@ -1259,18 +1340,21 @@ class LitsycalCalendar extends St.BoxLayout {
                     }
 
                     evtBtn.set_child(evtBox);
-                    evtBtn.accessible_name = `${ev.title}, ${ev.time ?? _('All day')}` +
-                        (ev.location ? `, ${ev.location}` : '');
+                    evtBtn.accessible_name = `${ev.title}, ${ev.time ?? _('All day')}${
+                        ev.location ? `, ${ev.location}` : ''}`;
                     evtBtn.connect('clicked', () => this._openEventInfoPopover(evtBtn, ev));
                     evtBtn.connect('notify::hover', () => {
-                        if (evtBtn.hover) this._highlightDateRange(ev);
-                        else this._clearDateRangeHighlight();
+                        if (evtBtn.hover)
+                            this._highlightDateRange(ev);
+                        else
+                            this._clearDateRangeHighlight();
                     });
                     // Right-click: same {label, icon, action} SettingsMenuPanel
                     // used for the panel icon/gear menu, offering the itsycal-
                     // style Open Calendar / Copy / Delete… trio for this event.
                     evtBtn.connect('button-press-event', (actor, event) => {
-                        if (event.get_button() !== Clutter.BUTTON_SECONDARY) return Clutter.EVENT_PROPAGATE;
+                        if (event.get_button() !== Clutter.BUTTON_SECONDARY)
+                            return Clutter.EVENT_PROPAGATE;
                         this._openEventContextMenu(evtBtn, ev);
                         return Clutter.EVENT_STOP;
                     });
@@ -1288,7 +1372,9 @@ class LitsycalCalendar extends St.BoxLayout {
                             }),
                         });
                         urlBtn.connect('clicked', () => {
-                            try { Gio.AppInfo.launch_default_for_uri(ev.url, null); } catch(_) {}
+                            try {
+                                Gio.AppInfo.launch_default_for_uri(ev.url, null);
+                            } catch {}
                         });
                         evtRow.add_child(urlBtn);
                     }
@@ -1315,19 +1401,26 @@ class LitsycalCalendar extends St.BoxLayout {
             accessible_name: accessibleName,
         });
 
-        this._addBtn = new St.Button({label: '+', style_class: 'litsycal-footer-btn litsycal-add-btn',
-                                       accessible_name: _('New event')});
+        this._addBtn = new St.Button({
+            label: '+', style_class: 'litsycal-footer-btn litsycal-add-btn',
+            accessible_name: _('New event'),
+        });
         this._addBtn.connect('clicked', () => this._openCreateDialog());
 
         const pinBtn = makeIconBtn('view-pin-symbolic', _('Pin calendar open'), true);
         pinBtn.connect('notify::checked', () => {
-            if (this._suppressPinNotify) return;
-            if (this._onPinToggle) this._onPinToggle(pinBtn.get_checked());
+            if (this._suppressPinNotify)
+                return;
+            if (this._onPinToggle)
+                this._onPinToggle(pinBtn.get_checked());
         });
         this._pinBtn = pinBtn;
 
         const calBtn = makeIconBtn('x-office-calendar-symbolic', _('Open Calendar app'));
-        calBtn.connect('clicked', () => { if (this._openCalendar) this._openCalendar(); });
+        calBtn.connect('clicked', () => {
+            if (this._openCalendar)
+                this._openCalendar();
+        });
 
         const gear = makeIconBtn('preferences-system-symbolic', _('Settings menu'));
         gear.connect('clicked', () => this._openSettingsMenu(gear));
@@ -1346,7 +1439,8 @@ class LitsycalCalendar extends St.BoxLayout {
     // unpinning the calendar when the menu is reopened) rather than from a
     // direct click on this button.
     setPinned(pinned) {
-        if (this._pinBtn.get_checked() === pinned) return;
+        if (this._pinBtn.get_checked() === pinned)
+            return;
         this._suppressPinNotify = true;
         this._pinBtn.set_checked(pinned);
         this._suppressPinNotify = false;
@@ -1355,22 +1449,28 @@ class LitsycalCalendar extends St.BoxLayout {
     // ── Event panels ──────────────────────────────────────────────────────────
 
     _openCreateDialog() {
-        if (!this._calManager?.isAvailable()) return;
+        if (!this._calManager?.isAvailable())
+            return;
         this._eventPanel?.close();
         this._eventInfoPopover?.close();
         this._eventPanel = new EventPanel(
             this._calManager, null, this._selected, this,
-            () => { this._eventPanel = null; }, this._calendarSystem
+            () => {
+                this._eventPanel = null;
+            }, this._calendarSystem
         );
     }
 
     _openEventDialog(ev) {
-        if (!this._calManager?.isAvailable()) return;
+        if (!this._calManager?.isAvailable())
+            return;
         this._eventPanel?.close();
         this._eventInfoPopover?.close();
         this._eventPanel = new EventPanel(
             this._calManager, ev, null, this,
-            () => { this._eventPanel = null; }, this._calendarSystem
+            () => {
+                this._eventPanel = null;
+            }, this._calendarSystem
         );
     }
 
@@ -1388,13 +1488,17 @@ class LitsycalCalendar extends St.BoxLayout {
         this._eventContextMenu?.close();
         this._eventInfoPopover = new EventInfoPopover(
             this._calManager, ev, anchorActor,
-            () => { this._eventInfoPopover = null; },
+            () => {
+                this._eventInfoPopover = null;
+            },
             (under, closingEvent) => {
                 const btn = this._eventButtonAt(under);
-                if (!btn) return;
+                if (!btn)
+                    return;
                 // Re-clicking the same row that was already open is a
                 // toggle: leave it closed rather than reopening it.
-                if (this._sameEvent(btn._litsycalEvent, closingEvent)) return;
+                if (this._sameEvent(btn._litsycalEvent, closingEvent))
+                    return;
                 this._openEventInfoPopover(btn, btn._litsycalEvent);
             },
             this._settings.get_int('font-size')
@@ -1407,8 +1511,8 @@ class LitsycalCalendar extends St.BoxLayout {
     // series' own uid repeats across its occurrences, recurrenceId is what
     // tells those apart).
     _sameEvent(a, b) {
-        return !!a && !!b && a.uid === b.uid && a.clientUid === b.clientUid
-            && (a.recurrenceId ?? null) === (b.recurrenceId ?? null);
+        return !!a && !!b && a.uid === b.uid && a.clientUid === b.clientUid &&
+            (a.recurrenceId ?? null) === (b.recurrenceId ?? null);
     }
 
     // Walks up from `actor` (whatever the popover's backdrop found under an
@@ -1419,8 +1523,10 @@ class LitsycalCalendar extends St.BoxLayout {
     // isn't an agenda row (in which case the popover just stays closed).
     _eventButtonAt(actor) {
         for (let a = actor; a; a = a.get_parent()) {
-            if (a._litsycalEvent) return a;
+            if (a._litsycalEvent)
+                return a;
         }
+
         return null;
     }
 
@@ -1436,15 +1542,23 @@ class LitsycalCalendar extends St.BoxLayout {
         this._eventContextMenu?.close();
         this._eventInfoPopover?.close();
         this._eventContextMenu = new SettingsMenuPanel(anchorActor, [
-            {label: _('Edit…'), icon: 'document-edit-symbolic',
-             action: () => this._openEventDialog(ev)},
+            {
+                label: _('Edit…'), icon: 'document-edit-symbolic',
+                action: () => this._openEventDialog(ev),
+            },
             null,
-            {label: _('Open Calendar'), icon: 'x-office-calendar-symbolic',
-             action: () => this._openCalendarAppAtEventDate(ev)},
-            {label: _('Copy'), icon: 'edit-copy-symbolic',
-             action: () => this._copyEventToClipboard(ev)},
-            {label: _('Delete…'), icon: 'edit-delete-symbolic',
-             action: () => this._deleteEventFromAgenda(ev)},
+            {
+                label: _('Open Calendar'), icon: 'x-office-calendar-symbolic',
+                action: () => this._openCalendarAppAtEventDate(ev),
+            },
+            {
+                label: _('Copy'), icon: 'edit-copy-symbolic',
+                action: () => this._copyEventToClipboard(ev),
+            },
+            {
+                label: _('Delete…'), icon: 'edit-delete-symbolic',
+                action: () => this._deleteEventFromAgenda(ev),
+            },
         ]);
     }
 
@@ -1465,11 +1579,12 @@ class LitsycalCalendar extends St.BoxLayout {
     _openCalendarAppAtEventDate(ev) {
         try {
             const [y, m, d] = ev.date.split('-').map(Number);
-            const dateStr = GLib.DateTime.new_local(y, m, d, 0, 0, 0).format('%x');
-            Gio.Subprocess.new(['gnome-calendar', '--date', dateStr], Gio.SubprocessFlags.NONE);
-        } catch (_) {
+            const dateArg = GLib.DateTime.new_local(y, m, d, 0, 0, 0).format('%x');
+            Gio.Subprocess.new(['gnome-calendar', '--date', dateArg], Gio.SubprocessFlags.NONE);
+        } catch {
             const app = Shell.AppSystem.get_default().lookup_app('org.gnome.Calendar.desktop');
-            if (app) app.activate();
+            if (app)
+                app.activate();
         }
     }
 
@@ -1477,7 +1592,8 @@ class LitsycalCalendar extends St.BoxLayout {
     // location (when present), one per line.
     _copyEventToClipboard(ev) {
         const lines = [ev.title, formatEventWhen(ev)];
-        if (ev.location) lines.push(ev.location);
+        if (ev.location)
+            lines.push(ev.location);
         St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, lines.join('\n'));
     }
 
@@ -1488,7 +1604,8 @@ class LitsycalCalendar extends St.BoxLayout {
     // button and this context-menu item alike.
     _deleteEventFromAgenda(ev) {
         confirmDeleteEvent(this._calManager, ev, err => {
-            if (err) Main.notifyError(_('Litsycal'), err.message);
+            if (err)
+                Main.notifyError(_('Litsycal'), err.message);
         });
     }
 
@@ -1496,8 +1613,14 @@ class LitsycalCalendar extends St.BoxLayout {
 
     _shiftMonth(delta) {
         this._month += delta;
-        if (this._month < 1)  { this._month = 12; this._year--; }
-        if (this._month > 12) { this._month = 1;  this._year++; }
+        if (this._month < 1)  {
+            this._month = 12;
+            this._year--;
+        }
+        if (this._month > 12) {
+            this._month = 1;
+            this._year++;
+        }
         this._updateMonthLabel();
         this._buildGrid();
         this._calManager?.fetchMonth(this._year, this._month);
@@ -1505,8 +1628,10 @@ class LitsycalCalendar extends St.BoxLayout {
 
     _goToday() {
         const now = GLib.DateTime.new_now_local();
-        this._year = now.get_year(); this._month = now.get_month();
-        this._today = now; this._selected = now;
+        this._year = now.get_year();
+        this._month = now.get_month();
+        this._today = now;
+        this._selected = now;
         this._updateMonthLabel();
         this._buildGrid();
         this._buildAgenda();
@@ -1515,7 +1640,8 @@ class LitsycalCalendar extends St.BoxLayout {
 
     // Used by the settings menu's "Go to date" dialog.
     _goToDate(dt) {
-        this._year = dt.get_year(); this._month = dt.get_month();
+        this._year = dt.get_year();
+        this._month = dt.get_month();
         this._selected = dt;
         this._updateMonthLabel();
         this._buildGrid();
@@ -1590,8 +1716,14 @@ class LitsycalCalendar extends St.BoxLayout {
         const d = this._selected.get_day_of_month();
 
         let ny = y, nm = m + delta;
-        while (nm < 1)  { nm += 12; ny--; }
-        while (nm > 12) { nm -= 12; ny++; }
+        while (nm < 1)  {
+            nm += 12;
+            ny--;
+        }
+        while (nm > 12) {
+            nm -= 12;
+            ny++;
+        }
         const nd = Math.min(d, daysInMonth(ny, nm));
 
         this._selected = GLib.DateTime.new_local(ny, nm, nd, 0, 0, 0);
@@ -1611,75 +1743,114 @@ class LitsycalCalendar extends St.BoxLayout {
     // ctrl/alt mirror `shift`: state of the two other modifiers used below.
     handleKeyPress(keyval, shift, ctrl, alt) {
         switch (keyval) {
-            case Clutter.KEY_Left:
-            case Clutter.KEY_h:
-            case Clutter.KEY_H:
-                shift ? this._moveSelectionByMonths(-1) : this._moveSelectionByDays(-1);
+        case Clutter.KEY_Left:
+        case Clutter.KEY_h:
+        case Clutter.KEY_H:
+            if (shift)
+                this._moveSelectionByMonths(-1);
+            else
+                this._moveSelectionByDays(-1);
+            return true;
+        case Clutter.KEY_Right:
+        case Clutter.KEY_l:
+        case Clutter.KEY_L:
+            if (shift)
+                this._moveSelectionByMonths(1);
+            else
+                this._moveSelectionByDays(1);
+            return true;
+        case Clutter.KEY_Up:
+        case Clutter.KEY_k:
+        case Clutter.KEY_K:
+            // ⌃K (no Shift): remove one calendar week (⌃J's counterpart below).
+            if (ctrl) {
+                this._adjustExtraWeekRows(-1);
                 return true;
-            case Clutter.KEY_Right:
-            case Clutter.KEY_l:
-            case Clutter.KEY_L:
-                shift ? this._moveSelectionByMonths(1) : this._moveSelectionByDays(1);
+            }
+            if (shift)
+                this._moveSelectionByYears(1);
+            else
+                this._moveSelectionByDays(-7);
+            return true;
+        case Clutter.KEY_Down:
+        case Clutter.KEY_j:
+        case Clutter.KEY_J:
+            // ⌃⇧J: open the first active virtual meeting in the agenda
+            // (Itsycal's ⌘J — bumped onto Shift so it doesn't collide
+            // with plain ⌃J just below). ⌃J (no Shift): add one calendar week.
+            if (ctrl && shift) {
+                this._joinFirstMeeting();
                 return true;
-            case Clutter.KEY_Up:
-            case Clutter.KEY_k:
-            case Clutter.KEY_K:
-                // ⌃K (no Shift): remove one calendar week (⌃J's counterpart below).
-                if (ctrl) { this._adjustExtraWeekRows(-1); return true; }
-                shift ? this._moveSelectionByYears(1) : this._moveSelectionByDays(-7);
+            }
+            if (ctrl) {
+                this._adjustExtraWeekRows(1);
                 return true;
-            case Clutter.KEY_Down:
-            case Clutter.KEY_j:
-            case Clutter.KEY_J:
-                // ⌃⇧J: open the first active virtual meeting in the agenda
-                // (Itsycal's ⌘J — bumped onto Shift so it doesn't collide
-                // with plain ⌃J just below). ⌃J (no Shift): add one calendar week.
-                if (ctrl && shift) { this._joinFirstMeeting(); return true; }
-                if (ctrl) { this._adjustExtraWeekRows(1); return true; }
-                shift ? this._moveSelectionByYears(-1) : this._moveSelectionByDays(7);
+            }
+            if (shift)
+                this._moveSelectionByYears(-1);
+            else
+                this._moveSelectionByDays(7);
+            return true;
+        case Clutter.KEY_space:
+            this._goToday();
+            return true;
+        case Clutter.KEY_numbersign:
+            // Itsycal's #: today-offset and day-of-year, flashed in the
+            // month label for a couple seconds.
+            this._showDayInfo();
+            return true;
+        case Clutter.KEY_p:
+        case Clutter.KEY_P:
+            this._onPinToggle?.(!this._pinBtn.get_checked());
+            return true;
+        case Clutter.KEY_w:
+        case Clutter.KEY_W:
+            this._settings.set_boolean('show-week-numbers', !this._showWeekNumbers);
+            return true;
+        case Clutter.KEY_period:
+            this._settings.set_boolean('show-event-location', !this._showEventLocation);
+            return true;
+        case Clutter.KEY_comma: // Ctrl+, (Itsycal's ⌘,): open Settings
+            if (ctrl) {
+                this._openSettingsMenu?.(this._gearBtn);
                 return true;
-            case Clutter.KEY_space:
-                this._goToday();
+            }
+            return false;
+        case Clutter.KEY_o:
+        case Clutter.KEY_O: // Ctrl+O (Itsycal's ⌘O): open the default calendar app
+            if (ctrl) {
+                this._openCalendar?.();
                 return true;
-            case Clutter.KEY_numbersign:
-                // Itsycal's #: today-offset and day-of-year, flashed in the
-                // month label for a couple seconds.
-                this._showDayInfo();
+            }
+            return false;
+        case Clutter.KEY_n:
+        case Clutter.KEY_N: // Ctrl+N (Itsycal's ⌘N): create a new event
+            if (ctrl) {
+                this._openCreateDialog();
                 return true;
-            case Clutter.KEY_p:
-            case Clutter.KEY_P:
-                this._onPinToggle?.(!this._pinBtn.get_checked());
+            }
+            return false;
+        case Clutter.KEY_T: // Ctrl+Shift+T (Itsycal's ⇧⌘T): go to date
+            if (ctrl && shift) {
+                this._openGoToDate?.(this._gearBtn);
                 return true;
-            case Clutter.KEY_w:
-            case Clutter.KEY_W:
-                this._settings.set_boolean('show-week-numbers', !this._showWeekNumbers);
+            }
+            return false;
+        case Clutter.KEY_r: // Ctrl+Alt+R (Itsycal's ⌥⌘R): refresh events
+            if (ctrl && alt) {
+                this._calManager?.fetchMonth(this._year, this._month);
                 return true;
-            case Clutter.KEY_period:
-                this._settings.set_boolean('show-event-location', !this._showEventLocation);
+            }
+            return false;
+        case Clutter.KEY_q:
+        case Clutter.KEY_Q: // Ctrl+Q (Itsycal's ⌘Q): quit Litsycal
+            if (ctrl) {
+                this._quit?.();
                 return true;
-            case Clutter.KEY_comma: // Ctrl+, (Itsycal's ⌘,): open Settings
-                if (ctrl) { this._openSettingsMenu?.(this._gearBtn); return true; }
-                return false;
-            case Clutter.KEY_o:
-            case Clutter.KEY_O: // Ctrl+O (Itsycal's ⌘O): open the default calendar app
-                if (ctrl) { this._openCalendar?.(); return true; }
-                return false;
-            case Clutter.KEY_n:
-            case Clutter.KEY_N: // Ctrl+N (Itsycal's ⌘N): create a new event
-                if (ctrl) { this._openCreateDialog(); return true; }
-                return false;
-            case Clutter.KEY_T: // Ctrl+Shift+T (Itsycal's ⇧⌘T): go to date
-                if (ctrl && shift) { this._openGoToDate?.(this._gearBtn); return true; }
-                return false;
-            case Clutter.KEY_r: // Ctrl+Alt+R (Itsycal's ⌥⌘R): refresh events
-                if (ctrl && alt) { this._calManager?.fetchMonth(this._year, this._month); return true; }
-                return false;
-            case Clutter.KEY_q:
-            case Clutter.KEY_Q: // Ctrl+Q (Itsycal's ⌘Q): quit Litsycal
-                if (ctrl) { this._quit?.(); return true; }
-                return false;
-            default:
-                return false;
+            }
+            return false;
+        default:
+            return false;
         }
     }
 
@@ -1688,7 +1859,8 @@ class LitsycalCalendar extends St.BoxLayout {
     // listener above rebuilds the grid once this is written.
     _adjustExtraWeekRows(delta) {
         const wanted = Math.min(MAX_EXTRA_WEEK_ROWS, Math.max(0, this._extraWeekRows + delta));
-        if (wanted !== this._extraWeekRows) this._settings.set_int('extra-week-rows', wanted);
+        if (wanted !== this._extraWeekRows)
+            this._settings.set_int('extra-week-rows', wanted);
     }
 
     // Clicks the first "join meeting" button in the current agenda, in
@@ -1730,7 +1902,6 @@ class LitsycalCalendar extends St.BoxLayout {
 // (a PopupMenu) still holds its own grab — see SettingsMenuPanel below for the
 // full explanation of why that needs a competing grab here too.
 class EventInfoPopover {
-
     // onClose is called exactly once, however the popover ends up closing —
     // deleted, dismissed via Escape, or force-closed by the watchdog below.
     // onOutsideClick, if given, is called (after the popover has already
@@ -1777,8 +1948,8 @@ class EventInfoPopover {
         const fontSizeCls = FONT_SIZE_CLASSES[fontSize] ?? null;
         this._box = new St.BoxLayout({
             vertical: true,
-            style_class: 'popup-menu-content litsycal-info-popover'
-                + (fontSizeCls ? ` ${fontSizeCls}` : ''),
+            style_class: `popup-menu-content litsycal-info-popover${
+                fontSizeCls ? ` ${fontSizeCls}` : ''}`,
             reactive: true,
             opacity: 0,
         });
@@ -1804,7 +1975,8 @@ class EventInfoPopover {
         this._watchdogId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => {
             // Don't force through a live delete confirmation — it has its
             // own, separately-scoped grab/close logic; just check back later.
-            if (this._confirmOverlay) return GLib.SOURCE_CONTINUE;
+            if (this._confirmOverlay)
+                return GLib.SOURCE_CONTINUE;
             this._watchdogId = null;
             this.close();
             return GLib.SOURCE_REMOVE;
@@ -1837,7 +2009,8 @@ class EventInfoPopover {
         // itself, which holds real key focus (grabbed above) — not captured-
         // event on an ancestor, which the instrumentation showed never fires.
         this._btnKeyId = this._deleteBtn.connect('key-press-event', (_actor, event) => {
-            if (this._confirmOverlay) return Clutter.EVENT_PROPAGATE; // let it handle its own keys
+            if (this._confirmOverlay)
+                return Clutter.EVENT_PROPAGATE; // let it handle its own keys
             const sym = event.get_key_symbol();
             if (sym === Clutter.KEY_Escape) {
                 this.close();
@@ -1867,7 +2040,8 @@ class EventInfoPopover {
         this._backdrop.set_size(global.stage.width, global.stage.height);
         this._root.insert_child_at_index(this._backdrop, 0);
         this._backdropId = this._backdrop.connect('button-press-event', (_actor, event) => {
-            if (this._confirmOverlay) return Clutter.EVENT_PROPAGATE; // let it handle its own clicks
+            if (this._confirmOverlay)
+                return Clutter.EVENT_PROPAGATE; // let it handle its own clicks
             // Resolve what's actually under the click before tearing
             // anything down: with the backdrop itself excluded, picking
             // falls through to whatever real actor is there (another agenda
@@ -1879,10 +2053,10 @@ class EventInfoPopover {
             this._backdrop.reactive = false;
             const under = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
             this._backdrop.reactive = true;
-            const onOutsideClick = this._onOutsideClick;
+            const onOutsideClickCb = this._onOutsideClick;
             const closingEvent   = this._event; // so the caller can tell "reopen this" from "toggle closed"
             this.close();
-            onOutsideClick?.(under, closingEvent);
+            onOutsideClickCb?.(under, closingEvent);
             return Clutter.EVENT_STOP;
         });
     }
@@ -1938,10 +2112,12 @@ class EventInfoPopover {
         };
 
         // ── Location / recurrence ─────────────────────────────────────────
-        if (ev.location) addIconRow('mark-location-symbolic', ev.location);
+        if (ev.location)
+            addIconRow('mark-location-symbolic', ev.location);
 
         const recurrence = recurrenceSummary(ev.recurrence);
-        if (recurrence) addIconRow('media-playlist-repeat-symbolic', recurrence);
+        if (recurrence)
+            addIconRow('media-playlist-repeat-symbolic', recurrence);
 
         // ── Join meeting (same detection as the agenda row's own button) ───
         const meetingUrl = findMeetingUrl(ev);
@@ -1955,13 +2131,16 @@ class EventInfoPopover {
             joinRow.add_child(new St.Label({text: _('Join meeting'), x_expand: true}));
             joinBtn.set_child(joinRow);
             joinBtn.connect('clicked', () => {
-                try { Gio.AppInfo.launch_default_for_uri(meetingUrl, null); } catch (_) {}
+                try {
+                    Gio.AppInfo.launch_default_for_uri(meetingUrl, null);
+                } catch {}
             });
             box.add_child(joinBtn);
         }
 
         // ── Notes / URL ────────────────────────────────────────────────────
-        if (ev.notes || ev.url) box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
+        if (ev.notes || ev.url)
+            box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
 
         if (ev.notes) {
             const notesLbl = new St.Label({text: ev.notes, style_class: 'litsycal-info-popover-text'});
@@ -1983,7 +2162,9 @@ class EventInfoPopover {
             urlRow.add_child(urlLbl);
             urlBtn.set_child(urlRow);
             urlBtn.connect('clicked', () => {
-                try { Gio.AppInfo.launch_default_for_uri(ev.url, null); } catch (_) {}
+                try {
+                    Gio.AppInfo.launch_default_for_uri(ev.url, null);
+                } catch {}
             });
             box.add_child(urlBtn);
         }
@@ -1995,9 +2176,14 @@ class EventInfoPopover {
     // path as its agenda context menu's Delete item.
     _confirmDelete() {
         confirmDeleteEvent(this._calManager, this._event, err => {
-            if (err) { Main.notifyError(_('Litsycal'), err.message); return; }
+            if (err) {
+                Main.notifyError(_('Litsycal'), err.message);
+                return;
+            }
             this.close();
-        }, overlay => { this._confirmOverlay = overlay; });
+        }, overlay => {
+            this._confirmOverlay = overlay;
+        });
     }
 
     // Anchors to the clicked agenda row: opens to whichever side of it has
@@ -2042,15 +2228,27 @@ class EventInfoPopover {
     }
 
     close() {
-        if (this._watchdogId) { GLib.source_remove(this._watchdogId); this._watchdogId = null; }
+        if (this._watchdogId) {
+            GLib.source_remove(this._watchdogId);
+            this._watchdogId = null;
+        }
         if (this._confirmOverlay) {
             Main.layoutManager.uiGroup.remove_child(this._confirmOverlay);
             this._confirmOverlay.destroy();
             this._confirmOverlay = null;
         }
-        if (this._btnKeyId)  { this._deleteBtn?.disconnect(this._btnKeyId); this._btnKeyId  = null; }
-        if (this._backdropId) { this._backdrop?.disconnect(this._backdropId); this._backdropId = null; }
-        if (this._grab)    { Main.popModal(this._grab); this._grab = null; }
+        if (this._btnKeyId)  {
+            this._deleteBtn?.disconnect(this._btnKeyId);
+            this._btnKeyId  = null;
+        }
+        if (this._backdropId) {
+            this._backdrop?.disconnect(this._backdropId);
+            this._backdropId = null;
+        }
+        if (this._grab)    {
+            Main.popModal(this._grab);
+            this._grab = null;
+        }
         if (this._root) {
             Main.layoutManager.uiGroup.remove_child(this._root);
             this._root.destroy();
@@ -2079,7 +2277,6 @@ class EventInfoPopover {
 // listening on this._box's own 'captured-event', for the same reason) fixes
 // that the same way this.menu's own keyboard handling already had to.
 class SettingsMenuPanel {
-
     // items: {label, icon, action}[] rows in display order; `null` renders as
     // a separator. `action` is called once the panel has fully closed; a row
     // with `action: null` renders disabled.
@@ -2139,7 +2336,8 @@ class SettingsMenuPanel {
                 // mouse is over, so the two selection mechanisms never show
                 // two different rows highlighted at once.
                 btn.connect('notify::hover', () => {
-                    if (btn.hover) this._setFocusIndex(this._focusable.indexOf(btn));
+                    if (btn.hover)
+                        this._setFocusIndex(this._focusable.indexOf(btn));
                 });
                 this._focusable.push(btn);
             }
@@ -2170,20 +2368,20 @@ class SettingsMenuPanel {
                 }
             } else if (ev.type() === Clutter.EventType.KEY_PRESS) {
                 switch (ev.get_key_symbol()) {
-                    case Clutter.KEY_Escape:
-                        this.close();
-                        return Clutter.EVENT_STOP;
-                    case Clutter.KEY_Up:
-                        this._setFocusIndex(this._focusIndex - 1);
-                        return Clutter.EVENT_STOP;
-                    case Clutter.KEY_Down:
-                        this._setFocusIndex(this._focusIndex + 1);
-                        return Clutter.EVENT_STOP;
-                    case Clutter.KEY_Return:
-                    case Clutter.KEY_KP_Enter:
-                    case Clutter.KEY_space:
-                        this._focusable[this._focusIndex]?.emit('clicked', 1);
-                        return Clutter.EVENT_STOP;
+                case Clutter.KEY_Escape:
+                    this.close();
+                    return Clutter.EVENT_STOP;
+                case Clutter.KEY_Up:
+                    this._setFocusIndex(this._focusIndex - 1);
+                    return Clutter.EVENT_STOP;
+                case Clutter.KEY_Down:
+                    this._setFocusIndex(this._focusIndex + 1);
+                    return Clutter.EVENT_STOP;
+                case Clutter.KEY_Return:
+                case Clutter.KEY_KP_Enter:
+                case Clutter.KEY_space:
+                    this._focusable[this._focusIndex]?.emit('clicked', 1);
+                    return Clutter.EVENT_STOP;
                 }
             }
             return Clutter.EVENT_PROPAGATE;
@@ -2194,9 +2392,11 @@ class SettingsMenuPanel {
     // the visual highlight. `i` is a plain index into this._focusable, not
     // clamped by the caller.
     _setFocusIndex(i) {
-        if (this._focusable.length === 0) return;
+        if (this._focusable.length === 0)
+            return;
         i = (i + this._focusable.length) % this._focusable.length;
-        if (i === this._focusIndex) return;
+        if (i === this._focusIndex)
+            return;
         this._focusable[this._focusIndex]?.remove_style_pseudo_class('focus');
         this._focusIndex = i;
         this._focusable[this._focusIndex]?.add_style_pseudo_class('focus');
@@ -2215,15 +2415,22 @@ class SettingsMenuPanel {
         x = Math.max(monitor.x + 4, Math.min(x, monitor.x + monitor.width - boxW - 4));
 
         let y = ay + ah + 4;
-        if (y + boxH > monitor.y + monitor.height - 4) y = ay - boxH - 4; // flip above if no room below
+        if (y + boxH > monitor.y + monitor.height - 4)
+            y = ay - boxH - 4; // flip above if no room below
         y = Math.max(monitor.y + panelH + 4, y);
 
         this._box.set_position(Math.round(x), Math.round(y));
     }
 
     close() {
-        if (this._eventId) { this._box?.disconnect(this._eventId); this._eventId = null; }
-        if (this._grab)    { Main.popModal(this._grab); this._grab = null; }
+        if (this._eventId) {
+            this._box?.disconnect(this._eventId);
+            this._eventId = null;
+        }
+        if (this._grab)    {
+            Main.popModal(this._grab);
+            this._grab = null;
+        }
         if (this._box) {
             Main.layoutManager.uiGroup.remove_child(this._box);
             this._box.destroy();
@@ -2236,7 +2443,6 @@ class SettingsMenuPanel {
 
 const LitsycalIndicator = GObject.registerClass(
 class LitsycalIndicator extends PanelMenu.Button {
-
     _init(settings, openPrefs, extPath, uuid) {
         super._init(0.5, 'Litsycal');
 
@@ -2274,13 +2480,14 @@ class LitsycalIndicator extends PanelMenu.Button {
             this._checkHourlyBeep();
             // Keep the meeting join-button window (15 min before → end) fresh
             // while the calendar is actually visible.
-            if (this._menuIsOpen || this._pinned) this._calWidget?._buildAgenda();
+            if (this._menuIsOpen || this._pinned)
+                this._calWidget?._buildAgenda();
             return GLib.SOURCE_CONTINUE;
         });
 
         this._sids = [
-            'badge-style','show-month-in-badge','show-dow-in-badge',
-            'hide-icon','datetime-pattern','show-time','time-format',
+            'badge-style', 'show-month-in-badge', 'show-dow-in-badge',
+            'hide-icon', 'datetime-pattern', 'show-time', 'time-format',
         ].map(k => settings.connect(`changed::${k}`, () => this._updateBadge()));
 
         this._pinned      = false;
@@ -2298,7 +2505,8 @@ class LitsycalIndicator extends PanelMenu.Button {
                 // pointer-grab ":insensitive" style). Defer the unpin to
                 // the next idle, once the grab has settled.
                 GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                    if (this._pinned) this._unpinCalendar(false);
+                    if (this._pinned)
+                        this._unpinCalendar(false);
                     this._calWidget._updateAgendaMaxHeight();
                     this._calWidget._buildAgenda();
                     return GLib.SOURCE_REMOVE;
@@ -2322,10 +2530,12 @@ class LitsycalIndicator extends PanelMenu.Button {
                 // drops down from the top panel. See LitsycalCalendar.handleKeyPress
                 // for the h/j/k/l fallback this forces.
                 this._keyPressId = this.menu.actor.connect('captured-event', (_actor, ev) => {
-                    if (ev.type() !== Clutter.EventType.KEY_PRESS) return Clutter.EVENT_PROPAGATE;
+                    if (ev.type() !== Clutter.EventType.KEY_PRESS)
+                        return Clutter.EVENT_PROPAGATE;
                     // The event panel owns text entries (title, notes, ...); never
                     // steal their keystrokes for calendar navigation.
-                    if (this._calWidget._eventPanel) return Clutter.EVENT_PROPAGATE;
+                    if (this._calWidget._eventPanel)
+                        return Clutter.EVENT_PROPAGATE;
                     const keyval = ev.get_key_symbol();
                     const state  = ev.get_state();
                     const shift  = (state & Clutter.ModifierType.SHIFT_MASK)   !== 0;
@@ -2346,14 +2556,19 @@ class LitsycalIndicator extends PanelMenu.Button {
         });
         const cal = new LitsycalCalendar(
             settings,
-            (anchor) => this._openSettingsMenu(anchor),
+            anchor => this._openSettingsMenu(anchor),
             () => {
                 const app = Shell.AppSystem.get_default().lookup_app('org.gnome.Calendar.desktop');
-                if (app) app.activate();
+                if (app)
+                    app.activate();
             },
-            (pinned) => { if (pinned) this._pinCalendar(); else this._unpinCalendar(true); },
+            pinned => {
+                if (pinned)
+                    this._pinCalendar(); else
+                    this._unpinCalendar(true);
+            },
             () => this._updateBadge(),
-            (anchor) => this._openGoToDateDialog(anchor),
+            anchor => this._openGoToDateDialog(anchor),
             () => this._quitLitsycal()
         );
         this._calWidget = cal;
@@ -2364,8 +2579,9 @@ class LitsycalIndicator extends PanelMenu.Button {
 
         this.menu.actor.style = 'border: none; background-color: transparent; box-shadow: none; padding: 0;';
         this.menu.box.style   = 'padding: 0; background-color: transparent; border: none;';
-        try { this.menu.actor.bin.style = 'padding: 0; border: none; background-color: transparent;'; } catch (_) {}
-
+        try {
+            this.menu.actor.bin.style = 'padding: 0; border: none; background-color: transparent;';
+        } catch {}
     }
 
     // Opens the Preferences window on a specific tab. LitsycalPrefs
@@ -2384,24 +2600,45 @@ class LitsycalIndicator extends PanelMenu.Button {
     _openSettingsMenu(anchorActor) {
         this._settingsMenuPanel?.close();
         this._settingsMenuPanel = new SettingsMenuPanel(anchorActor, [
-            {label: _('About'), icon: 'help-about-symbolic',
-             action: () => { this.menu.close(); this._openPrefsPage('about'); }},
+            {
+                label: _('About'), icon: 'help-about-symbolic',
+                action: () => {
+                    this.menu.close();
+                    this._openPrefsPage('about');
+                },
+            },
             null,
-            {label: _('Go to date…'), icon: 'go-jump-symbolic',
-             action: () => this._openGoToDateDialog(anchorActor)},
+            {
+                label: _('Go to date…'), icon: 'go-jump-symbolic',
+                action: () => this._openGoToDateDialog(anchorActor),
+            },
             null,
-            {label: _('Settings'), icon: 'preferences-system-symbolic',
-             action: () => { this.menu.close(); this._openPrefsPage('general'); }},
-            {label: _('Appearance'), icon: 'preferences-desktop-theme-symbolic',
-             action: () => { this.menu.close(); this._openPrefsPage('appearance'); }},
+            {
+                label: _('Settings'), icon: 'preferences-system-symbolic',
+                action: () => {
+                    this.menu.close();
+                    this._openPrefsPage('general');
+                },
+            },
+            {
+                label: _('Appearance'), icon: 'preferences-desktop-theme-symbolic',
+                action: () => {
+                    this.menu.close();
+                    this._openPrefsPage('appearance');
+                },
+            },
             null,
-            {label: _('Help'), icon: 'help-browser-symbolic', action: () => {
-                this.menu.close();
-                Gio.AppInfo.launch_default_for_uri('https://github.com/mlkonrad/litsycal/wiki', null);
-            }},
+            {
+                label: _('Help'), icon: 'help-browser-symbolic', action: () => {
+                    this.menu.close();
+                    Gio.AppInfo.launch_default_for_uri('https://github.com/mlkonrad/litsycal/wiki', null);
+                },
+            },
             null,
-            {label: _('Quit Litsycal'), icon: 'application-exit-symbolic',
-             action: () => this._quitLitsycal()},
+            {
+                label: _('Quit Litsycal'), icon: 'application-exit-symbolic',
+                action: () => this._quitLitsycal(),
+            },
         ]);
     }
 
@@ -2423,10 +2660,12 @@ class LitsycalIndicator extends PanelMenu.Button {
     // came from a right-click with it closed) jumps straight to it.
     _openGoToDateDialog(anchorActor) {
         this._goToDatePanel?.close();
-        this._goToDatePanel = new GoToDatePanel(anchorActor, (dt) => {
+        this._goToDatePanel = new GoToDatePanel(anchorActor, dt => {
             this._goToDatePanel = null;
-            if (!dt) return;
-            if (!this._menuIsOpen) this.menu.open();
+            if (!dt)
+                return;
+            if (!this._menuIsOpen)
+                this.menu.open();
             this._calWidget._goToDate(dt);
         });
     }
@@ -2460,10 +2699,14 @@ class LitsycalIndicator extends PanelMenu.Button {
         this._badge.remove_style_class_name('litsycal-badge-calendar');
         this._badge.remove_style_class_name('litsycal-badge-calendar-dark');
         this._badge.remove_style_class_name('litsycal-badge-text');
-        if (style === 'number-dark')   this._badge.add_style_class_name('litsycal-badge-dark');
-        if (style === 'calendar')      this._badge.add_style_class_name('litsycal-badge-calendar');
-        if (style === 'calendar-dark') this._badge.add_style_class_name('litsycal-badge-calendar-dark');
-        if (style === 'text')          this._badge.add_style_class_name('litsycal-badge-text');
+        if (style === 'number-dark')
+            this._badge.add_style_class_name('litsycal-badge-dark');
+        if (style === 'calendar')
+            this._badge.add_style_class_name('litsycal-badge-calendar');
+        if (style === 'calendar-dark')
+            this._badge.add_style_class_name('litsycal-badge-calendar-dark');
+        if (style === 'text')
+            this._badge.add_style_class_name('litsycal-badge-text');
 
         const now = GLib.DateTime.new_now_local();
         this._badge.set_text(
@@ -2475,7 +2718,8 @@ class LitsycalIndicator extends PanelMenu.Button {
     // (mirrors the agenda's own join-button window — see meetingIsJoinable).
     _hasUpcomingMeeting() {
         const calManager = this._calWidget?._calManager;
-        if (!calManager) return false;
+        if (!calManager)
+            return false;
         const today = dateStr(GLib.DateTime.new_now_local());
         return calManager.getEventsForDate(today)
             .some(ev => findMeetingUrl(ev) && meetingIsJoinable(ev));
@@ -2491,7 +2735,7 @@ class LitsycalIndicator extends PanelMenu.Button {
                 if (customFile) {
                     try {
                         Gio.Subprocess.new(['paplay', customFile], Gio.SubprocessFlags.NONE);
-                    } catch (_) { /* paplay unavailable or file missing */ }
+                    } catch { /* paplay unavailable or file missing */ }
                 } else {
                     global.display.get_sound_player().play_from_theme('bell', 'Hour bell', null);
                 }
@@ -2506,8 +2750,10 @@ class LitsycalIndicator extends PanelMenu.Button {
         const showTime  = this._settings.get_boolean('show-time');
         const timeFmt   = this._settings.get_string('time-format');
         const parts     = [];
-        if (showDow)   parts.push(capitalize(now.format('%a')));
-        if (showMonth) parts.push(capitalize(now.format('%b')));
+        if (showDow)
+            parts.push(capitalize(now.format('%a')));
+        if (showMonth)
+            parts.push(capitalize(now.format('%b')));
         parts.push(String(now.get_day_of_month()).padStart(2, '0'));
         if (showTime)
             parts.push(timeFmt === '12h' ? now.format('%-I:%M%P') : now.format('%H:%M'));
@@ -2515,7 +2761,8 @@ class LitsycalIndicator extends PanelMenu.Button {
     }
 
     _pinCalendar() {
-        if (this._pinned) return;
+        if (this._pinned)
+            return;
         this._pinned = true;
         this._calWidget.setPinned(true);
         const monitor = Main.layoutManager.monitors[
@@ -2530,8 +2777,8 @@ class LitsycalIndicator extends PanelMenu.Button {
         // get_width() also reads 0 once detached (no layout pass yet), hence
         // the SIZE_MIN_WIDTHS fallback.
         const [calX, calY] = this._calWidget.get_transformed_position();
-        const calW = this._calWidget.get_width()
-            || SIZE_MIN_WIDTHS[this._settings.get_int('calendar-size')] || 255;
+        const calW = this._calWidget.get_width() ||
+            SIZE_MIN_WIDTHS[this._settings.get_int('calendar-size')] || 255;
 
         this._floatingBox = new St.BoxLayout({vertical: true});
         Main.layoutManager.uiGroup.add_child(this._floatingBox);
@@ -2547,13 +2794,15 @@ class LitsycalIndicator extends PanelMenu.Button {
     _unpinCalendar(andOpen = false) {
         this._pinned = false;
         this._calWidget.setPinned(false);
-        if (!this._floatingBox) return;
+        if (!this._floatingBox)
+            return;
         this._floatingBox.remove_child(this._calWidget);
         this._menuItem.add_child(this._calWidget);
         Main.layoutManager.uiGroup.remove_child(this._floatingBox);
         this._floatingBox.destroy();
         this._floatingBox = null;
-        if (andOpen) this.menu.toggle();
+        if (andOpen)
+            this.menu.toggle();
     }
 
     destroy() {
@@ -2562,14 +2811,24 @@ class LitsycalIndicator extends PanelMenu.Button {
             this._floatingBox.destroy();
             this._floatingBox = null;
         }
-        if (this._keyPressId) { this.menu.actor.disconnect(this._keyPressId); this._keyPressId = null; }
-        if (this._menuOpenId) { this.menu.disconnect(this._menuOpenId); this._menuOpenId = null; }
-        if (this._timer)      { GLib.source_remove(this._timer); this._timer = null; }
+        if (this._keyPressId) {
+            this.menu.actor.disconnect(this._keyPressId);
+            this._keyPressId = null;
+        }
+        if (this._menuOpenId) {
+            this.menu.disconnect(this._menuOpenId);
+            this._menuOpenId = null;
+        }
+        if (this._timer)      {
+            GLib.source_remove(this._timer);
+            this._timer = null;
+        }
         this._goToDatePanel?.close();
         this._goToDatePanel = null;
         this._settingsMenuPanel?.close();
         this._settingsMenuPanel = null;
-        for (const id of this._sids) this._settings.disconnect(id);
+        for (const id of this._sids)
+            this._settings.disconnect(id);
         super.destroy();
     }
 });

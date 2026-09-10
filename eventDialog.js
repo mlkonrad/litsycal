@@ -8,7 +8,9 @@ import Pango   from 'gi://Pango';
 
 const _ = str => GLib.dgettext('litsycal@mlkonrad.github.com', str);
 
-function pad(n) { return String(n).padStart(2, '0'); }
+function pad(n) {
+    return String(n).padStart(2, '0');
+}
 function dateStr(dt) {
     return `${dt.get_year()}-${pad(dt.get_month())}-${pad(dt.get_day_of_month())}`;
 }
@@ -60,7 +62,8 @@ const ALERT_PRESETS_TIMED  = ['NONE', '0', '5', '10', '15', '30', '60', '120', '
 const ALERT_PRESETS_ALLDAY = ['NONE', '0', '1440', '2880', '10080'];
 
 function minutesLabel(min, allDay) {
-    if (min === 0) return allDay ? _('On the day') : _('At time of event');
+    if (min === 0)
+        return allDay ? _('On the day') : _('At time of event');
     if (min % 1440 === 0) {
         const days = min / 1440;
         return days === 7 ? _('1 week before') : ngettext('%d day before', '%d days before', days).replace('%d', days);
@@ -73,7 +76,8 @@ function minutesLabel(min, allDay) {
 }
 
 function alertLabel(value, allDay) {
-    if (value === 'NONE') return _('None');
+    if (value === 'NONE')
+        return _('None');
     return minutesLabel(parseInt(value), allDay);
 }
 
@@ -88,14 +92,24 @@ function alertLabel(value, allDay) {
 // called with the overlay actor while the prompt is up and with null once
 // it's gone — EventPanel uses this to keep its own click-outside/Escape
 // handling from closing the whole panel out from under the prompt.
+/**
+ *
+ * @param {CalendarManager} calManager
+ * @param {object} event
+ * @param {Function} [onDone]
+ * @param {Function} [onOverlayChange]
+ */
 export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
-    const doDelete = (scope) => {
+    const doDelete = scope => {
         const recurrenceId = event.recurrenceId ?? null;
         calManager.deleteEvent(event.uid, event.clientUid, {scope, recurrenceId}, err => onDone?.(err));
     };
 
     const isRecurring = !!(event.recurrence || event.recurrenceId);
-    if (!isRecurring) { doDelete('ALL'); return; }
+    if (!isRecurring) {
+        doDelete('ALL');
+        return;
+    }
 
     const overlay = new St.BoxLayout({
         vertical: true,
@@ -112,7 +126,8 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
 
     const closeOverlay = () => {
         overlay.disconnect(eventId);
-        if (grab) Main.popModal(grab);
+        if (grab)
+            Main.popModal(grab);
         Main.layoutManager.uiGroup.remove_child(overlay);
         overlay.destroy();
         onOverlayChange?.(null);
@@ -120,7 +135,10 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
 
     const mkBtn = (label, styleClass, onClick) => {
         const b = new St.Button({label, style_class: styleClass, x_expand: true});
-        b.connect('clicked', () => { closeOverlay(); onClick(); });
+        b.connect('clicked', () => {
+            closeOverlay();
+            onClick();
+        });
         return b;
     };
 
@@ -169,7 +187,6 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
 }
 
 export class EventPanel {
-
     // onClose is called exactly once, however the panel ends up closing —
     // saved, deleted, cancelled via Escape, or dismissed by clicking
     // outside. Callers rely on this to know the panel is gone (e.g. to null
@@ -182,14 +199,14 @@ export class EventPanel {
         this._onClose        = onClose;
         this._calendarSystem = calendarSystem;
         this._allDay         = event?.allDay ?? false;
-        this._selDate        = event?.date
-            ?? (selectedDate ? dateStr(selectedDate) : dateStr(GLib.DateTime.new_now_local()));
+        this._selDate        = event?.date ??
+            (selectedDate ? dateStr(selectedDate) : dateStr(GLib.DateTime.new_now_local()));
 
         const sources        = calManager.getSources();
         this._sources        = sources;
         this._selSource      = event
-            ? (sources.find(s => s.uid === event.clientUid) ?? sources[0] ?? null)
-            : (sources[0] ?? null);
+            ? sources.find(s => s.uid === event.clientUid) ?? sources[0] ?? null
+            : sources[0] ?? null;
 
         // Use popup-menu-content so background/text follow the user's shell theme
         this._box = new St.BoxLayout({
@@ -238,7 +255,8 @@ export class EventPanel {
         });
 
         this._clickId = global.stage.connect('button-press-event', (_stage, ev) => {
-            if (this._confirmOverlay) return Clutter.EVENT_PROPAGATE; // let it handle its own clicks
+            if (this._confirmOverlay)
+                return Clutter.EVENT_PROPAGATE; // let it handle its own clicks
             const [x, y] = ev.get_coords();
             const actor  = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
             // A floating dropdown is a sibling of this._box (not a
@@ -264,8 +282,10 @@ export class EventPanel {
     }
 
     _handleKeyEvent(ev) {
-        if (this._confirmOverlay) return Clutter.EVENT_PROPAGATE; // let it handle Escape itself
-        if (ev.type() !== Clutter.EventType.KEY_PRESS) return Clutter.EVENT_PROPAGATE;
+        if (this._confirmOverlay)
+            return Clutter.EVENT_PROPAGATE; // let it handle Escape itself
+        if (ev.type() !== Clutter.EventType.KEY_PRESS)
+            return Clutter.EVENT_PROPAGATE;
 
         const sym = ev.get_key_symbol();
         if (sym === Clutter.KEY_Escape) {
@@ -297,10 +317,17 @@ export class EventPanel {
                 // _makeDateField tags its floater with _dateNav for that.
                 const dateNav = this._openDropdown._dateNav;
                 if (dateNav) {
-                    dateNav(
-                        sym === Clutter.KEY_Left ? -1 : sym === Clutter.KEY_Right ? 1 : 0,
-                        sym === Clutter.KEY_Up   ? -1 : sym === Clutter.KEY_Down  ? 1 : 0,
-                    );
+                    let dx = 0;
+                    if (sym === Clutter.KEY_Left)
+                        dx = -1;
+                    else if (sym === Clutter.KEY_Right)
+                        dx = 1;
+                    let dy = 0;
+                    if (sym === Clutter.KEY_Up)
+                        dy = -1;
+                    else if (sym === Clutter.KEY_Down)
+                        dy = 1;
+                    dateNav(dx, dy);
                     return Clutter.EVENT_STOP;
                 }
                 if (sym === Clutter.KEY_Down || sym === Clutter.KEY_Up) {
@@ -365,7 +392,7 @@ export class EventPanel {
             // instead of overflowing past it.
             const idealY = monitor.y + panelH + Math.round((monitor.height - panelH) * 0.18);
             const y = Math.max(monitor.y + panelH + 4,
-                                Math.min(idealY, monitor.y + monitor.height - boxH - 4));
+                Math.min(idealY, monitor.y + monitor.height - boxH - 4));
             this._box.set_position(monitor.x + Math.round((monitor.width - boxW) / 2), y);
         }
     }
@@ -381,7 +408,8 @@ export class EventPanel {
             x_expand: true,
             can_focus: true,
         });
-        if (ev) this._titleEntry.set_text(ev.title ?? '');
+        if (ev)
+            this._titleEntry.set_text(ev.title ?? '');
         this._titleEntry.clutter_text.connect('activate', () => this._save());
         this._focusOnClick(this._titleEntry);
         box.add_child(this._titleEntry);
@@ -435,7 +463,8 @@ export class EventPanel {
             x_expand: true,
             can_focus: true,
         });
-        if (ev?.location) this._locationEntry.set_text(ev.location);
+        if (ev?.location)
+            this._locationEntry.set_text(ev.location);
         this._focusOnClick(this._locationEntry);
         locationRow.add_child(this._locationEntry);
         box.add_child(locationRow);
@@ -449,13 +478,14 @@ export class EventPanel {
             x_expand: true,
             can_focus: true,
         });
-        if (ev?.url) this._urlEntry.set_text(ev.url);
+        if (ev?.url)
+            this._urlEntry.set_text(ev.url);
         this._focusOnClick(this._urlEntry);
 
         this._openUrlBtn = new St.Button({
             label: '↗',
             style_class: 'litsycal-panel-open-btn',
-            visible: !!(ev?.url),
+            visible: !!ev?.url,
         });
         this._openUrlBtn.connect('clicked', () => this._openUrl());
         this._urlEntry.clutter_text.connect('text-changed', () => {
@@ -474,8 +504,8 @@ export class EventPanel {
         }));
         this._allDayBtn = new St.Button({
             label: this._allDay ? _('On') : _('Off'),
-            style_class: 'litsycal-panel-toggle ' +
-                (this._allDay ? 'litsycal-panel-toggle-on' : 'litsycal-panel-toggle-off'),
+            style_class: `litsycal-panel-toggle ${
+                this._allDay ? 'litsycal-panel-toggle-on' : 'litsycal-panel-toggle-off'}`,
         });
         this._allDayBtn.connect('clicked', () => this._toggleAllDay());
         allDayRow.add_child(this._allDayBtn);
@@ -483,7 +513,7 @@ export class EventPanel {
 
         // ── Starts ─────────────────────────────────────────────────────────────
         const defStartTime = ev && !ev.allDay
-            ? (ev.time?.split(' - ')[0] ?? this._nowHour()) : this._nowHour();
+            ? ev.time?.split(' - ')[0] ?? this._nowHour() : this._nowHour();
         this._startsRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
         this._startsRow.add_child(new St.Label({text: _('Starts'), style_class: 'litsycal-panel-lbl'}));
         this._startDatePicker = this._makeDateField(this._selDate);
@@ -494,7 +524,7 @@ export class EventPanel {
 
         // ── Ends ───────────────────────────────────────────────────────────────
         const defEndTime = ev && !ev.allDay
-            ? (ev.time?.split(' - ')[1]?.trim() ?? this._nextHour()) : this._nextHour();
+            ? ev.time?.split(' - ')[1]?.trim() ?? this._nextHour() : this._nextHour();
         this._endsRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
         this._endsRow.add_child(new St.Label({text: _('Ends'), style_class: 'litsycal-panel-lbl'}));
         this._endDatePicker = this._makeDateField(ev?.endDate ?? this._selDate);
@@ -570,7 +600,8 @@ export class EventPanel {
         // this is what was stretching the whole dialog. WORD_CHAR falls
         // back to breaking mid-word once a line has nowhere else to wrap.
         this._notesEntry.clutter_text.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR);
-        if (ev?.notes) this._notesEntry.set_text(ev.notes);
+        if (ev?.notes)
+            this._notesEntry.set_text(ev.notes);
         this._focusOnClick(this._notesEntry);
         // St.ScrollView.set_child() requires an St.Scrollable child, which
         // St.Entry doesn't implement (only container types like BoxLayout
@@ -685,12 +716,14 @@ export class EventPanel {
 
     _alertInitFor(alarm, allDay) {
         const presets = this._alertPresetOptions(allDay);
-        if (!alarm) return {value: 'NONE', options: presets};
+        if (!alarm)
+            return {value: 'NONE', options: presets};
         if (alarm.raw)
             return {value: 'CUSTOM', options: [{value: 'CUSTOM', label: _('Custom')}, ...presets]};
 
         const key = String(alarm.minutesBefore);
-        if (presets.some(o => o.value === key)) return {value: key, options: presets};
+        if (presets.some(o => o.value === key))
+            return {value: key, options: presets};
 
         // Exact offset from another app that isn't one of our presets — inject
         // it so it stays visible and editable instead of looking unsupported.
@@ -700,13 +733,15 @@ export class EventPanel {
 
     _repeatInitFor(recurrence) {
         const presets = REPEAT_PRESETS.map(p => ({value: p.value, label: repeatLabel(p.value)}));
-        if (!recurrence) return {value: 'NONE', options: presets, customRecurrence: null};
+        if (!recurrence)
+            return {value: 'NONE', options: presets, customRecurrence: null};
 
         if (!recurrence.raw) {
             const match = REPEAT_PRESETS.find(
                 p => p.freq === recurrence.freq && p.interval === recurrence.interval
             );
-            if (match) return {value: match.value, options: presets, customRecurrence: null};
+            if (match)
+                return {value: match.value, options: presets, customRecurrence: null};
         }
         return {
             value: 'CUSTOM',
@@ -738,10 +773,12 @@ export class EventPanel {
     // _moveInDropdown() and by _toggleDropdown()'s focus-on-open step.
     _collectFocusable(actor, out = []) {
         if (actor instanceof St.Button || actor instanceof St.Entry) {
-            if (actor.mapped && actor.reactive !== false) out.push(actor);
+            if (actor.mapped && actor.reactive !== false)
+                out.push(actor);
             return out;
         }
-        for (const child of actor.get_children?.() ?? []) this._collectFocusable(child, out);
+        for (const child of actor.get_children?.() ?? [])
+            this._collectFocusable(child, out);
         return out;
     }
 
@@ -760,13 +797,16 @@ export class EventPanel {
     // as a native combobox's popup. Wraps at either end.
     _moveInDropdown(forward) {
         const items = this._collectFocusable(this._openDropdown);
-        if (items.length === 0) return;
+        if (items.length === 0)
+            return;
 
         const focused = global.stage.get_key_focus();
         const curIdx  = items.findIndex(a => a === focused || a.clutter_text === focused);
-        const nextIdx = curIdx === -1
-            ? (forward ? 0 : items.length - 1)
-            : (curIdx + (forward ? 1 : -1) + items.length) % items.length;
+        let nextIdx;
+        if (curIdx === -1)
+            nextIdx = forward ? 0 : items.length - 1;
+        else
+            nextIdx = (curIdx + (forward ? 1 : -1) + items.length) % items.length;
         items[nextIdx].grab_key_focus();
     }
 
@@ -785,21 +825,26 @@ export class EventPanel {
 
             const actors    = this._focusableActors();
             const anchorIdx = actors.indexOf(anchor);
-            const resumeIdx = anchorIdx === -1
-                ? (forward ? 0 : actors.length - 1)
-                : (anchorIdx + (forward ? 1 : -1) + actors.length) % actors.length;
+            let resumeIdx;
+            if (anchorIdx === -1)
+                resumeIdx = forward ? 0 : actors.length - 1;
+            else
+                resumeIdx = (anchorIdx + (forward ? 1 : -1) + actors.length) % actors.length;
             actors[resumeIdx]?.grab_key_focus();
             return;
         }
 
         const actors = this._focusableActors();
-        if (actors.length === 0) return;
+        if (actors.length === 0)
+            return;
 
         const focused = global.stage.get_key_focus();
         const curIdx  = actors.findIndex(a => a === focused || a.clutter_text === focused);
-        const nextIdx = curIdx === -1
-            ? (forward ? 0 : actors.length - 1)
-            : (curIdx + (forward ? 1 : -1) + actors.length) % actors.length;
+        let nextIdx;
+        if (curIdx === -1)
+            nextIdx = forward ? 0 : actors.length - 1;
+        else
+            nextIdx = (curIdx + (forward ? 1 : -1) + actors.length) % actors.length;
         actors[nextIdx].grab_key_focus();
     }
 
@@ -808,7 +853,8 @@ export class EventPanel {
         this._saveBtn.reactive  = hasTitle;
         this._saveBtn.can_focus = hasTitle;
         this._saveBtn.remove_style_class_name('litsycal-panel-save-btn-disabled');
-        if (!hasTitle) this._saveBtn.add_style_class_name('litsycal-panel-save-btn-disabled');
+        if (!hasTitle)
+            this._saveBtn.add_style_class_name('litsycal-panel-save-btn-disabled');
     }
 
     // This panel floats in Main.layoutManager.uiGroup, detached from the shell's
@@ -871,10 +917,11 @@ export class EventPanel {
         const w        = Math.max(aw, natW);
         const [, natH] = dropdown.get_preferred_height(w);
 
-        let x = Math.max(monitor.x + 4, Math.min(ax, monitor.x + monitor.width - w - 4));
+        const x = Math.max(monitor.x + 4, Math.min(ax, monitor.x + monitor.width - w - 4));
 
         let y = ay + ah + 2;
-        if (y + natH > monitor.y + monitor.height - 4) y = ay - natH - 2;
+        if (y + natH > monitor.y + monitor.height - 4)
+            y = ay - natH - 2;
         y = Math.max(monitor.y + 4, y);
 
         dropdown.set_width(w);
@@ -903,7 +950,8 @@ export class EventPanel {
             // pass yet, so mapped/reactive filtering in _collectFocusable
             // isn't reliable until then.
             GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                if (this._openDropdown !== dropdown) return GLib.SOURCE_REMOVE;
+                if (this._openDropdown !== dropdown)
+                    return GLib.SOURCE_REMOVE;
                 const items = this._collectFocusable(dropdown);
                 const selected = items.find(i => i.style_class?.includes('-selected'));
                 (selected ?? items[0])?.grab_key_focus();
@@ -931,21 +979,23 @@ export class EventPanel {
         let opts = options;
         let cur  = initialValue;
 
+        const onOptionClicked = opt => () => {
+            cur = opt.value;
+            btnLbl.set_text(opt.label);
+            this._closeDropdown();
+            onChange?.(cur);
+        };
+
         const rebuildList = () => {
             dropdown.destroy_all_children();
             for (const opt of opts) {
                 const isSel = opt.value === cur;
                 const optBtn = new St.Button({
                     label: opt.label, x_expand: true,
-                    style_class: 'litsycal-panel-dropdown-option' +
-                        (isSel ? ' litsycal-panel-dropdown-option-selected' : ''),
+                    style_class: `litsycal-panel-dropdown-option${
+                        isSel ? ' litsycal-panel-dropdown-option-selected' : ''}`,
                 });
-                optBtn.connect('clicked', () => {
-                    cur = opt.value;
-                    btnLbl.set_text(opt.label);
-                    this._closeDropdown();
-                    onChange?.(cur);
-                });
+                optBtn.connect('clicked', onOptionClicked(opt));
                 dropdown.add_child(optBtn);
             }
         };
@@ -999,11 +1049,15 @@ export class EventPanel {
         this._attachFloatingDropdown(dropdown, btn);
 
         const header    = new St.BoxLayout({style_class: 'litsycal-panel-date-header'});
-        const prevBtn   = new St.Button({label: '‹', style_class: 'litsycal-nav-btn',
-                                          accessible_name: _('Previous month')});
+        const prevBtn   = new St.Button({
+            label: '‹', style_class: 'litsycal-nav-btn',
+            accessible_name: _('Previous month'),
+        });
         const monthLbl  = new St.Label({x_expand: true, style_class: 'litsycal-panel-date-month-lbl'});
-        const nextBtn   = new St.Button({label: '›', style_class: 'litsycal-nav-btn',
-                                          accessible_name: _('Next month')});
+        const nextBtn   = new St.Button({
+            label: '›', style_class: 'litsycal-nav-btn',
+            accessible_name: _('Next month'),
+        });
         header.add_child(prevBtn);
         header.add_child(monthLbl);
         header.add_child(nextBtn);
@@ -1021,6 +1075,12 @@ export class EventPanel {
 
         const todayStr = dateStr(GLib.DateTime.new_now_local());
 
+        const onDayClicked = (y, m, d) => () => {
+            cur = {y, m, d};
+            btnLbl.set_text(labelFor(cur));
+            this._closeDropdown();
+        };
+
         const rebuild = () => {
             gridBox.destroy_all_children();
             monthLbl.set_text(
@@ -1032,7 +1092,8 @@ export class EventPanel {
             const total    = daysInMonth(view.y, view.m);
 
             let row = new St.BoxLayout({style_class: 'litsycal-panel-date-row'});
-            for (let i = 0; i < firstDow; i++) row.add_child(new St.Widget({x_expand: true}));
+            for (let i = 0; i < firstDow; i++)
+                row.add_child(new St.Widget({x_expand: true}));
             let col = firstDow;
 
             for (let d = 1; d <= total; d++) {
@@ -1040,21 +1101,19 @@ export class EventPanel {
                 const isSel  = view.y === cur.y && view.m === cur.m && d === cur.d;
                 const isToday = ds === todayStr;
                 let sc = 'litsycal-panel-date-day';
-                if (isSel)   sc += ' litsycal-panel-date-day-selected';
-                if (isToday) sc += ' litsycal-panel-date-day-today';
+                if (isSel)
+                    sc += ' litsycal-panel-date-day-selected';
+                if (isToday)
+                    sc += ' litsycal-panel-date-day-today';
                 const dayBtn = new St.Button({label: String(d), x_expand: true, style_class: sc});
                 // Read back by _dateNav to know which day a given button is,
                 // and by _dateNav's post-rebuild lookup to refocus the right
                 // one after crossing a month boundary.
                 dayBtn._date = {y: view.y, m: view.m, d};
                 dayBtn.accessible_name =
-                    capitalize(GLib.DateTime.new_local(view.y, view.m, d, 0, 0, 0).format('%A, %B %-d')) +
-                    `, ${displayYear(view.y, this._calendarSystem)}`;
-                dayBtn.connect('clicked', () => {
-                    cur = {y: view.y, m: view.m, d};
-                    btnLbl.set_text(labelFor(cur));
-                    this._closeDropdown();
-                });
+                    `${capitalize(GLib.DateTime.new_local(view.y, view.m, d, 0, 0, 0).format('%A, %B %-d'))
+                    }, ${displayYear(view.y, this._calendarSystem)}`;
+                dayBtn.connect('clicked', onDayClicked(view.y, view.m, d));
                 row.add_child(dayBtn);
                 col++;
                 if (col === 7) {
@@ -1064,7 +1123,10 @@ export class EventPanel {
                 }
             }
             if (col > 0) {
-                while (col < 7) { row.add_child(new St.Widget({x_expand: true})); col++; }
+                while (col < 7) {
+                    row.add_child(new St.Widget({x_expand: true}));
+                    col++;
+                }
                 gridBox.add_child(row);
             }
         };
@@ -1079,7 +1141,8 @@ export class EventPanel {
             const focused  = global.stage.get_key_focus();
             const from     = focused?._date ?? cur;
             const deltaDays = dx + dy * 7;
-            if (deltaDays === 0) return;
+            if (deltaDays === 0)
+                return;
 
             const dt = GLib.DateTime.new_local(from.y, from.m, from.d, 0, 0, 0).add_days(deltaDays);
             const to = {y: dt.get_year(), m: dt.get_month(), d: dt.get_day_of_month()};
@@ -1102,7 +1165,10 @@ export class EventPanel {
             rebuild();
         });
         btn.connect('clicked', () => {
-            this._toggleDropdown(dropdown, btn, () => { view = {y: cur.y, m: cur.m}; rebuild(); });
+            this._toggleDropdown(dropdown, btn, () => {
+                view = {y: cur.y, m: cur.m};
+                rebuild();
+            });
         });
 
         rebuild();
@@ -1133,6 +1199,11 @@ export class EventPanel {
         this._attachFloatingDropdown(scroll, btn);
 
         let cur = initialStr;
+        const onTimeClicked = value => () => {
+            cur = value;
+            btnLbl.set_text(value);
+            this._closeDropdown();
+        };
         const optBtns = [];
         for (let h = 0; h < 24; h++) {
             for (const m of [0, 30]) {
@@ -1140,14 +1211,10 @@ export class EventPanel {
                 const isSel = value === cur;
                 const optBtn = new St.Button({
                     label: value, x_expand: true,
-                    style_class: 'litsycal-panel-time-option' +
-                        (isSel ? ' litsycal-panel-time-option-selected' : ''),
+                    style_class: `litsycal-panel-time-option${
+                        isSel ? ' litsycal-panel-time-option-selected' : ''}`,
                 });
-                optBtn.connect('clicked', () => {
-                    cur = value;
-                    btnLbl.set_text(value);
-                    this._closeDropdown();
-                });
+                optBtn.connect('clicked', onTimeClicked(value));
                 list.add_child(optBtn);
                 optBtns.push(optBtn);
             }
@@ -1163,9 +1230,11 @@ export class EventPanel {
                 // Re-derive it here every time the list opens.
                 for (const b of optBtns)
                     b.remove_style_class_name('litsycal-panel-time-option-selected');
-                if (idx >= 0) optBtns[idx].add_style_class_name('litsycal-panel-time-option-selected');
+                if (idx >= 0)
+                    optBtns[idx].add_style_class_name('litsycal-panel-time-option-selected');
 
-                if (idx < 0) return;
+                if (idx < 0)
+                    return;
                 GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
                     const adjustment = scroll.vadjustment ?? scroll.vscroll.adjustment;
                     const rowH  = optBtns[0].get_height() || 0;
@@ -1187,23 +1256,30 @@ export class EventPanel {
 
     _openUrl() {
         const url = this._urlEntry.get_text().trim();
-        if (!url) return;
-        try { Gio.AppInfo.launch_default_for_uri(url, null); } catch(_) {}
+        if (!url)
+            return;
+        try {
+            Gio.AppInfo.launch_default_for_uri(url, null);
+        } catch {}
     }
 
     _parseDate(str) {
         const m = (str ?? '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        if (!m) return null;
+        if (!m)
+            return null;
         const [, y, mo, d] = m.map(Number);
-        if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+        if (mo < 1 || mo > 12 || d < 1 || d > 31)
+            return null;
         return `${y}-${pad(mo)}-${pad(d)}`;
     }
 
     _parseTime(str) {
         const m = (str ?? '').trim().match(/^(\d{1,2}):(\d{2})$/);
-        if (!m) return null;
+        if (!m)
+            return null;
         const h = parseInt(m[1]), min = parseInt(m[2]);
-        if (h > 23 || min > 59) return null;
+        if (h > 23 || min > 59)
+            return null;
         return {h, min};
     }
 
@@ -1214,8 +1290,10 @@ export class EventPanel {
 
     _recurrenceFromUI() {
         const val = this._repeatPicker.getValue();
-        if (val === 'NONE')   return null;
-        if (val === 'CUSTOM') return this._customRecurrence;
+        if (val === 'NONE')
+            return null;
+        if (val === 'CUSTOM')
+            return this._customRecurrence;
 
         const preset = REPEAT_PRESETS.find(p => p.value === val);
         const until  = this._repeatEndPicker.getValue() === 'ON_DATE'
@@ -1226,28 +1304,47 @@ export class EventPanel {
 
     _alarmFromUI() {
         const val = this._alertPicker.getValue();
-        if (val === 'NONE')   return null;
-        if (val === 'CUSTOM') return this._customAlarm;
+        if (val === 'NONE')
+            return null;
+        if (val === 'CUSTOM')
+            return this._customAlarm;
         return {minutesBefore: parseInt(val)};
     }
 
     _save() {
         const title = this._titleEntry.get_text().trim();
-        if (!title)           { this._showError(_('Title required')); return; }
-        if (!this._selSource) { this._showError(_('No calendar available')); return; }
+        if (!title)           {
+            this._showError(_('Title required'));
+            return;
+        }
+        if (!this._selSource) {
+            this._showError(_('No calendar available'));
+            return;
+        }
 
         const startDate = this._parseDate(this._startDatePicker.getValue());
-        if (!startDate) { this._showError(_('Invalid date (YYYY-MM-DD)')); return; }
+        if (!startDate) {
+            this._showError(_('Invalid date (YYYY-MM-DD)'));
+            return;
+        }
 
         let hour = 0, minute = 0, endHour = 1, endMinute = 0, endDate = startDate;
 
         if (!this._allDay) {
             const st = this._parseTime(this._startTimePicker.getValue());
             const et = this._parseTime(this._endTimePicker.getValue());
-            if (!st) { this._showError(_('Invalid start time (HH:MM)')); return; }
-            if (!et) { this._showError(_('Invalid end time (HH:MM)')); return; }
-            hour = st.h; minute = st.min;
-            endHour = et.h; endMinute = et.min;
+            if (!st) {
+                this._showError(_('Invalid start time (HH:MM)'));
+                return;
+            }
+            if (!et) {
+                this._showError(_('Invalid end time (HH:MM)'));
+                return;
+            }
+            hour = st.h;
+            minute = st.min;
+            endHour = et.h;
+            endMinute = et.min;
             endDate = this._parseDate(this._endDatePicker.getValue()) ?? startDate;
         }
 
@@ -1257,26 +1354,35 @@ export class EventPanel {
         const recurrence = this._recurrenceFromUI();
         const alarm      = this._alarmFromUI();
 
-        const fields = {title, date: startDate, allDay: this._allDay, hour, minute,
-                         endDate, endHour, endMinute, notes, url, location, recurrence, alarm};
+        const fields = {
+            title, date: startDate, allDay: this._allDay, hour, minute,
+            endDate, endHour, endMinute, notes, url, location, recurrence, alarm,
+        };
 
         const done = err => {
-            if (err) { this._showError(err.message); return; }
+            if (err) {
+                this._showError(err.message);
+                return;
+            }
             this.close();
         };
 
-        if (this._event) {
+        if (this._event)
             this._calManager.updateEvent(this._event.uid, this._event.clientUid, fields, done);
-        } else {
+        else
             this._calManager.createEvent(fields, this._selSource.uid, done);
-        }
     }
 
     _confirmDelete() {
         confirmDeleteEvent(this._calManager, this._event, err => {
-            if (err) { this._showError(err.message); return; }
+            if (err) {
+                this._showError(err.message);
+                return;
+            }
             this.close();
-        }, overlay => { this._confirmOverlay = overlay; });
+        }, overlay => {
+            this._confirmOverlay = overlay;
+        });
     }
 
     close() {
@@ -1285,9 +1391,18 @@ export class EventPanel {
             this._confirmOverlay.destroy();
             this._confirmOverlay = null;
         }
-        if (this._clickId) { global.stage.disconnect(this._clickId); this._clickId = null; }
-        if (this._keyId)   { this._box?.disconnect(this._keyId);     this._keyId   = null; }
-        if (this._grab)    { Main.popModal(this._grab); this._grab = null; }
+        if (this._clickId) {
+            global.stage.disconnect(this._clickId);
+            this._clickId = null;
+        }
+        if (this._keyId)   {
+            this._box?.disconnect(this._keyId);
+            this._keyId   = null;
+        }
+        if (this._grab)    {
+            Main.popModal(this._grab);
+            this._grab = null;
+        }
         if (this._floaters) {
             for (const f of this._floaters) {
                 this._root.remove_child(f);
@@ -1319,7 +1434,6 @@ export class EventPanel {
 // panel-in-uiGroup pattern as EventPanel above (own stage click/Escape
 // handling, explicit teardown), just much smaller.
 export class GoToDatePanel {
-
     // onClose is called exactly once, with the parsed GLib.DateTime on a
     // successful submit or null on cancel (Escape / click outside).
     constructor(anchorActor, onClose) {
@@ -1385,8 +1499,8 @@ export class GoToDatePanel {
             let x = ax + Math.round((aw - boxW) / 2);
             x = Math.max(monitor.x + 4, Math.min(x, monitor.x + monitor.width - boxW - 4));
 
-            let y = Math.max(monitor.y + panelH + 4,
-                              Math.min(ay + ah + 6, monitor.y + monitor.height - boxH - 4));
+            const y = Math.max(monitor.y + panelH + 4,
+                Math.min(ay + ah + 6, monitor.y + monitor.height - boxH - 4));
 
             this._box.set_position(x, y);
         } else {
@@ -1411,7 +1525,9 @@ export class GoToDatePanel {
             can_focus: true,
         });
         this._entry.clutter_text.connect('activate', () => this._submit());
-        this._entry.clutter_text.connect('text-changed', () => { this._errorLbl.visible = false; });
+        this._entry.clutter_text.connect('text-changed', () => {
+            this._errorLbl.visible = false;
+        });
         row.add_child(this._entry);
 
         const goBtn = new St.Button({label: _('Go'), style_class: 'litsycal-panel-save-btn'});
@@ -1443,9 +1559,16 @@ export class GoToDatePanel {
     }
 
     _finish(dt) {
-        if (!this._box) return;
-        if (this._eventId) { this._box.disconnect(this._eventId); this._eventId = null; }
-        if (this._grab)    { Main.popModal(this._grab); this._grab = null; }
+        if (!this._box)
+            return;
+        if (this._eventId) {
+            this._box.disconnect(this._eventId);
+            this._eventId = null;
+        }
+        if (this._grab)    {
+            Main.popModal(this._grab);
+            this._grab = null;
+        }
         Main.layoutManager.uiGroup.remove_child(this._box);
         this._box.destroy();
         this._box = null;
