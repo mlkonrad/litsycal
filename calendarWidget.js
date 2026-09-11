@@ -160,27 +160,6 @@ class LitsycalCalendar extends St.BoxLayout {
                 this._applyTheme();
         });
 
-        this.connect('destroy', () => {
-            this._eventPanel?.close();
-            this._eventPanel = null;
-            this._eventContextMenu?.close();
-            this._eventContextMenu = null;
-            this._eventInfoPopover?.close();
-            this._eventInfoPopover = null;
-            this._cancelCellTooltip();
-            if (this._dayInfoTimeoutId) {
-                GLib.source_remove(this._dayInfoTimeoutId);
-                this._dayInfoTimeoutId = null;
-            }
-            if (this._dragStartY !== undefined)
-                this._endHandleDrag(this._resizeHandle);
-            for (const id of this._sids)
-                this._settings.disconnect(id);
-            this._iface.disconnect(this._accentId);
-            this._iface.disconnect(this._schemeId);
-            this._calManager?.destroy();
-        });
-
         // Constructed before any _buildGrid()/_buildAgenda() call below, since
         // both read events via this._calManager.getEventsForDate().
         this._calManager = new CalendarManager(settings, () => {
@@ -231,6 +210,30 @@ class LitsycalCalendar extends St.BoxLayout {
 
         this._buildFooter();
         this._calManager.fetchMonth(this._year, this._month);
+    }
+
+    // ── Cleanup ───────────────────────────────────────────────────────────────
+
+    destroy() {
+        this._eventPanel?.close();
+        this._eventPanel = null;
+        this._eventContextMenu?.close();
+        this._eventContextMenu = null;
+        this._eventInfoPopover?.close();
+        this._eventInfoPopover = null;
+        this._cancelCellTooltip();
+        if (this._dayInfoTimeoutId) {
+            GLib.source_remove(this._dayInfoTimeoutId);
+            this._dayInfoTimeoutId = null;
+        }
+        if (this._dragStartY !== undefined)
+            this._endHandleDrag(this._resizeHandle);
+        for (const id of this._sids)
+            this._settings.disconnect(id);
+        this._iface.disconnect(this._accentId);
+        this._iface.disconnect(this._schemeId);
+        this._calManager?.destroy();
+        super.destroy();
     }
 
     // ── Settings ──────────────────────────────────────────────────────────────

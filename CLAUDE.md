@@ -32,6 +32,11 @@ restart in place on Wayland like it can on X11 (`Alt+F2` → `r`).
 ## extensions.gnome.org review guidelines (publishing target)
 
 Full guide: https://gjs.guide/extensions/review-guidelines/review-guidelines.html
+GNOME also publishes a second, LLM-targeted checklist covering different
+ground (unnecessary try/catch and optional-chaining guards on GObject
+methods, `destroy()` vs `connect('destroy', ...)`, module-splitting,
+subprocess-vs-D-Bus, line length, etc.):
+https://gjs.guide/extensions/review-guidelines/best-practices.html
 This project is being prepared for submission to the official EGO review, so
 new code should keep meeting these — checked clean as of 2026-09-07:
 

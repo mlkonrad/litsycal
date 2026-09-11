@@ -1,7 +1,7 @@
 {
     "uuid": "litsycal@mlkonrad.github.com",
     "name": "Litsycal",
-    "description": "A compact calendar indicator for the GNOME panel, inspired by Itsycal.",
+    "description": "A compact calendar indicator for the GNOME panel, inspired by Itsycal.\n\nAn agenda entry's right-click menu includes a \"Copy\" action that copies its details to the clipboard.",
     "shell-version": ["48", "49", "50"],
     "settings-schema": "org.gnome.shell.extensions.litsycal",
     "gettext-domain": "litsycal@mlkonrad.github.com",
