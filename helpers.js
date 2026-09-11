@@ -165,6 +165,16 @@ const MEETING_PATTERNS = [
     /https?:\/\/chime\.aws\/[^\s<>"']+/i,
     /https?:\/\/([\w-]+\.)?meet\.jit\.si\/[^\s<>"']+/i,
     /https?:\/\/whereby\.com\/[^\s<>"']+/i,
+    /https?:\/\/join\.skype\.com\/[^\s<>"']+/i,
+    /https?:\/\/discord\.(gg|com)\/(invite\/)?[^\s<>"']+/i,
+    /https?:\/\/([\w-]+\.)?ringcentral\.com\/[^\s<>"']+/i,
+    /https?:\/\/([\w-]+\.)?bluejeans\.com\/[^\s<>"']+/i,
+    /https?:\/\/app\.slack\.com\/huddle\/[^\s<>"']+/i,
+    /https?:\/\/facetime\.apple\.com\/[^\s<>"']+/i,
+    /https?:\/\/meet\.livekit\.io\/[^\s<>"']+/i,
+    /https?:\/\/([\w-]+\.)?join\.me\/[^\s<>"']+/i,
+    /https?:\/\/meeting\.zoho\.com\/[^\s<>"']+/i,
+    /https?:\/\/8x8\.vc\/[^\s<>"']+/i,
 ];
 
 // Scans the event's URL, location, and notes (in that order) for the first
