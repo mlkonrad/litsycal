@@ -444,7 +444,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         const TIME_FMT_LABELS = [_('24-hour (13:05)'), _('12-hour (1:05pm)')];
         const timeFmtRow = new Adw.ComboRow({
             title:    _('Time format'),
-            subtitle: _('Used by the panel icon (when it shows time) and the second time zone clock'),
+            subtitle: _('Used by the panel icon (when it shows time) and the time zone clocks'),
             model:    Gtk.StringList.new(TIME_FMT_LABELS),
         });
         timeFmtRow.set_selected(Math.max(0, TIME_FMT_IDS.indexOf(settings.get_string('time-format'))));
