@@ -49,8 +49,22 @@ new code should keep meeting these — checked clean as of 2026-09-07:
   `import`, GLib/GObject natively, `imports.byteArray` replacements, etc.
 - **Don't mix process libraries**: no `Gtk`/`Gdk`/`Adw` in extension.js (Shell
   process) and no `St`/`Clutter`/`Meta` in prefs.js (separate process, GTK
-  only). Keep that split when adding to either file. Shared modules
-  (helpers.js) must stay free of both — imported by both processes.
+  only). Keep that split when adding to either file. helpers.js is
+  imported by Shell-process files (indicator.js, calendarWidget.js, etc.)
+  but is NOT safe to import from prefs.js: its
+  `import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js'`
+  is a Shell-process-only resource path (prefs.js's own gettext comes from
+  `resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js` — a
+  different namespace). Importing helpers.js from prefs.js throws
+  `ImportError: Unable to load file from: resource:///org/gnome/shell/
+  extensions/extension.js` and breaks Preferences outright (hit for real
+  building the second-time-zone feature, 2026-09-11) — any prefs-only logic
+  belongs directly in prefs.js instead, even if it looks generic enough to
+  share. Also note: `org.gnome.Shell.Extensions` (the prefs window's D-Bus
+  service) caches its modules across `gnome-extensions prefs` invocations
+  like gnome-shell itself does for extension.js — after fixing a prefs.js
+  import bug, `pkill -f org.gnome.Shell.Extensions` before retesting, or the
+  old broken import stays cached.
 - **No unnecessary try/catch or optional-chaining guards**: don't wrap
   standard GObject/GLib methods (`destroy()`, `connect()`, `disconnect()`,
   `abort()`, `GLib.Source.remove()`) in try/catch, and don't `?.()`-guard a

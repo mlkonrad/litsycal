@@ -65,6 +65,8 @@ class LitsycalCalendar extends St.BoxLayout {
         this._showEventLocation   = settings.get_boolean('show-event-location');
         this._showEmptyAgendaDays = settings.get_boolean('show-empty-agenda-days');
         this._calendarSystem   = settings.get_string('calendar-system');
+        this._secondTimezone   = settings.get_string('second-timezone');
+        this._timeFormat       = settings.get_string('time-format');
         this._applySizeClass();
         this._applyFontSizeClass();
 
@@ -146,6 +148,14 @@ class LitsycalCalendar extends St.BoxLayout {
                 // will pick up the new year on its next natural rebuild
                 // (month navigation, day selection, ...) anyway.
                 this._updateMonthLabel();
+            }),
+            settings.connect('changed::second-timezone', () => {
+                this._secondTimezone = settings.get_string('second-timezone');
+                this._updateSecondZoneClock();
+            }),
+            settings.connect('changed::time-format', () => {
+                this._timeFormat = settings.get_string('time-format');
+                this._updateSecondZoneClock();
             }),
         ];
 
@@ -1142,12 +1152,43 @@ class LitsycalCalendar extends St.BoxLayout {
         gear.connect('clicked', () => this._openSettingsMenu(gear));
         this._gearBtn = gear; // anchor for keyboard-triggered settings/go-to-date panels
 
+        // Second time zone clock — hidden unless 'second-timezone' is set.
+        // Refreshed by LitsycalIndicator's minute timer while visible, same
+        // as the agenda (see indicator.js).
+        this._secondZoneLabel = new St.Label({
+            y_align: Clutter.ActorAlign.CENTER,
+            style_class: 'litsycal-second-zone',
+            visible: false,
+        });
+        this._updateSecondZoneClock();
+
         footer.add_child(this._addBtn);
+        footer.add_child(this._secondZoneLabel);
         footer.add_child(new St.Widget({x_expand: true}));
         footer.add_child(pinBtn);
         footer.add_child(calBtn);
         footer.add_child(gear);
         this.add_child(footer);
+    }
+
+    // Shows "City HH:MM" for the configured second time zone, or hides the
+    // label entirely when unset or unrecognized (invalid ids are already
+    // flagged in Preferences, so silently hiding here is enough).
+    _updateSecondZoneClock() {
+        if (!this._secondTimezone) {
+            this._secondZoneLabel.visible = false;
+            return;
+        }
+        const tz = GLib.TimeZone.new_identifier(this._secondTimezone);
+        if (!tz) {
+            this._secondZoneLabel.visible = false;
+            return;
+        }
+        const now  = GLib.DateTime.new_now(tz);
+        const time = this._timeFormat === '12h' ? now.format('%-I:%M%P') : now.format('%H:%M');
+        const city = this._secondTimezone.split('/').pop().replace(/_/g, ' ');
+        this._secondZoneLabel.text    = `${city} ${time}`;
+        this._secondZoneLabel.visible = true;
     }
 
     // Keeps the footer pin toggle's visual state in sync when pinning/

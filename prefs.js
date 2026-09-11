@@ -6,6 +6,35 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import EDataServer from 'gi://EDataServer';
 
+// Every IANA time zone id available on this system, read from the same
+// tzdata tables GLib.TimeZone itself needs to resolve a zone id — so this
+// adds no dependency beyond what the "second time zone" feature already
+// requires, and needs no city list of our own to maintain. Returns [] if
+// neither table is present (used to hide that preference row entirely).
+// Kept local to prefs.js rather than helpers.js: helpers.js pulls in the
+// Shell process's gettext resource path, which doesn't exist in the
+// separate preferences process and would break importing it from here.
+function listTimeZoneIds() {
+    for (const table of ['zone1970.tab', 'zone.tab']) {
+        try {
+            const [, bytes] = GLib.file_get_contents(`/usr/share/zoneinfo/${table}`);
+            const ids = new Set();
+            for (const line of new TextDecoder().decode(bytes).split('\n')) {
+                if (!line || line.startsWith('#'))
+                    continue;
+                const id = line.split('\t')[2];
+                if (id)
+                    ids.add(id);
+            }
+            if (ids.size)
+                return [...ids].sort();
+        } catch {
+            // table not present on this system; try the next candidate
+        }
+    }
+    return [];
+}
+
 export default class LitsycalPrefs extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         // Wide enough to stay above Adw.PreferencesWindow's own adaptive
@@ -274,6 +303,31 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         soundRow.add_suffix(chooseBtn);
         otherGroup.add(soundRow);
 
+        // Second time zone row — searchable dropdown built from the
+        // system's own IANA zone database (see listTimeZoneIds), shown as a
+        // live clock in the calendar's footer (see calendarWidget.js).
+        // Hidden entirely if that database isn't readable on this system.
+        const tzIds    = ['', ...listTimeZoneIds()];
+        const tzLabels = tzIds.map(id => id ? id.replace(/_/g, ' ').split('/').join(' / ') : _('None'));
+        const tzRow = new Adw.ComboRow({
+            title:              _('Second time zone'),
+            model:              Gtk.StringList.new(tzLabels),
+            expression:         Gtk.PropertyExpression.new(Gtk.StringObject, null, 'string'),
+            enable_search:      true,
+            // Default PREFIX mode only matches from the start of "Region /
+            // City" labels, so searching "Lisbon" wouldn't match "Europe /
+            // Lisbon" — SUBSTRING matches the city name anywhere.
+            search_match_mode:  Gtk.StringFilterMatchMode.SUBSTRING,
+            visible:            tzIds.length > 1,
+        });
+        tzRow.set_selected(Math.max(0, tzIds.indexOf(settings.get_string('second-timezone'))));
+        tzRow.connect('notify::selected', () => {
+            const i = tzRow.get_selected();
+            if (i < tzIds.length)
+                settings.set_string('second-timezone', tzIds[i]);
+        });
+        otherGroup.add(tzRow);
+
         // ════════════════════════════════════════════════════════════════════
         // APPEARANCE PAGE  (options that were previously in "General")
         // ════════════════════════════════════════════════════════════════════
@@ -318,18 +372,15 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         const TIME_FMT_IDS    = ['24h', '12h'];
         const TIME_FMT_LABELS = [_('24-hour (13:05)'), _('12-hour (1:05pm)')];
         const timeFmtRow = new Adw.ComboRow({
-            title:   _('Time format'),
-            model:   Gtk.StringList.new(TIME_FMT_LABELS),
-            visible: settings.get_boolean('show-time'),
+            title:    _('Time format'),
+            subtitle: _('Used by the panel icon (when it shows time) and the second time zone clock'),
+            model:    Gtk.StringList.new(TIME_FMT_LABELS),
         });
         timeFmtRow.set_selected(Math.max(0, TIME_FMT_IDS.indexOf(settings.get_string('time-format'))));
         timeFmtRow.connect('notify::selected', () => {
             const i = timeFmtRow.get_selected();
             if (i < TIME_FMT_IDS.length)
                 settings.set_string('time-format', TIME_FMT_IDS[i]);
-        });
-        settings.connect('changed::show-time', () => {
-            timeFmtRow.visible = settings.get_boolean('show-time');
         });
         iconGroup.add(timeFmtRow);
 

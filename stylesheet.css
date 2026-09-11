@@ -293,6 +293,12 @@
 .litsycal-theme-light .litsycal-footer-btn:hover    { background-color: rgba(0, 0, 0, 0.08); }
 .litsycal-theme-light .litsycal-footer-btn:checked  { background-color: rgba(0, 0, 0, 0.12); opacity: 1.0; }
 
+.litsycal-second-zone {
+    font-size: 0.9em;
+    padding: 0 4px;
+    opacity: 0.55;
+}
+
 /* ── Panel badge ─────────────────────────────────────────────────────────── */
 .litsycal-badge {
     font-weight: bold;
@@ -435,6 +441,7 @@
 .litsycal-theme-light .litsycal-nav-btn          { color: #1a1a1a; }
 .litsycal-theme-light .litsycal-gear-icon        { color: rgba(0, 0, 0, 0.55); }
 .litsycal-theme-light .litsycal-add-btn          { color: rgba(0, 0, 0, 0.55); }
+.litsycal-theme-light .litsycal-second-zone      { color: rgba(0, 0, 0, 0.55); }
 .litsycal-theme-light .litsycal-agenda-location-icon { color: rgba(0, 0, 0, 0.55); }
 .litsycal-theme-light .litsycal-day-name         { color: #1a1a1a; }
 .litsycal-theme-light .litsycal-agenda-date      { color: #1a1a1a; }
@@ -456,6 +463,7 @@
 .litsycal-theme-dark .litsycal-nav-btn           { color: white; }
 .litsycal-theme-dark .litsycal-gear-icon         { color: rgba(255, 255, 255, 0.55); }
 .litsycal-theme-dark .litsycal-add-btn           { color: rgba(255, 255, 255, 0.55); }
+.litsycal-theme-dark .litsycal-second-zone       { color: rgba(255, 255, 255, 0.55); }
 .litsycal-theme-dark .litsycal-agenda-location-icon { color: rgba(255, 255, 255, 0.55); }
 .litsycal-theme-dark .litsycal-day-name          { color: white; }
 .litsycal-theme-dark .litsycal-agenda-date       { color: white; }
