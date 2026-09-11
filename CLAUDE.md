@@ -74,9 +74,11 @@ new code should keep meeting these — checked clean as of 2026-09-07:
   `.po`/`.pot` files, build/install scripts, and unused media — a reviewer
   *may* reject for an unreasonable amount of unnecessary data. If the EGO
   upload is a zip of the whole repo rather than hand-picked files, exclude
-  `.git`, `.github`, `CLAUDE.md`, `po/` (source `.po`/`.pot`/`LINGUAS`), and
-  `screenshot.png`; keep only the compiled `locale/pt_BR/LC_MESSAGES/*.mo`,
-  which is what actually ships at runtime.
+  `.git`, `.github`, `CLAUDE.md`, `po/` (source `.po`/`.pot`/`LINGUAS`),
+  `screenshot.png`, `package.json`/`package-lock.json` (dev-only, just the
+  `eslint` devDependency + lint script — no build/bundle step), and
+  `eslint.config.js` (lint config, also dev-only); keep only the compiled
+  `locale/pt_BR/LC_MESSAGES/*.mo`, which is what actually ships at runtime.
 - **Licensing**: `LICENSE` is MIT (Marlon Konrad, 2026), reproduces Itsycal's
   original MIT notice (Sanjay Madan, 2016 — litsycal ports/adapts parts of
   its design and behavior, e.g. `_makeOverflow`'s `MoCalCell` comment and
