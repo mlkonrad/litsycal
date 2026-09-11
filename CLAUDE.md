@@ -32,10 +32,8 @@ restart in place on Wayland like it can on X11 (`Alt+F2` → `r`).
 ## extensions.gnome.org review guidelines (publishing target)
 
 Full guide: https://gjs.guide/extensions/review-guidelines/review-guidelines.html
-GNOME also publishes a second, LLM-targeted checklist covering different
-ground (unnecessary try/catch and optional-chaining guards on GObject
-methods, `destroy()` vs `connect('destroy', ...)`, module-splitting,
-subprocess-vs-D-Bus, line length, etc.):
+GNOME also publishes a second, LLM-targeted checklist aimed specifically at
+AI coding assistants working on GNOME Shell extensions:
 https://gjs.guide/extensions/review-guidelines/best-practices.html
 This project is being prepared for submission to the official EGO review, so
 new code should keep meeting these — checked clean as of 2026-09-07:
@@ -51,7 +49,58 @@ new code should keep meeting these — checked clean as of 2026-09-07:
   `import`, GLib/GObject natively, `imports.byteArray` replacements, etc.
 - **Don't mix process libraries**: no `Gtk`/`Gdk`/`Adw` in extension.js (Shell
   process) and no `St`/`Clutter`/`Meta` in prefs.js (separate process, GTK
-  only). Keep that split when adding to either file.
+  only). Keep that split when adding to either file. Shared modules
+  (helpers.js) must stay free of both — imported by both processes.
+- **No unnecessary try/catch or optional-chaining guards**: don't wrap
+  standard GObject/GLib methods (`destroy()`, `connect()`, `disconnect()`,
+  `abort()`, `GLib.Source.remove()`) in try/catch, and don't `?.()`-guard a
+  call to a method that's guaranteed to exist on the object's type — both
+  read as defensive padding to reviewers. Already audited in this repo
+  (commit b4321e9, 2026-09-11) and found NOT to be violations — don't
+  re-flag these without new evidence:
+  - `calendarManager.js` try/catches around EDS client `.disconnect(null)`
+    and registry `.disconnect(id)` — an already-torn-down EDS/D-Bus-backed
+    client can genuinely throw on disconnect, unlike a plain
+    GObject.disconnect().
+  - `calendarManager.js` optional-chaining on ICalGLib getters
+    (`get_description?.()`, `get_first_property?.(...)`, etc.) — these read
+    optional iCal fields (VALARM, RRULE, URL, RECURRENCE-ID) that legitimately
+    may be absent depending on the calendar data and evolution-data-server
+    version, not guaranteed-present built-ins.
+  - `Gio.Subprocess`/`Gio.AppInfo.launch_default_for_uri` calls in
+    eventDialog.js/eventInfoPopover.js/calendarWidget.js/prefs.js wrapped in
+    try/catch — launching an external app/URI handler can fail for real
+    reasons (app not installed, invalid URI), unlike a GObject method call.
+  A try/catch around a call that can genuinely throw is fine either way —
+  keep the short comment explaining why, as these already do.
+- **No lifecycle guard flags**: don't add booleans like `this._destroyed` to
+  prevent post-destroy races — null out the instance var on cleanup instead
+  and let that be the guard (already the pattern everywhere in this repo).
+- **`destroy()` order**: remove timeouts/GLib sources first, then disconnect
+  signals, then release other resources, then call `super.destroy()` last.
+  Override `destroy()` directly on GObject-derived widgets rather than
+  connecting to the `destroy` signal (already true everywhere in this repo).
+- **Icons and progress**: use `Gtk.Image`/`St.Icon` for icons (never emoji
+  glyphs), and shell widgets (`St.Bin`, GNOME's bar-level widget) for
+  progress, not ASCII bars.
+- **Comments**: no trivial comments that just restate what the next line of
+  JS does — matches this project's existing no-comments-unless-non-obvious
+  rule above the fold in this file.
+- **Settings pairing**: `settings-schema` in metadata.json is paired with a
+  parameterless `this.getSettings()` call — already true in extension.js and
+  prefs.js; don't reintroduce the old schema-path-argument form.
+- **Structural**: keep `enable()`/`disable()` adjacent in extension.js for
+  easy diffing, keep the entry-point file small with logic split into
+  single-responsibility modules (already the shape of this repo), avoid
+  unjustified method aliases, and co-locate a timeout's removal check
+  immediately before the line that creates its replacement (see the
+  `_dayInfoTimeoutId` pattern in calendarWidget.js).
+- **AI-generated code notices**: this checklist asks AI assistants to flag
+  AI-authored code with a comment unless the human author understands the
+  JavaScript, and for an author who does understand it to strip such
+  comments before EGO upload. Not applicable here as a literal comment (the
+  user reads and directs every change), but keep the intent: don't let
+  generated code ship without the user having actually reviewed it.
 - **No `eval`, no obfuscated/minified code, no bundled binaries**. If a build
   step is ever introduced, ship readable transpiled output, not minified.
 - **No telemetry/tracking of users**, no clipboard access without declaring
