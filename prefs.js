@@ -303,30 +303,101 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         soundRow.add_suffix(chooseBtn);
         otherGroup.add(soundRow);
 
-        // Second time zone row — searchable dropdown built from the
-        // system's own IANA zone database (see listTimeZoneIds), shown as a
-        // live clock in the calendar's footer (see calendarWidget.js).
-        // Hidden entirely if that database isn't readable on this system.
-        const tzIds    = ['', ...listTimeZoneIds()];
-        const tzLabels = tzIds.map(id => id ? id.replace(/_/g, ' ').split('/').join(' / ') : _('None'));
-        const tzRow = new Adw.ComboRow({
-            title:              _('Second time zone'),
-            model:              Gtk.StringList.new(tzLabels),
-            expression:         Gtk.PropertyExpression.new(Gtk.StringObject, null, 'string'),
-            enable_search:      true,
+        // ── Time zones ────────────────────────────────────────────────────
+        // A searchable "add" dropdown (system IANA zone database, see
+        // listTimeZoneIds) plus one removable row per zone already added —
+        // shown as live clocks between the agenda and footer (see
+        // calendarWidget.js's _buildTimeZones/_updateTimeZones). The whole
+        // group hides if that database isn't readable on this system.
+        const tzGroup = new Adw.PreferencesGroup({
+            title:       _('Time Zones'),
+            description: _('Live clocks shown between the agenda and the footer'),
+        });
+        general.add(tzGroup);
+
+        const tzIds    = listTimeZoneIds();
+        const tzLabels = tzIds.map(id => id.replace(/_/g, ' ').split('/').join(' / '));
+
+        const addRow = new Adw.ComboRow({
+            title:             _('Add a time zone'),
+            model:             Gtk.StringList.new(tzLabels),
+            expression:        Gtk.PropertyExpression.new(Gtk.StringObject, null, 'string'),
+            enable_search:     true,
             // Default PREFIX mode only matches from the start of "Region /
             // City" labels, so searching "Lisbon" wouldn't match "Europe /
             // Lisbon" — SUBSTRING matches the city name anywhere.
-            search_match_mode:  Gtk.StringFilterMatchMode.SUBSTRING,
-            visible:            tzIds.length > 1,
+            search_match_mode: Gtk.StringFilterMatchMode.SUBSTRING,
+            visible:           tzIds.length > 0,
         });
-        tzRow.set_selected(Math.max(0, tzIds.indexOf(settings.get_string('second-timezone'))));
-        tzRow.connect('notify::selected', () => {
-            const i = tzRow.get_selected();
-            if (i < tzIds.length)
-                settings.set_string('second-timezone', tzIds[i]);
+        const addBtn = new Gtk.Button({
+            icon_name:    'list-add-symbolic',
+            valign:       Gtk.Align.CENTER,
+            css_classes:  ['flat'],
+            tooltip_text: _('Add'),
         });
-        otherGroup.add(tzRow);
+        addRow.add_suffix(addBtn);
+        tzGroup.add(addRow);
+
+        const formatUtcOffset = seconds => {
+            const sign = seconds < 0 ? '-' : '+';
+            const abs  = Math.abs(seconds);
+            const h    = String(Math.floor(abs / 3600)).padStart(2, '0');
+            const m    = String(Math.floor((abs % 3600) / 60)).padStart(2, '0');
+            return `UTC${sign}${h}:${m}`;
+        };
+
+        // Rebuilt from scratch on every add/remove — the list is short
+        // enough that this is simpler than diffing rows in place.
+        let zoneRows = [];
+        const rebuildZoneRows = () => {
+            for (const row of zoneRows)
+                tzGroup.remove(row);
+            zoneRows = [];
+
+            const current = settings.get_strv('timezones');
+            const now     = GLib.DateTime.new_now_utc();
+            const sorted  = current
+                .map(id => {
+                    const tz = GLib.TimeZone.new_identifier(id);
+                    if (!tz)
+                        return null;
+                    const offset = tz.get_offset(tz.find_interval(GLib.TimeType.UNIVERSAL, now.to_unix()));
+                    return {id, offset};
+                })
+                .filter(z => z)
+                .sort((a, b) => a.offset - b.offset);
+
+            for (const {id, offset} of sorted) {
+                const row = new Adw.ActionRow({
+                    title:    id.replace(/_/g, ' ').split('/').join(' / '),
+                    subtitle: formatUtcOffset(offset),
+                });
+                const removeBtn = new Gtk.Button({
+                    icon_name:    'list-remove-symbolic',
+                    valign:       Gtk.Align.CENTER,
+                    css_classes:  ['flat'],
+                    tooltip_text: _('Remove'),
+                });
+                removeBtn.connect('clicked', () => {
+                    settings.set_strv('timezones', settings.get_strv('timezones').filter(z => z !== id));
+                });
+                row.add_suffix(removeBtn);
+                tzGroup.add(row);
+                zoneRows.push(row);
+            }
+        };
+        rebuildZoneRows();
+        settings.connect('changed::timezones', rebuildZoneRows);
+
+        addBtn.connect('clicked', () => {
+            const i = addRow.get_selected();
+            if (i >= tzIds.length)
+                return;
+            const id      = tzIds[i];
+            const current = settings.get_strv('timezones');
+            if (!current.includes(id))
+                settings.set_strv('timezones', [...current, id]);
+        });
 
         // ════════════════════════════════════════════════════════════════════
         // APPEARANCE PAGE  (options that were previously in "General")

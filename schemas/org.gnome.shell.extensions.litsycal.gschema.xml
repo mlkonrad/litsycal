@@ -43,10 +43,10 @@
       <default>false</default>
       <summary>Show an ISO week-number gutter beside the calendar grid</summary>
     </key>
-    <key name="second-timezone" type="s">
-      <default>''</default>
-      <summary>IANA time zone id for a second clock shown in the footer</summary>
-      <description>Empty string hides the second clock. Example: "America/New_York".</description>
+    <key name="timezones" type="as">
+      <default>[]</default>
+      <summary>IANA time zone ids for the live clocks shown above the footer</summary>
+      <description>Empty list hides that section. Example: ["America/New_York", "Europe/Lisbon"].</description>
     </key>
     <key name="extra-week-rows" type="i">
       <range min="0" max="5"/>

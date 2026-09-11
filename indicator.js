@@ -58,11 +58,11 @@ class LitsycalIndicator extends PanelMenu.Button {
             this._updateBadge();
             this._checkHourlyBeep();
             // Keep the meeting join-button window (15 min before → end) and
-            // the second time zone clock fresh while the calendar is
-            // actually visible.
+            // the time zone clocks fresh while the calendar is actually
+            // visible.
             if (this._menuIsOpen || this._pinned) {
                 this._calWidget?._buildAgenda();
-                this._calWidget?._updateSecondZoneClock();
+                this._calWidget?._updateTimeZones();
             }
             return GLib.SOURCE_CONTINUE;
         });

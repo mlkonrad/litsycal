@@ -293,10 +293,27 @@
 .litsycal-theme-light .litsycal-footer-btn:hover    { background-color: rgba(0, 0, 0, 0.08); }
 .litsycal-theme-light .litsycal-footer-btn:checked  { background-color: rgba(0, 0, 0, 0.12); opacity: 1.0; }
 
-.litsycal-second-zone {
-    font-size: 0.9em;
-    padding: 0 4px;
-    opacity: 0.55;
+/* ── Time zone clocks (between the agenda and the footer) ───────────────── */
+.litsycal-tz-box {
+    padding-top: 4px;
+    padding-bottom: 6px;
+    spacing: 2px;
+}
+
+/* Sizing/color for title, city and time all come from the reused
+ * litsycal-agenda-day-name/litsycal-agenda-title classes (see
+ * calendarWidget.js) — these two only add structural spacing. */
+.litsycal-tz-title { padding-bottom: 2px; }
+
+/* Leader filling the gap between city and time, like a table of contents —
+ * a clipped run of dots (see calendarWidget.js), not a CSS border. */
+.litsycal-tz-leader {
+    margin: 0 4px;
+}
+
+.litsycal-tz-row {
+    spacing: 8px;
+    padding: 1px 0;
 }
 
 /* ── Panel badge ─────────────────────────────────────────────────────────── */
@@ -435,13 +452,13 @@
 .litsycal-theme-light .litsycal-day-btn:hover    { background-color: rgba(0, 0, 0, 0.08); }
 .litsycal-theme-light .litsycal-day-btn-range-highlight { background-color: rgba(0, 0, 0, 0.08); }
 .litsycal-theme-light .litsycal-sep              { background-color: rgba(0, 0, 0, 0.12); }
+.litsycal-theme-light .litsycal-tz-leader        { color: rgba(0, 0, 0, 0.55); }
 .litsycal-theme-light .litsycal-footer-btn:hover { background-color: rgba(0, 0, 0, 0.08); }
 .litsycal-theme-light .litsycal-weekend          { color: #cc2222; }
 .litsycal-theme-light .litsycal-month-lbl        { color: #1a1a1a; }
 .litsycal-theme-light .litsycal-nav-btn          { color: #1a1a1a; }
 .litsycal-theme-light .litsycal-gear-icon        { color: rgba(0, 0, 0, 0.55); }
 .litsycal-theme-light .litsycal-add-btn          { color: rgba(0, 0, 0, 0.55); }
-.litsycal-theme-light .litsycal-second-zone      { color: rgba(0, 0, 0, 0.55); }
 .litsycal-theme-light .litsycal-agenda-location-icon { color: rgba(0, 0, 0, 0.55); }
 .litsycal-theme-light .litsycal-day-name         { color: #1a1a1a; }
 .litsycal-theme-light .litsycal-agenda-date      { color: #1a1a1a; }
@@ -457,13 +474,13 @@
 .litsycal-theme-dark .litsycal-day-btn:hover     { background-color: rgba(255, 255, 255, 0.10); }
 .litsycal-theme-dark .litsycal-day-btn-range-highlight   { background-color: rgba(255, 255, 255, 0.10); }
 .litsycal-theme-dark .litsycal-sep               { background-color: rgba(255, 255, 255, 0.12); }
+.litsycal-theme-dark .litsycal-tz-leader         { color: rgba(255, 255, 255, 0.55); }
 .litsycal-theme-dark .litsycal-footer-btn:hover  { background-color: rgba(255, 255, 255, 0.10); }
 .litsycal-theme-dark .litsycal-weekend           { color: #e06060; }
 .litsycal-theme-dark .litsycal-month-lbl         { color: white; }
 .litsycal-theme-dark .litsycal-nav-btn           { color: white; }
 .litsycal-theme-dark .litsycal-gear-icon         { color: rgba(255, 255, 255, 0.55); }
 .litsycal-theme-dark .litsycal-add-btn           { color: rgba(255, 255, 255, 0.55); }
-.litsycal-theme-dark .litsycal-second-zone       { color: rgba(255, 255, 255, 0.55); }
 .litsycal-theme-dark .litsycal-agenda-location-icon { color: rgba(255, 255, 255, 0.55); }
 .litsycal-theme-dark .litsycal-day-name          { color: white; }
 .litsycal-theme-dark .litsycal-agenda-date       { color: white; }

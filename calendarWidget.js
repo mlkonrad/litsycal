@@ -65,7 +65,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._showEventLocation   = settings.get_boolean('show-event-location');
         this._showEmptyAgendaDays = settings.get_boolean('show-empty-agenda-days');
         this._calendarSystem   = settings.get_string('calendar-system');
-        this._secondTimezone   = settings.get_string('second-timezone');
+        this._timezones        = settings.get_strv('timezones');
         this._timeFormat       = settings.get_string('time-format');
         this._applySizeClass();
         this._applyFontSizeClass();
@@ -149,13 +149,13 @@ class LitsycalCalendar extends St.BoxLayout {
                 // (month navigation, day selection, ...) anyway.
                 this._updateMonthLabel();
             }),
-            settings.connect('changed::second-timezone', () => {
-                this._secondTimezone = settings.get_string('second-timezone');
-                this._updateSecondZoneClock();
+            settings.connect('changed::timezones', () => {
+                this._timezones = settings.get_strv('timezones');
+                this._updateTimeZones();
             }),
             settings.connect('changed::time-format', () => {
                 this._timeFormat = settings.get_string('time-format');
-                this._updateSecondZoneClock();
+                this._updateTimeZones();
             }),
         ];
 
@@ -218,6 +218,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this.add_child(this._agendaScroll);
         this._buildAgenda();
 
+        this._buildTimeZones();
         this._buildFooter();
         this._calManager.fetchMonth(this._year, this._month);
     }
@@ -1152,18 +1153,7 @@ class LitsycalCalendar extends St.BoxLayout {
         gear.connect('clicked', () => this._openSettingsMenu(gear));
         this._gearBtn = gear; // anchor for keyboard-triggered settings/go-to-date panels
 
-        // Second time zone clock — hidden unless 'second-timezone' is set.
-        // Refreshed by LitsycalIndicator's minute timer while visible, same
-        // as the agenda (see indicator.js).
-        this._secondZoneLabel = new St.Label({
-            y_align: Clutter.ActorAlign.CENTER,
-            style_class: 'litsycal-second-zone',
-            visible: false,
-        });
-        this._updateSecondZoneClock();
-
         footer.add_child(this._addBtn);
-        footer.add_child(this._secondZoneLabel);
         footer.add_child(new St.Widget({x_expand: true}));
         footer.add_child(pinBtn);
         footer.add_child(calBtn);
@@ -1171,24 +1161,74 @@ class LitsycalCalendar extends St.BoxLayout {
         this.add_child(footer);
     }
 
-    // Shows "City HH:MM" for the configured second time zone, or hides the
-    // label entirely when unset or unrecognized (invalid ids are already
-    // flagged in Preferences, so silently hiding here is enough).
-    _updateSecondZoneClock() {
-        if (!this._secondTimezone) {
-            this._secondZoneLabel.visible = false;
+    // Time zone clocks section — sits between the agenda and the footer,
+    // hidden entirely when 'timezones' is empty. Rows are (re)built by
+    // _updateTimeZones(), called here once and again on every relevant
+    // settings change and by LitsycalIndicator's minute timer while the
+    // calendar is visible (see indicator.js).
+    _buildTimeZones() {
+        this._tzSep = new St.Widget({style_class: 'litsycal-sep', visible: false});
+        this.add_child(this._tzSep);
+
+        this._tzBox = new St.BoxLayout({vertical: true, style_class: 'litsycal-tz-box', visible: false});
+        this.add_child(this._tzBox);
+
+        this._updateTimeZones();
+    }
+
+    // Rebuilds the time zone rows sorted west-to-east by current UTC offset
+    // (accounting for DST, since this is always "right now"). Invalid ids
+    // (already flagged in Preferences) are silently skipped.
+    _updateTimeZones() {
+        this._tzBox.destroy_all_children();
+
+        const nowUtc = GLib.DateTime.new_now_utc();
+        const zones = this._timezones
+            .map(id => {
+                const tz = GLib.TimeZone.new_identifier(id);
+                if (!tz)
+                    return null;
+                const offset = tz.get_offset(tz.find_interval(GLib.TimeType.UNIVERSAL, nowUtc.to_unix()));
+                return {id, tz, offset};
+            })
+            .filter(z => z)
+            .sort((a, b) => a.offset - b.offset);
+
+        this._tzSep.visible = zones.length > 0;
+        this._tzBox.visible = zones.length > 0;
+        if (!zones.length)
             return;
+
+        // Reuses the agenda's own day-name/title classes (litsycal-agenda-*)
+        // for typography, rather than hardcoding sizes here, so this section
+        // matches the rest of the calendar's text and keeps tracking the
+        // calendar-size preference's scaling automatically.
+        this._tzBox.add_child(new St.Label({
+            text: _('Time Zones'), style_class: 'litsycal-tz-title litsycal-agenda-day-name',
+        }));
+        for (const {id, tz} of zones) {
+            const now  = GLib.DateTime.new_now(tz);
+            const time = this._timeFormat === '12h' ? now.format('%-I:%M%P') : now.format('%H:%M');
+            const city = id.split('/').pop().replace(/_/g, ' ');
+
+            // Dotted leader between city and time, same left-label/spacer/
+            // right-label layout the agenda's day-name/day-date header uses
+            // — a clipped run of dots rather than a CSS border, since St's
+            // theme engine has no track record of rendering dashed/dotted
+            // borders anywhere in GNOME Shell's own stylesheets.
+            const leader = new St.Label({
+                text: '.'.repeat(200), x_expand: true, y_align: Clutter.ActorAlign.END,
+                style_class: 'litsycal-tz-leader',
+            });
+            leader.clutter_text.set_line_wrap(false);
+            leader.clip_to_allocation = true;
+
+            const row = new St.BoxLayout({style_class: 'litsycal-tz-row'});
+            row.add_child(new St.Label({text: city, style_class: 'litsycal-tz-city litsycal-agenda-title'}));
+            row.add_child(leader);
+            row.add_child(new St.Label({text: time, style_class: 'litsycal-tz-time litsycal-agenda-title'}));
+            this._tzBox.add_child(row);
         }
-        const tz = GLib.TimeZone.new_identifier(this._secondTimezone);
-        if (!tz) {
-            this._secondZoneLabel.visible = false;
-            return;
-        }
-        const now  = GLib.DateTime.new_now(tz);
-        const time = this._timeFormat === '12h' ? now.format('%-I:%M%P') : now.format('%H:%M');
-        const city = this._secondTimezone.split('/').pop().replace(/_/g, ' ');
-        this._secondZoneLabel.text    = `${city} ${time}`;
-        this._secondZoneLabel.visible = true;
     }
 
     // Keeps the footer pin toggle's visual state in sync when pinning/
