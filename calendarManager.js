@@ -555,6 +555,53 @@ export class CalendarManager {
 
     // ── Update ────────────────────────────────────────────────────────────────
 
+    // Replaces just the properties our Edit dialog exposes (SUMMARY, DTSTART/
+    // DTEND, DESCRIPTION, LOCATION, URL, RRULE, VALARMs) on the live component,
+    // leaving everything else (ORGANIZER, ATTENDEE, SEQUENCE, conferencing
+    // data, ...) untouched. Rebuilding the whole VEVENT from only our fields
+    // and PUTting that as a full replacement used to silently drop those other
+    // properties, which Google's CalDAV backend rejects for meeting events
+    // with a 409 (Conflict) — it won't accept a modification that strips a
+    // meeting's organizer/attendees/conferencing structure.
+    _applyFieldsToIcal(ical, fields) {
+        const newIcal = ICalGLib.Component.new_from_string(this._buildICal(ical.get_uid(), fields));
+
+        for (const kind of [
+            ICalGLib.PropertyKind.SUMMARY_PROPERTY,
+            ICalGLib.PropertyKind.DTSTART_PROPERTY,
+            ICalGLib.PropertyKind.DTEND_PROPERTY,
+            ICalGLib.PropertyKind.DESCRIPTION_PROPERTY,
+            ICalGLib.PropertyKind.LOCATION_PROPERTY,
+            ICalGLib.PropertyKind.URL_PROPERTY,
+            ICalGLib.PropertyKind.RRULE_PROPERTY,
+        ])
+            this._replaceProperties(ical, newIcal, kind);
+
+        let oldAlarm = ical.get_first_component(ICalGLib.ComponentKind.VALARM_COMPONENT);
+        while (oldAlarm) {
+            ical.remove_component(oldAlarm);
+            oldAlarm = ical.get_first_component(ICalGLib.ComponentKind.VALARM_COMPONENT);
+        }
+        let newAlarm = newIcal.get_first_component(ICalGLib.ComponentKind.VALARM_COMPONENT);
+        while (newAlarm) {
+            ical.add_component(newAlarm.clone());
+            newAlarm = newIcal.get_next_component(ICalGLib.ComponentKind.VALARM_COMPONENT);
+        }
+    }
+
+    _replaceProperties(dest, src, kind) {
+        let old = dest.get_first_property(kind);
+        while (old) {
+            dest.remove_property(old);
+            old = dest.get_first_property(kind);
+        }
+        let prop = src.get_first_property(kind);
+        while (prop) {
+            dest.add_property(prop.clone());
+            prop = src.get_next_property(kind);
+        }
+    }
+
     updateEvent(uid, clientUid, fields, onDone) {
         const entry = this._clients.get(clientUid);
         if (!entry) {
@@ -562,17 +609,26 @@ export class CalendarManager {
             return;
         }
 
-        const icalStr = this._buildICal(uid, fields);
-        const ical = ICalGLib.Component.new_from_string(icalStr);
-        entry.client.modify_object(ical, ECal.ObjModType.ALL, ECal.OperationFlags.NONE, null, (_obj, res) => {
+        entry.client.get_object(uid, null, null, (_obj, res) => {
+            let ical;
             try {
-                entry.client.modify_object_finish(res);
-                onDone?.(null);
-                if (this._year !== null)
-                    this._fetchFromClient(clientUid, this._year, this._month);
+                [, ical] = entry.client.get_object_finish(res);
             } catch (e) {
                 onDone?.(e);
+                return;
             }
+
+            this._applyFieldsToIcal(ical, fields);
+            entry.client.modify_object(ical, ECal.ObjModType.ALL, ECal.OperationFlags.NONE, null, (_obj2, res2) => {
+                try {
+                    entry.client.modify_object_finish(res2);
+                    onDone?.(null);
+                    if (this._year !== null)
+                        this._fetchFromClient(clientUid, this._year, this._month);
+                } catch (e) {
+                    onDone?.(e);
+                }
+            });
         });
     }
 

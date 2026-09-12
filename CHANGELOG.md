@@ -17,6 +17,16 @@ longer carries a `version` key — see that file's history for why).
 
 ### Fixed
 
+- Editing an event's Notes (or any other field) via the Edit dialog could
+  fail with "Cannot modify calendar object: ... HTTP error code 409" for
+  meeting-style events (e.g. ones with a Google Meet link). The save path
+  rebuilt the whole event from scratch using only the fields our Edit
+  dialog exposes and PUT that as a full replacement, silently dropping
+  properties Google's backend had attached (ORGANIZER, ATTENDEE,
+  conferencing data, ...); Google's CalDAV backend rejects a modification
+  that would strip that structure off an existing meeting. Saving an edit
+  now fetches the live event and patches only the fields the dialog
+  actually changed onto it, leaving everything else untouched.
 - `Ctrl+Alt+R` (refresh events) could visibly do nothing: it only re-read
   whatever GNOME's calendar service (evolution-data-server) already had
   cached locally, never asking a backend like Google's own to check for
