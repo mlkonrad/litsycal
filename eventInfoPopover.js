@@ -7,12 +7,12 @@ import Shell   from 'gi://Shell';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
+import {gettext as _, ngettext} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {confirmDeleteEvent} from './eventDialog.js';
 import {
     formatEventWhen, recurrenceSummary, findMeetingUrl, meetingIsJoinable, FONT_SIZE_CLASSES,
-    URL_REGEXP,
+    URL_REGEXP, attendeeStatusInfo,
 } from './helpers.js';
 
 // ── Event info popover ───────────────────────────────────────────────────────
@@ -242,6 +242,46 @@ export class EventInfoPopover {
         const recurrence = recurrenceSummary(ev.recurrence);
         if (recurrence)
             addIconRow('media-playlist-repeat-symbolic', recurrence);
+
+        // ── Attendees ──────────────────────────────────────────────────────
+        // Capped so one meeting with a huge invite list can't blow out the
+        // popover's height — same idea as the agenda's own per-day cap. Only
+        // the first row gets the leading icon; later rows get a same-width
+        // spacer instead, so every row's dot/name lines up in a column.
+        const MAX_ATTENDEES_SHOWN = 5;
+        if (ev.attendees?.length > 0) {
+            const addAttendeeRow = (isFirst, dotCssClass, labelText, accessibleName) => {
+                const row = new St.BoxLayout({style_class: 'litsycal-panel-icon-row'});
+                row.add_child(isFirst
+                    ? new St.Icon({
+                        icon_name: 'system-users-symbolic', icon_size: 14,
+                        style_class: 'litsycal-info-popover-icon', y_align: Clutter.ActorAlign.START,
+                    })
+                    : new St.Widget({style_class: 'litsycal-attendee-icon-spacer'}));
+                if (dotCssClass)
+                    row.add_child(new St.Widget({style_class: `litsycal-attendee-dot ${dotCssClass}`}));
+                const lbl = new St.Label({
+                    text: labelText, style_class: 'litsycal-info-popover-text', x_expand: true,
+                    accessible_name: accessibleName,
+                });
+                lbl.clutter_text.set_line_wrap(false);
+                lbl.clutter_text.set_ellipsize(Pango.EllipsizeMode.END);
+                row.add_child(lbl);
+                box.add_child(row);
+            };
+
+            ev.attendees.slice(0, MAX_ATTENDEES_SHOWN).forEach((att, i) => {
+                const {cssClass, label: statusLabel} = attendeeStatusInfo(att.partstat);
+                addAttendeeRow(i === 0, cssClass, att.name, `${att.name} — ${statusLabel}`);
+            });
+
+            const extra = ev.attendees.length - MAX_ATTENDEES_SHOWN;
+            if (extra > 0) {
+                const moreText = ngettext('+%d more attendee', '+%d more attendees', extra)
+                    .replace('%d', extra);
+                addAttendeeRow(false, null, moreText, moreText);
+            }
+        }
 
         const addLinkRow = (iconName, labelText, uri, accessibleName) => {
             const btn = new St.Button({

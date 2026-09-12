@@ -283,3 +283,20 @@ export function recurrenceSummary(recurrence) {
     }[recurrence.freq];
     return template ? template.replace('%d', String(interval)) : _('Repeats');
 }
+
+// Maps an ATTENDEE's PARTSTAT to a status-dot CSS class and an accessible
+// label for the event info popover's attendee rows. Anything not explicitly
+// accepted/declined/tentative (COMPLETED, IN-PROCESS, DELEGATED, X, or no
+// PARTSTAT at all) reads as "no response yet", same as NEEDS-ACTION.
+export function attendeeStatusInfo(partstat) {
+    switch (partstat) {
+    case 'ACCEPTED':
+        return {cssClass: 'litsycal-attendee-dot-accepted', label: _('Accepted')};
+    case 'DECLINED':
+        return {cssClass: 'litsycal-attendee-dot-declined', label: _('Declined')};
+    case 'TENTATIVE':
+        return {cssClass: 'litsycal-attendee-dot-tentative', label: _('Tentative')};
+    default:
+        return {cssClass: 'litsycal-attendee-dot-needs-action', label: _('No response')};
+    }
+}

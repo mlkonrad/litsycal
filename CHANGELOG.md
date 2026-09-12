@@ -14,6 +14,10 @@ longer carries a `version` key — see that file's history for why).
 
 - A "Sync" button in the footer, next to the pin button, does the same
   server sync + refetch as `Ctrl+Alt+R`.
+- The event info popover now lists attendees for events that have any,
+  each with a colored status dot (green = accepted, red = declined,
+  amber = tentative, grey = no response yet) — Itsycal's own attendee
+  coloring, ported. Capped at 5 shown, with a "+N more" row beyond that.
 
 ### Fixed
 

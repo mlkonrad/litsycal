@@ -682,6 +682,19 @@
 .litsycal-info-popover-icon { opacity: 0.65; }
 .litsycal-info-popover-text { opacity: 0.85; }
 
+.litsycal-attendee-icon-spacer { width: 14px; }
+
+.litsycal-attendee-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    margin-top: 4px;
+}
+.litsycal-attendee-dot-accepted     { background-color: #26a269; }
+.litsycal-attendee-dot-declined     { background-color: #e01b24; }
+.litsycal-attendee-dot-tentative    { background-color: #e5a50a; }
+.litsycal-attendee-dot-needs-action { background-color: rgba(128,128,128,0.5); }
+
 .litsycal-info-popover-link-btn {
     border: none;
     background: none;

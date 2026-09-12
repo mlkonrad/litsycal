@@ -272,7 +272,7 @@ export class CalendarManager {
                 }
 
                 let notes = null, url = null, location = null, recurrence = null, alarm = null,
-                    recurrenceId = null;
+                    recurrenceId = null, attendees = [];
                 try {
                     const ic = comp.get_icalcomponent?.();
                     if (ic) {
@@ -289,6 +289,7 @@ export class CalendarManager {
 
                         recurrence = this._parseRecurrence(ic);
                         alarm      = this._parseAlarm(ic);
+                        attendees  = this._parseAttendees(ic);
 
                         // Present only on one occurrence of a recurring series (never
                         // on the master) — identifies which occurrence this is, so a
@@ -301,7 +302,7 @@ export class CalendarManager {
                 this._events.push({
                     date, title, time, color, allDay: isAllDay, endDate,
                     uid: comp.get_uid(), clientUid, notes, url,
-                    location, recurrence, alarm, recurrenceId,
+                    location, recurrence, alarm, recurrenceId, attendees,
                 });
             } catch (e) {
                 logError(e, `CalendarManager: failed to parse calendar component ${comp.get_uid?.() ?? '?'}`);
@@ -377,6 +378,24 @@ export class CalendarManager {
             v = ic.get_next_component(ICalGLib.ComponentKind.VALARM_COMPONENT);
         }
         return blocks;
+    }
+
+    // Read-only display data — only CN (display name) and PARTSTAT (RSVP
+    // status) per ATTENDEE. Never fed back into a save: editing an event
+    // patches only the fields our dialog exposes onto the live component
+    // (see _applyFieldsToIcal below), so attendee data always stays
+    // whatever the server last sent, untouched by us.
+    _parseAttendees(ic) {
+        const attendees = [];
+        let prop = ic.get_first_property?.(ICalGLib.PropertyKind.ATTENDEE_PROPERTY);
+        while (prop) {
+            const email = (prop.get_value_as_string?.() ?? '').replace(/^mailto:/i, '');
+            const cn        = prop.get_parameter_as_string?.('CN') || null;
+            const partstat  = (prop.get_parameter_as_string?.('PARTSTAT') || '').toUpperCase();
+            attendees.push({name: cn || email.split('@')[0], email, partstat});
+            prop = ic.get_next_property?.(ICalGLib.PropertyKind.ATTENDEE_PROPERTY);
+        }
+        return attendees;
     }
 
     // ── Index ─────────────────────────────────────────────────────────────────
