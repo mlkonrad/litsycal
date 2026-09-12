@@ -1128,6 +1128,12 @@ class LitsycalCalendar extends St.BoxLayout {
         });
         this._pinBtn = pinBtn;
 
+        const syncBtn = makeIconBtn('view-refresh-symbolic', _('Sync calendars'));
+        syncBtn.connect('clicked', () => {
+            this._calManager?.refreshFromServer();
+            this._calManager?.fetchMonth(this._year, this._month);
+        });
+
         const calBtn = makeIconBtn('x-office-calendar-symbolic', _('Open Calendar app'));
         calBtn.connect('clicked', () => {
             if (this._openCalendar)
@@ -1141,6 +1147,7 @@ class LitsycalCalendar extends St.BoxLayout {
         footer.add_child(this._addBtn);
         footer.add_child(new St.Widget({x_expand: true}));
         footer.add_child(pinBtn);
+        footer.add_child(syncBtn);
         footer.add_child(calBtn);
         footer.add_child(gear);
         this.add_child(footer);

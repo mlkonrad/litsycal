@@ -10,6 +10,11 @@ longer carries a `version` key — see that file's history for why).
 
 ## [Unreleased]
 
+### Added
+
+- A "Sync" button in the footer, next to the pin button, does the same
+  server sync + refetch as `Ctrl+Alt+R`.
+
 ### Fixed
 
 - `Ctrl+Alt+R` (refresh events) could visibly do nothing: it only re-read
