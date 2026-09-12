@@ -627,6 +627,14 @@ class LitsycalCalendar extends St.BoxLayout {
         const monitor = Main.layoutManager.monitors[
             Main.layoutManager.findIndexForActor(this)
         ] ?? Main.layoutManager.primaryMonitor;
+        // No monitor geometry yet — observed during mutter-devkit nested-session
+        // startup, where extensions activate before layoutManager has
+        // registered a monitor. _buildAgenda() (this method's other caller)
+        // runs again on the next agenda rebuild (60s timer, month navigation,
+        // menu open, ...), so skipping this pass just leaves the cap unset
+        // until then rather than crashing extension activation outright.
+        if (!monitor)
+            return;
         const panelH = Main.panel.get_height();
 
         let othersHeight = 0;

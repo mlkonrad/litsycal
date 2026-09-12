@@ -21,6 +21,13 @@ longer carries a `version` key — see that file's history for why).
 
 ### Fixed
 
+- The extension could fail to activate at all under `mutter-devkit`'s nested
+  Shell (`scripts/dev-session.sh`) with `TypeError: can't access property
+  "height", monitor is null`, leaving no panel icon: `_updateAgendaMaxHeight`
+  ran during the very first grid build, before the nested session's
+  layoutManager had registered a monitor. It now skips that one pass when no
+  monitor is available yet instead of throwing; the height cap gets set on
+  the next agenda rebuild once the monitor exists.
 - Editing an event's Notes (or any other field) via the Edit dialog could
   fail with "Cannot modify calendar object: ... HTTP error code 409" for
   meeting-style events (e.g. ones with a Google Meet link). The save path
