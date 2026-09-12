@@ -658,6 +658,18 @@
     border-radius: 10px;
 }
 
+/* Fixed, not min/max, same reasoning as litsycal-event-panel above — a
+   free-text one-liner has no natural length limit the way GoToDatePanel's
+   yyyy-mm-dd entry does, so without a fixed width here the panel just grew
+   to fit however much the entry text needed instead of scrolling within
+   itself. */
+.litsycal-quickadd-panel {
+    padding: 12px;
+    spacing: 6px;
+    width: 340px;
+    border-radius: 10px;
+}
+
 .litsycal-goto-title {
     font-size: 0.95em;
     font-weight: bold;

@@ -39,9 +39,16 @@ Linux):
 | `Ctrl + O` | Open the default calendar app |
 | `Ctrl + Shift + J` | Open the first active virtual meeting in the agenda |
 | `Ctrl + N` | Create a new event |
+| `Ctrl + Shift + N` | Quick-add an event from a one-liner (e.g. "Lunch tomorrow 12pm at Cafe Nero") — opens the full form pre-filled with whatever it recognized, for you to confirm or fix before saving |
 | `Ctrl + Shift + T` | Go to date |
 | `Ctrl + Alt + R` | Refresh events |
 | `Ctrl + Q` | Quit Litsycal |
+
+Quick-add recognizes weekday names in your system's own locale automatically
+(no translation needed for those), but the fixed keywords — "today",
+"tomorrow", "next", and the word for "at" — currently only match their
+English form until a translation adds the local equivalent (see
+`quickAddParser.js` if you're contributing one).
 
 ### Event info popover
 

@@ -11,7 +11,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {gettext as _, ngettext} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {CalendarManager}   from './calendarManager.js';
-import {EventPanel, confirmDeleteEvent} from './eventDialog.js';
+import {EventPanel, QuickAddPanel, confirmDeleteEvent} from './eventDialog.js';
 import {OutlinePainter}    from './outlinePainter.js';
 import {EventInfoPopover}  from './eventInfoPopover.js';
 import {SettingsMenuPanel} from './settingsMenuPanel.js';
@@ -1258,6 +1258,28 @@ class LitsycalCalendar extends St.BoxLayout {
         );
     }
 
+    // Ctrl+Shift+N: parse a one-liner into a draft, then open the same full
+    // EventPanel _openCreateDialog does, pre-filled with it — never saves
+    // directly from the one-liner. See QuickAddPanel/quickAddParser.js.
+    _openQuickAdd() {
+        if (!this._calManager?.isAvailable())
+            return;
+        this._quickAddPanel?.close();
+        this._quickAddPanel = new QuickAddPanel(this, draft => {
+            this._quickAddPanel = null;
+            if (!draft)
+                return; // cancelled
+            this._eventPanel?.close();
+            this._eventInfoPopover?.close();
+            this._eventPanel = new EventPanel(
+                this._calManager, null, this._selected, this,
+                () => {
+                    this._eventPanel = null;
+                }, this._calendarSystem, draft
+            );
+        });
+    }
+
     _openEventDialog(ev) {
         if (!this._calManager?.isAvailable())
             return;
@@ -1621,7 +1643,16 @@ class LitsycalCalendar extends St.BoxLayout {
             }
             return false;
         case Clutter.KEY_n:
-        case Clutter.KEY_N: // Ctrl+N (Itsycal's ⌘N): create a new event
+        case Clutter.KEY_N:
+            // Ctrl+Shift+N: quick-add a one-liner. Checked before plain
+            // Ctrl+N below since Shift+N produces KEY_N here too — same
+            // ctrl-then-ctrl+shift ordering as Ctrl+J/Ctrl+Shift+J above.
+            // Ctrl+N alone (Itsycal's ⌘N): create a new event via the full
+            // form, unchanged.
+            if (ctrl && shift) {
+                this._openQuickAdd();
+                return true;
+            }
             if (ctrl) {
                 this._openCreateDialog();
                 return true;

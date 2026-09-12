@@ -291,6 +291,14 @@ msgstr ""
 msgid "Enter a date as yyyy-mm-dd"
 msgstr ""
 
+#: eventDialog.js:1676
+msgid "Quick add event"
+msgstr ""
+
+#: eventDialog.js:1682
+msgid "e.g. Lunch tomorrow 12pm at Cafe Nero"
+msgstr ""
+
 #: eventInfoPopover.js:199
 msgid "(No title)"
 msgstr ""
@@ -525,7 +533,7 @@ msgstr ""
 msgid "Add a time zone"
 msgstr ""
 
-#: prefs.js:336
+#: prefs.js:336 eventDialog.js:1690
 msgid "Add"
 msgstr ""
 
@@ -806,4 +814,32 @@ msgstr ""
 
 #: prefs.js:900
 msgid "Online Accounts…"
+msgstr ""
+
+#: quickAddParser.js:73
+msgid "today"
+msgstr ""
+
+#: quickAddParser.js:77
+msgid "tomorrow"
+msgstr ""
+
+#. A filler word optionally next to a weekday name ("next friday").
+#: quickAddParser.js:81
+msgid "next"
+msgstr ""
+
+#. The time preposition, as in "lunch AT 3pm" — distinct from the location
+#. marker below; some languages use different words for the two even
+#. though English uses "at" for both.
+#: quickAddParser.js:183
+msgctxt "quick-add: time preposition, e.g. \"lunch at 3pm\""
+msgid "at"
+msgstr ""
+
+#. The location marker, as in "lunch AT the cafe" — distinct from the time
+#. preposition above.
+#: quickAddParser.js:191
+msgctxt "quick-add: location marker, e.g. \"lunch at the cafe\""
+msgid "at"
 msgstr ""

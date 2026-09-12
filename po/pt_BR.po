@@ -288,6 +288,14 @@ msgstr "Ir"
 msgid "Enter a date as yyyy-mm-dd"
 msgstr "Digite uma data como aaaa-mm-dd"
 
+#: eventDialog.js:1676
+msgid "Quick add event"
+msgstr "Adicionar evento rápido"
+
+#: eventDialog.js:1682
+msgid "e.g. Lunch tomorrow 12pm at Cafe Nero"
+msgstr "ex.: Almoço amanhã 12h em Café Nero"
+
 #: eventInfoPopover.js:199
 msgid "(No title)"
 msgstr "(Sem título)"
@@ -524,7 +532,7 @@ msgstr "Relógios ao vivo mostrados entre a agenda e o rodapé"
 msgid "Add a time zone"
 msgstr "Adicionar um fuso horário"
 
-#: prefs.js:336
+#: prefs.js:336 eventDialog.js:1690
 msgid "Add"
 msgstr "Adicionar"
 
@@ -826,6 +834,41 @@ msgstr ""
 #: prefs.js:900
 msgid "Online Accounts…"
 msgstr "Contas Online…"
+
+#: quickAddParser.js:73
+msgid "today"
+msgstr "hoje"
+
+#: quickAddParser.js:77
+msgid "tomorrow"
+msgstr "amanhã"
+
+#. A filler word optionally next to a weekday name ("next friday"). Simplified
+#. on purpose: litsycal's quick-add just strips this word wherever it finds
+#. it next to a recognized weekday, so it doesn't attempt the gender
+#. agreement real Portuguese would want with the weekday's own gender (e.g.
+#. "próxima segunda-feira" vs. "próximo sábado") — pick whichever single
+#. form reads least wrong stripped bare, or leave untranslated if none does.
+#: quickAddParser.js:81
+msgid "next"
+msgstr "próxima"
+
+#. The time preposition, as in "lunch AT 3pm" — distinct from the location
+#. marker below, which is a different word in Portuguese ("às" here vs.
+#. "em"/"local" there) even though English uses "at" for both.
+#: quickAddParser.js:183
+msgctxt "quick-add: time preposition, e.g. \"lunch at 3pm\""
+msgid "at"
+msgstr "às"
+
+#. The location marker, as in "lunch AT the cafe" — distinct from the time
+#. preposition above. "em" reads most naturally directly before a place
+#. name ("em Café Nero"); "local" is the other option if you'd rather match
+#. more literally.
+#: quickAddParser.js:191
+msgctxt "quick-add: location marker, e.g. \"lunch at the cafe\""
+msgid "at"
+msgstr "em"
 
 #~ msgid "Preferences…"
 #~ msgstr "Preferências…"

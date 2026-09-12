@@ -24,6 +24,16 @@ longer carries a `version` key — see that file's history for why).
   pill matching the chosen icon style. A second option, "When a meeting
   is coming up", controls whether that countdown replaces the normal
   icon text or sits alongside it. Off by default.
+- `Ctrl+Shift+N` quick-adds an event from a single line, e.g. "Lunch
+  tomorrow 12pm at Cafe Nero" — parses title/date/time/location out of
+  the text and opens the full New Event form pre-filled with whatever
+  it recognized, for you to confirm or fix before anything is actually
+  saved (it never saves directly from the one-liner). `Ctrl+N` still
+  opens a blank form as before. Weekday names are recognized in your
+  system's own locale automatically; the fixed keywords ("today",
+  "tomorrow", "next", "at") are translatable and currently only ship in
+  English — a pt_BR translation for them is included as an example for
+  future translation packs.
 
 ### Fixed
 
