@@ -100,7 +100,7 @@ function extractDate(text, now) {
 // Returns {time: 'HH:MM', rest} or null.
 function extractTime(text, atWord) {
     const to24h = (h, ampm) => {
-        h = h % 12;
+        h %= 12;
         if ((ampm ?? '').toLowerCase() === 'pm')
             h += 12;
         return h;
@@ -166,6 +166,9 @@ function extractLocation(text, locationWord) {
 // empty/whitespace-only input — anything else always yields at least a
 // title, even if nothing else was recognized, so the caller can open
 // EventPanel prefilled with just that rather than silently doing nothing.
+/**
+ * @param {string} text
+ */
 export function parseQuickAdd(text) {
     let remaining = (text ?? '').trim();
     if (!remaining)

@@ -288,6 +288,9 @@ export function recurrenceSummary(recurrence) {
 // label for the event info popover's attendee rows. Anything not explicitly
 // accepted/declined/tentative (COMPLETED, IN-PROCESS, DELEGATED, X, or no
 // PARTSTAT at all) reads as "no response yet", same as NEEDS-ACTION.
+/**
+ * @param {string} partstat
+ */
 export function attendeeStatusInfo(partstat) {
     switch (partstat) {
     case 'ACCEPTED':
