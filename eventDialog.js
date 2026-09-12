@@ -135,12 +135,16 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
         onOverlayChange?.(null);
     };
 
+    // Collected in visual order so Tab/Shift+Tab (wired below) can cycle
+    // through them; Cancel is always last, matching where focus starts.
+    const buttons = [];
     const mkBtn = (label, styleClass, onClick) => {
-        const b = new St.Button({label, style_class: styleClass, x_expand: true});
+        const b = new St.Button({label, style_class: styleClass, x_expand: true, can_focus: true});
         b.connect('clicked', () => {
             closeOverlay();
             onClick();
         });
+        buttons.push(b);
         return b;
     };
 
@@ -154,6 +158,29 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
             () => doDelete('ALL')));
     }
     overlay.add_child(mkBtn(_('Cancel'), 'litsycal-confirm-btn', () => {}));
+
+    // Plain St widgets have no built-in Tab-traversal. A capture-phase
+    // listener on the overlay (or on Main.pushModal's grabbed actor itself)
+    // is NOT reliable here — this overlay's grab nests inside a caller's own
+    // competing grab (EventPanel's or the info popover's), and this
+    // codebase has confirmed by direct instrumentation elsewhere (see
+    // eventInfoPopover.js's this._btnKeyId comment) that capture-phase
+    // events can silently fail to reach anything under a nested/competing
+    // grab. The one path proven reliable there — a bubble-phase
+    // 'key-press-event' on the specific actor currently holding key focus —
+    // is used here too.
+    buttons.forEach((b, i) => {
+        b.connect('key-press-event', (_actor, keyEvent) => {
+            const sym = keyEvent.get_key_symbol();
+            if (sym !== Clutter.KEY_Tab && sym !== Clutter.KEY_ISO_Left_Tab)
+                return Clutter.EVENT_PROPAGATE;
+            const forward = sym === Clutter.KEY_Tab &&
+                (keyEvent.get_state() & Clutter.ModifierType.SHIFT_MASK) === 0;
+            const next = (i + (forward ? 1 : -1) + buttons.length) % buttons.length;
+            buttons[next].grab_key_focus();
+            return Clutter.EVENT_STOP;
+        });
+    });
 
     Main.layoutManager.uiGroup.add_child(overlay);
     onOverlayChange?.(overlay);
@@ -173,6 +200,9 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
             monitor.y + Math.round((monitor.height - h) / 2)
         );
         overlay.opacity = 255;
+        // Cancel (always last) rather than a delete button, so Tab-cycling
+        // in and immediately pressing Enter/Space can't delete by mistake.
+        buttons[buttons.length - 1].grab_key_focus();
         return GLib.SOURCE_REMOVE;
     });
 

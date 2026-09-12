@@ -1033,12 +1033,14 @@
     background-color: rgba(128,128,128,0.15);
     font-size: 0.95em;
 }
-.litsycal-confirm-btn:hover { background-color: rgba(128,128,128,0.25); }
+.litsycal-confirm-btn:hover,
+.litsycal-confirm-btn:focus { background-color: rgba(128,128,128,0.25); }
 .litsycal-confirm-btn-danger {
     background-color: rgba(230,45,66,0.15);
     color: #e06070;
 }
-.litsycal-confirm-btn-danger:hover { background-color: rgba(230,45,66,0.28); }
+.litsycal-confirm-btn-danger:hover,
+.litsycal-confirm-btn-danger:focus { background-color: rgba(230,45,66,0.28); }
 
 /* ── Agenda meeting-join / URL button ───────────────────────────────────── */
 .litsycal-agenda-join-btn {

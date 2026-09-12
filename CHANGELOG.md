@@ -10,6 +10,12 @@ longer carries a `version` key — see that file's history for why).
 
 ## [Unreleased]
 
+### Added
+
+- The delete-confirmation prompt supports Tab/Shift+Tab to cycle focus
+  between its buttons (Cancel focused by default), matching keyboard
+  navigation elsewhere in the app.
+
 ### Fixed
 
 - The event info popover's delete button deleted a non-recurring event
