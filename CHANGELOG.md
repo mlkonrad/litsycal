@@ -10,6 +10,18 @@ longer carries a `version` key — see that file's history for why).
 
 ## [Unreleased]
 
+### Fixed
+
+- `Ctrl+Alt+R` (refresh events) could visibly do nothing: it only re-read
+  whatever GNOME's calendar service (evolution-data-server) already had
+  cached locally, never asking a backend like Google's own to check for
+  anything new. EDS polls that on its own schedule (commonly ~30 minutes),
+  so pressing the shortcut right after a change on Google's side often had
+  nothing new to show yet. The shortcut now also asks each calendar source
+  that supports it to sync with its server immediately; any changes that
+  come back still reach litsycal the normal way, through its existing
+  live-update signals.
+
 ## [5] - 2026-09-12
 
 ### Added
