@@ -8,6 +8,16 @@ release instead, numbered sequentially ([1], [2], [3], …). This counter is
 maintained by hand here and is independent of `metadata.json` (which no
 longer carries a `version` key — see that file's history for why).
 
+## [Unreleased]
+
+### Fixed
+
+- The event info popover's delete button deleted a non-recurring event
+  immediately, with no confirmation prompt — a mis-click right next to the
+  event title (the delete button sits directly beside it) deleted the
+  event outright. `confirmDeleteEvent` now always shows a confirm/cancel
+  prompt before deleting, not just for recurring events.
+
 ## [6] - 2026-09-12
 
 ### Added

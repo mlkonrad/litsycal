@@ -86,7 +86,9 @@ function alertLabel(value, allDay) {
 
 // Standalone delete-confirmation flow, usable with or without an open
 // EventPanel (the agenda list's right-click Delete action has no panel open
-// at all). Non-recurring events skip the prompt and delete immediately.
+// at all). Every delete — recurring or not — goes through this prompt, since
+// a stray click (e.g. the popover's delete button sitting right next to the
+// title) would otherwise delete with no way back.
 // Deletion itself always triggers CalendarManager's onEventsChanged, so
 // callers don't need to refresh anything themselves on success.
 //
@@ -109,10 +111,6 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
     };
 
     const isRecurring = !!(event.recurrence || event.recurrenceId);
-    if (!isRecurring) {
-        doDelete('ALL');
-        return;
-    }
 
     const overlay = new St.BoxLayout({
         vertical: true,
@@ -124,7 +122,8 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
         opacity: 0,
     });
     overlay.add_child(new St.Label({
-        text: _('This is a repeating event.'), style_class: 'litsycal-confirm-title',
+        text: isRecurring ? _('This is a repeating event.') : _('Delete this event?'),
+        style_class: 'litsycal-confirm-title',
     }));
 
     const closeOverlay = () => {
@@ -145,10 +144,15 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
         return b;
     };
 
-    overlay.add_child(mkBtn(_('Delete this event'), 'litsycal-confirm-btn litsycal-confirm-btn-danger',
-        () => doDelete('THIS')));
-    overlay.add_child(mkBtn(_('Delete all events'), 'litsycal-confirm-btn litsycal-confirm-btn-danger',
-        () => doDelete('ALL')));
+    if (isRecurring) {
+        overlay.add_child(mkBtn(_('Delete this event'), 'litsycal-confirm-btn litsycal-confirm-btn-danger',
+            () => doDelete('THIS')));
+        overlay.add_child(mkBtn(_('Delete all events'), 'litsycal-confirm-btn litsycal-confirm-btn-danger',
+            () => doDelete('ALL')));
+    } else {
+        overlay.add_child(mkBtn(_('Delete'), 'litsycal-confirm-btn litsycal-confirm-btn-danger',
+            () => doDelete('ALL')));
+    }
     overlay.add_child(mkBtn(_('Cancel'), 'litsycal-confirm-btn', () => {}));
 
     Main.layoutManager.uiGroup.add_child(overlay);
