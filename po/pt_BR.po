@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Litsycal 3\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-12 21:29+0300\n"
+"POT-Creation-Date: 2026-09-12 22:40+0300\n"
 "PO-Revision-Date: 2026-09-10 00:00+0000\n"
 "Last-Translator: Marlon Konrad <marlonk@gmail.com>\n"
 "Language-Team: Brazilian Portuguese\n"
@@ -15,156 +15,156 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: calendarWidget.js:331 eventDialog.js:1081
+#: calendarWidget.js:327 eventDialog.js:1117
 msgid "Previous month"
 msgstr "Mês anterior"
 
-#: calendarWidget.js:335
+#: calendarWidget.js:331
 msgid "Go to today"
 msgstr "Ir para hoje"
 
-#: calendarWidget.js:339 eventDialog.js:1086
+#: calendarWidget.js:335 eventDialog.js:1122
 msgid "Next month"
 msgstr "Próximo mês"
 
-#: calendarWidget.js:428
+#: calendarWidget.js:424
 msgid "Drag to show more weeks"
 msgstr "Arraste para mostrar mais semanas"
 
-#: calendarWidget.js:844 calendarWidget.js:999
+#: calendarWidget.js:840 calendarWidget.js:995
 msgid "Today"
 msgstr "Hoje"
 
-#: calendarWidget.js:848
+#: calendarWidget.js:844
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d evento"
 msgstr[1] "%d eventos"
 
-#: calendarWidget.js:913 calendarWidget.js:1018
+#: calendarWidget.js:909 calendarWidget.js:1014
 msgid "No events"
 msgstr "Sem eventos"
 
-#: calendarWidget.js:930 calendarWidget.js:1045 calendarWidget.js:1091
-#: helpers.js:252
+#: calendarWidget.js:926 calendarWidget.js:1041 calendarWidget.js:1087
+#: helpers.js:263
 msgid "All day"
 msgstr "Dia todo"
 
-#: calendarWidget.js:1001
+#: calendarWidget.js:997
 msgid "Tomorrow"
 msgstr "Amanhã"
 
-#: calendarWidget.js:1067 eventInfoPopover.js:311
+#: calendarWidget.js:1063 eventInfoPopover.js:311
 msgid "Join meeting"
 msgstr "Entrar na reunião"
 
-#: calendarWidget.js:1071 eventInfoPopover.js:334 eventInfoPopover.js:341
+#: calendarWidget.js:1067 eventInfoPopover.js:335 eventInfoPopover.js:349
 msgid "Open link"
 msgstr "Abrir link"
 
-#: calendarWidget.js:1135
+#: calendarWidget.js:1131
 msgid "New event"
 msgstr "Novo evento"
 
-#: calendarWidget.js:1139
+#: calendarWidget.js:1135
 msgid "Pin calendar open"
 msgstr "Fixar calendário aberto"
 
-#: calendarWidget.js:1148
+#: calendarWidget.js:1144
 msgid "Sync calendars"
 msgstr "Sincronizar calendários"
 
-#: calendarWidget.js:1154
+#: calendarWidget.js:1150
 msgid "Open Calendar app"
 msgstr "Abrir app Calendário"
 
-#: calendarWidget.js:1160
+#: calendarWidget.js:1156
 msgid "Settings menu"
 msgstr "Menu de configurações"
 
-#: calendarWidget.js:1216 prefs.js:313
+#: calendarWidget.js:1212 prefs.js:313
 msgid "Time Zones"
 msgstr "Fusos Horários"
 
-#: calendarWidget.js:1422
+#: calendarWidget.js:1405
 msgid "Edit…"
 msgstr "Editar…"
 
-#: calendarWidget.js:1427 prefs.js:915
+#: calendarWidget.js:1410 prefs.js:915
 msgid "Open Calendar"
 msgstr "Abrir Calendário"
 
-#: calendarWidget.js:1431
+#: calendarWidget.js:1414
 msgid "Copy"
 msgstr "Copiar"
 
-#: calendarWidget.js:1435
+#: calendarWidget.js:1418
 msgid "Delete…"
 msgstr "Excluir…"
 
-#: calendarWidget.js:1484 eventInfoPopover.js:351
+#: calendarWidget.js:1467 eventInfoPopover.js:362
 msgid "Litsycal"
 msgstr "Litsycal"
 
-#: eventDialog.js:50 eventDialog.js:572
+#: eventDialog.js:52 eventDialog.js:608
 msgid "Never"
 msgstr "Nunca"
 
-#: eventDialog.js:51 helpers.js:272
+#: eventDialog.js:53 helpers.js:283
 msgid "Every day"
 msgstr "Todo dia"
 
-#: eventDialog.js:52 helpers.js:273
+#: eventDialog.js:54 helpers.js:284
 msgid "Every week"
 msgstr "Toda semana"
 
-#: eventDialog.js:53
+#: eventDialog.js:55
 msgid "Every 2 weeks"
 msgstr "A cada 2 semanas"
 
-#: eventDialog.js:54 helpers.js:274
+#: eventDialog.js:56 helpers.js:285
 msgid "Every month"
 msgstr "Todo mês"
 
-#: eventDialog.js:55 helpers.js:275
+#: eventDialog.js:57 helpers.js:286
 msgid "Every year"
 msgstr "Todo ano"
 
-#: eventDialog.js:68
+#: eventDialog.js:70
 msgid "On the day"
 msgstr "No dia"
 
-#: eventDialog.js:68
+#: eventDialog.js:70
 msgid "At time of event"
 msgstr "Na hora do evento"
 
-#: eventDialog.js:71
+#: eventDialog.js:73
 msgid "1 week before"
 msgstr "1 semana antes"
 
-#: eventDialog.js:71
+#: eventDialog.js:73
 #, javascript-format
 msgid "%d day before"
 msgid_plural "%d days before"
 msgstr[0] "%d dia antes"
 msgstr[1] "%d dias antes"
 
-#: eventDialog.js:75
+#: eventDialog.js:77
 #, javascript-format
 msgid "%d hour before"
 msgid_plural "%d hours before"
 msgstr[0] "%d hora antes"
 msgstr[1] "%d horas antes"
 
-#: eventDialog.js:77
+#: eventDialog.js:79
 #, javascript-format
 msgid "%d minute before"
 msgid_plural "%d minutes before"
 msgstr[0] "%d minuto antes"
 msgstr[1] "%d minutos antes"
 
-#: eventDialog.js:82
+#: eventDialog.js:84
 msgid "None"
 msgstr "Nenhum"
 
@@ -172,139 +172,147 @@ msgstr "Nenhum"
 msgid "This is a repeating event."
 msgstr "Este é um evento recorrente."
 
-#: eventDialog.js:147
+#: eventDialog.js:126
+msgid "Delete this event?"
+msgstr "Excluir este evento?"
+
+#: eventDialog.js:153
 msgid "Delete this event"
 msgstr "Excluir este evento"
 
-#: eventDialog.js:149
+#: eventDialog.js:155
 msgid "Delete all events"
 msgstr "Excluir todos os eventos"
 
-#: eventDialog.js:151 eventDialog.js:645 prefs.js:163
-msgid "Cancel"
-msgstr "Cancelar"
-
-#: eventDialog.js:413
-msgid "Event title"
-msgstr "Título do evento"
-
-#: eventDialog.js:467
-msgid "Location"
-msgstr "Local"
-
-#: eventDialog.js:470
-msgid "Add location…"
-msgstr "Adicionar local…"
-
-#: eventDialog.js:484
-msgid "URL"
-msgstr "URL"
-
-#: eventDialog.js:513
-msgid "All-day"
-msgstr "Dia todo"
-
-#: eventDialog.js:516 eventDialog.js:716
-msgid "On"
-msgstr "Sim"
-
-#: eventDialog.js:516 eventDialog.js:716
-msgid "Off"
-msgstr "Não"
-
-#: eventDialog.js:529
-msgid "Starts"
-msgstr "Início"
-
-#: eventDialog.js:545
-msgid "Ends"
-msgstr "Término"
-
-#: eventDialog.js:561
-msgid "Repeat"
-msgstr "Repetir"
-
-#: eventDialog.js:569
-msgid "Until"
-msgstr "Até"
-
-#: eventDialog.js:572
-msgid "On date"
-msgstr "Em uma data"
-
-#: eventDialog.js:589
-msgid "Alert"
-msgstr "Alerta"
-
-#: eventDialog.js:598
-msgid "Notes"
-msgstr "Notas"
-
-#: eventDialog.js:607
-msgid "Add notes…"
-msgstr "Adicionar notas…"
-
-#: eventDialog.js:640
+#: eventDialog.js:158 eventDialog.js:676
 msgid "Delete"
 msgstr "Excluir"
 
-#: eventDialog.js:647
+#: eventDialog.js:161 eventDialog.js:681 prefs.js:163
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: eventDialog.js:449
+msgid "Event title"
+msgstr "Título do evento"
+
+#: eventDialog.js:503
+msgid "Location"
+msgstr "Local"
+
+#: eventDialog.js:506
+msgid "Add location…"
+msgstr "Adicionar local…"
+
+#: eventDialog.js:520
+msgid "URL"
+msgstr "URL"
+
+#: eventDialog.js:549
+msgid "All-day"
+msgstr "Dia todo"
+
+#: eventDialog.js:552 eventDialog.js:752
+msgid "On"
+msgstr "Sim"
+
+#: eventDialog.js:552 eventDialog.js:752
+msgid "Off"
+msgstr "Não"
+
+#: eventDialog.js:565
+msgid "Starts"
+msgstr "Início"
+
+#: eventDialog.js:581
+msgid "Ends"
+msgstr "Término"
+
+#: eventDialog.js:597
+msgid "Repeat"
+msgstr "Repetir"
+
+#: eventDialog.js:605
+msgid "Until"
+msgstr "Até"
+
+#: eventDialog.js:608
+msgid "On date"
+msgstr "Em uma data"
+
+#: eventDialog.js:625
+msgid "Alert"
+msgstr "Alerta"
+
+#: eventDialog.js:634
+msgid "Notes"
+msgstr "Notas"
+
+#: eventDialog.js:643
+msgid "Add notes…"
+msgstr "Adicionar notas…"
+
+#: eventDialog.js:683
 msgid "Save Event"
 msgstr "Salvar evento"
 
-#: eventDialog.js:707
+#: eventDialog.js:743
 msgid "No calendar"
 msgstr "Nenhum calendário"
 
-#: eventDialog.js:729 eventDialog.js:749 eventDialog.js:775
+#: eventDialog.js:765 eventDialog.js:785 eventDialog.js:811
 msgid "Custom"
 msgstr "Personalizado"
 
-#: eventDialog.js:1344
+#: eventDialog.js:1380
 msgid "Title required"
 msgstr "Título é obrigatório"
 
-#: eventDialog.js:1348
+#: eventDialog.js:1384
 msgid "No calendar available"
 msgstr "Nenhum calendário disponível"
 
-#: eventDialog.js:1354
+#: eventDialog.js:1390
 msgid "Invalid date (YYYY-MM-DD)"
 msgstr "Data inválida (AAAA-MM-DD)"
 
-#: eventDialog.js:1364
+#: eventDialog.js:1400
 msgid "Invalid start time (HH:MM)"
 msgstr "Hora de início inválida (HH:MM)"
 
-#: eventDialog.js:1368
+#: eventDialog.js:1404
 msgid "Invalid end time (HH:MM)"
 msgstr "Hora de término inválida (HH:MM)"
 
-#: eventDialog.js:1544
+#: eventDialog.js:1424
+msgid "URL must include a scheme, e.g. https://"
+msgstr "A URL deve incluir um esquema, por exemplo https://"
+
+#: eventDialog.js:1524
 msgid "Go to date"
 msgstr "Ir para data"
 
-#: eventDialog.js:1560
+#: eventDialog.js:1540
 msgid "Go"
 msgstr "Ir"
 
-#: eventDialog.js:1567
+#: eventDialog.js:1547
 msgid "Enter a date as yyyy-mm-dd"
 msgstr "Digite uma data como aaaa-mm-dd"
 
-#: eventDialog.js:1692
+#: eventDialog.js:1586
 msgid "Quick add event"
 msgstr "Adicionar evento rápido"
 
-#: eventDialog.js:1698
+#: eventDialog.js:1592
 msgid "e.g. Lunch tomorrow 12pm at Cafe Nero"
 msgstr "ex.: Almoço amanhã 12h em Café Nero"
 
-#: eventDialog.js:1706 prefs.js:336
+#: eventDialog.js:1600 prefs.js:336
 msgid "Add"
 msgstr "Adicionar"
 
-#: eventInfoPopover.js:200 searchPanel.js:196
+#: eventInfoPopover.js:200 searchPanel.js:130
 msgid "(No title)"
 msgstr "(Sem título)"
 
@@ -319,51 +327,51 @@ msgid_plural "+%d more attendees"
 msgstr[0] "+%d convidado"
 msgstr[1] "+%d convidados"
 
-#: helpers.js:268 helpers.js:276 helpers.js:284
+#: helpers.js:279 helpers.js:287 helpers.js:295
 msgid "Repeats"
 msgstr "Recorrente"
 
-#: helpers.js:279
+#: helpers.js:290
 #, javascript-format
 msgid "Every %d day"
 msgid_plural "Every %d days"
 msgstr[0] "A cada %d dia"
 msgstr[1] "A cada %d dias"
 
-#: helpers.js:280
+#: helpers.js:291
 #, javascript-format
 msgid "Every %d week"
 msgid_plural "Every %d weeks"
 msgstr[0] "A cada %d semana"
 msgstr[1] "A cada %d semanas"
 
-#: helpers.js:281
+#: helpers.js:292
 #, javascript-format
 msgid "Every %d month"
 msgid_plural "Every %d months"
 msgstr[0] "A cada %d mês"
 msgstr[1] "A cada %d meses"
 
-#: helpers.js:282
+#: helpers.js:293
 #, javascript-format
 msgid "Every %d year"
 msgid_plural "Every %d years"
 msgstr[0] "A cada %d ano"
 msgstr[1] "A cada %d anos"
 
-#: helpers.js:297
+#: helpers.js:308
 msgid "Accepted"
 msgstr "Aceito"
 
-#: helpers.js:299
+#: helpers.js:310
 msgid "Declined"
 msgstr "Recusado"
 
-#: helpers.js:301
+#: helpers.js:312
 msgid "Tentative"
 msgstr "Talvez"
 
-#: helpers.js:303
+#: helpers.js:314
 msgid "No response"
 msgstr "Sem resposta"
 
@@ -633,8 +641,8 @@ msgid ""
 "Shows a countdown (e.g. \"5m\", \"now\") next to a meeting icon whenever "
 "today has an upcoming video-call meeting"
 msgstr ""
-"Mostra uma contagem regressiva (ex.: \"5m\", \"agora\") ao lado de um "
-"ícone de reunião sempre que houver uma videochamada próxima hoje"
+"Mostra uma contagem regressiva (ex.: \"5m\", \"agora\") ao lado de um ícone "
+"de reunião sempre que houver uma videochamada próxima hoje"
 
 #: prefs.js:451
 msgid "Replace icon text"
@@ -927,15 +935,15 @@ msgctxt "quick-add: location marker, e.g. \"lunch at the cafe\""
 msgid "at"
 msgstr "em"
 
-#: searchPanel.js:123
+#: searchPanel.js:57
 msgid "Search events"
 msgstr "Pesquisar eventos"
 
-#: searchPanel.js:127
+#: searchPanel.js:61
 msgid "Type to search…"
 msgstr "Digite para pesquisar…"
 
-#: searchPanel.js:148
+#: searchPanel.js:82
 msgid "No matching events"
 msgstr "Nenhum evento encontrado"
 

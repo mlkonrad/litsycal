@@ -8,6 +8,7 @@ import Pango   from 'gi://Pango';
 
 import {parseQuickAdd}    from './quickAddParser.js';
 import {FloatingModalPanel} from './floatingPanel.js';
+import {isLikelyUrl}      from './helpers.js';
 
 const _ = str => GLib.dgettext('litsycal@mlkonrad.github.com', str);
 
@@ -247,7 +248,7 @@ export class EventPanel {
         this._sources        = sources;
         this._selSource      = event
             ? sources.find(s => s.uid === event.clientUid) ?? sources[0] ?? null
-            : sources[0] ?? null;
+            : sources.find(s => s.uid === calManager.getLastEventSourceUid()) ?? sources[0] ?? null;
 
         // Use popup-menu-content so background/text follow the user's shell theme
         this._box = new St.BoxLayout({
@@ -1410,9 +1411,19 @@ export class EventPanel {
             endDate = this._parseDate(this._endDatePicker.getValue()) ?? startDate;
         }
 
-        const notes      = this._notesEntry.get_text().trim()    || null;
-        const url        = this._urlEntry.get_text().trim()      || null;
-        const location   = this._locationEntry.get_text().trim() || null;
+        const notes    = this._notesEntry.get_text().trim()    || null;
+        const url      = this._urlEntry.get_text().trim()      || null;
+        const location = this._locationEntry.get_text().trim() || null;
+
+        // Without this, plain text with no scheme (e.g. someone typing into
+        // the wrong field, or tabbing past it while filling in other fields)
+        // got saved as-is and the event info popover would still render it
+        // as a clickable "Open link" row with a link icon — misleading,
+        // since it isn't actually a link and clicking it does nothing.
+        if (url && !isLikelyUrl(url)) {
+            this._showError(_('URL must include a scheme, e.g. https://'));
+            return;
+        }
         const recurrence = this._recurrenceFromUI();
         const alarm      = this._alarmFromUI();
 
@@ -1429,10 +1440,15 @@ export class EventPanel {
             this.close();
         };
 
-        if (this._event)
+        if (this._event) {
             this._calManager.updateEvent(this._event.uid, this._event.clientUid, fields, done);
-        else
-            this._calManager.createEvent(fields, this._selSource.uid, done);
+        } else {
+            this._calManager.createEvent(fields, this._selSource.uid, err => {
+                if (!err)
+                    this._calManager.setLastEventSourceUid(this._selSource.uid);
+                done(err);
+            });
+        }
     }
 
     _confirmDelete() {

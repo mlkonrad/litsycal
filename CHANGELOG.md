@@ -15,6 +15,10 @@ longer carries a `version` key — see that file's history for why).
 - The delete-confirmation prompt supports Tab/Shift+Tab to cycle focus
   between its buttons (Cancel focused by default), matching keyboard
   navigation elsewhere in the app.
+- The New Event form now defaults to whichever calendar you picked last
+  time, instead of always defaulting to the first calendar in the list
+  (often "Birthdays & Anniversaries"). No new setting — it's just
+  remembered automatically each time you save a new event.
 
 ### Fixed
 
@@ -23,6 +27,13 @@ longer carries a `version` key — see that file's history for why).
   event title (the delete button sits directly beside it) deleted the
   event outright. `confirmDeleteEvent` now always shows a confirm/cancel
   prompt before deleting, not just for recurring events.
+- The New Event form's URL field accepted any text and saved it as-is; the
+  event info popover then rendered it as a clickable "Open link" row with a
+  link icon even when it wasn't an actual link (e.g. plain text typed into
+  the wrong field), and clicking it silently did nothing. Saving now
+  rejects a URL that doesn't include a scheme (e.g. `https://`), and the
+  popover falls back to plain text instead of a link row for an event
+  synced in from elsewhere with a non-URL value already in that field.
 
 ## [6] - 2026-09-12
 

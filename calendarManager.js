@@ -818,6 +818,18 @@ export class CalendarManager {
             .map(([uid, {name, color}]) => ({uid, name, color}));
     }
 
+    // Backs the New Event form's default calendar (see EventPanel's
+    // constructor and _save() in eventDialog.js) — remembers whichever
+    // calendar was picked last time, rather than always defaulting to
+    // whatever getSources() happens to list first.
+    getLastEventSourceUid() {
+        return this._settings.get_string('last-event-calendar-uid');
+    }
+
+    setLastEventSourceUid(uid) {
+        this._settings.set_string('last-event-calendar-uid', uid);
+    }
+
     // ── Cleanup ───────────────────────────────────────────────────────────────
 
     destroy() {

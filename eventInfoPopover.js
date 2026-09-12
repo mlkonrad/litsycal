@@ -12,7 +12,7 @@ import {gettext as _, ngettext} from 'resource:///org/gnome/shell/extensions/ext
 import {confirmDeleteEvent} from './eventDialog.js';
 import {
     formatEventWhen, recurrenceSummary, findMeetingUrl, meetingIsJoinable, FONT_SIZE_CLASSES,
-    URL_REGEXP, attendeeStatusInfo,
+    URL_REGEXP, attendeeStatusInfo, isLikelyUrl,
 } from './helpers.js';
 
 // ── Event info popover ───────────────────────────────────────────────────────
@@ -314,15 +314,16 @@ export class EventInfoPopover {
         if (ev.notes || ev.url)
             box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
 
+        const addTextChunk = text => {
+            if (!text)
+                return;
+            const lbl = new St.Label({text, style_class: 'litsycal-info-popover-text'});
+            lbl.clutter_text.set_line_wrap(true);
+            lbl.clutter_text.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR);
+            box.add_child(lbl);
+        };
+
         if (ev.notes) {
-            const addTextChunk = text => {
-                if (!text)
-                    return;
-                const lbl = new St.Label({text, style_class: 'litsycal-info-popover-text'});
-                lbl.clutter_text.set_line_wrap(true);
-                lbl.clutter_text.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR);
-                box.add_child(lbl);
-            };
             // Split on embedded links (e.g. the "Join with Google Meet: <url>"
             // boilerplate calendar servers add to notes) so each one renders
             // as its own clickable row instead of inert text.
@@ -337,8 +338,18 @@ export class EventInfoPopover {
             addTextChunk(ev.notes.slice(lastIndex));
         }
 
-        if (ev.url)
-            addLinkRow('web-browser-symbolic', ev.url, ev.url, _('Open link'));
+        if (ev.url) {
+            // The New Event form now rejects anything here that doesn't look
+            // like an actual URI (see eventDialog.js's _save()), but an
+            // event synced in from another calendar client is under no such
+            // obligation — fall back to plain text rather than rendering a
+            // clickable-looking "Open link" row for something that isn't
+            // actually a link.
+            if (isLikelyUrl(ev.url))
+                addLinkRow('web-browser-symbolic', ev.url, ev.url, _('Open link'));
+            else
+                addTextChunk(ev.url);
+        }
     }
 
     // Same confirm-then-delete flow as the event edit panel's own Delete

@@ -181,6 +181,17 @@ const MEETING_PATTERNS = [
 // around embedded links so each one can be rendered as its own clickable row.
 export const URL_REGEXP = /https?:\/\/[^\s<>"']+/gi;
 
+// A loose "does this look like an absolute URI" check (any scheme, not just
+// http/https — meeting invites sometimes use e.g. zoommtg://) for the
+// standalone URL field, which unlike notes has no surrounding text to
+// distinguish a real link from plain text typed into the wrong field.
+/**
+ * @param {string} str
+ */
+export function isLikelyUrl(str) {
+    return /^[a-zA-Z][\w+.-]*:\/\/\S+$/.test(str);
+}
+
 // Scans the event's URL, location, and notes (in that order) for the first
 // link that matches a known video-call provider — organizers often paste the
 // dial-in link into notes/location rather than the dedicated URL field.

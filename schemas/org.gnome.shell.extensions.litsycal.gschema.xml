@@ -25,6 +25,11 @@
       <default>[]</default>
       <summary>UIDs of calendar sources hidden from the grid and agenda</summary>
     </key>
+    <key name="last-event-calendar-uid" type="s">
+      <default>''</default>
+      <summary>Internal: calendar UID last picked when creating a new event</summary>
+      <description>Set automatically whenever a new event is saved; used as the New Event form's default calendar next time. Not user-facing.</description>
+    </key>
     <key name="agenda-days" type="i">
       <default>7</default>
       <summary>How many days ahead the agenda covers: 0 hides it, otherwise 1-7, 14, or 31</summary>
