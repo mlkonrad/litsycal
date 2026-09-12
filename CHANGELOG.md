@@ -10,6 +10,8 @@ longer carries a `version` key — see that file's history for why).
 
 ## [Unreleased]
 
+## [5] - 2026-09-12
+
 ### Added
 
 - Appearance now has a "Short day names" toggle for the grid's weekday
@@ -262,7 +264,8 @@ longer carries a `version` key — see that file's history for why).
 - Internationalization via gettext, including a Brazilian Portuguese
   translation.
 
-[Unreleased]: https://github.com/mlkonrad/litsycal/compare/b9c302f...HEAD
+[Unreleased]: https://github.com/mlkonrad/litsycal/compare/d257c22...HEAD
+[5]: https://github.com/mlkonrad/litsycal/compare/b9c302f...d257c22
 [4]: https://github.com/mlkonrad/litsycal/compare/776d203...b9c302f
 [3]: https://github.com/mlkonrad/litsycal/compare/9c3a415...776d203
 [2]: https://github.com/mlkonrad/litsycal/compare/dbfda84...9c3a415
