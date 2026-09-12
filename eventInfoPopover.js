@@ -12,6 +12,7 @@ import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js'
 import {confirmDeleteEvent} from './eventDialog.js';
 import {
     formatEventWhen, recurrenceSummary, findMeetingUrl, meetingIsJoinable, FONT_SIZE_CLASSES,
+    URL_REGEXP,
 } from './helpers.js';
 
 // ── Event info popover ───────────────────────────────────────────────────────
@@ -242,55 +243,62 @@ export class EventInfoPopover {
         if (recurrence)
             addIconRow('media-playlist-repeat-symbolic', recurrence);
 
-        // ── Join meeting (same detection as the agenda row's own button) ───
-        const meetingUrl = findMeetingUrl(ev);
-        if (meetingUrl && meetingIsJoinable(ev)) {
-            const joinBtn = new St.Button({style_class: 'litsycal-info-popover-link-btn', x_expand: true});
-            const joinRow = new St.BoxLayout({style_class: 'litsycal-panel-icon-row'});
-            joinRow.add_child(new St.Icon({
-                icon_name: 'camera-video-symbolic', icon_size: 14,
-                style_class: 'litsycal-info-popover-icon',
+        const addLinkRow = (iconName, labelText, uri, accessibleName) => {
+            const btn = new St.Button({
+                style_class: 'litsycal-info-popover-link-btn', x_expand: true,
+                accessible_name: accessibleName, can_focus: true,
+            });
+            const row = new St.BoxLayout({style_class: 'litsycal-panel-icon-row'});
+            row.add_child(new St.Icon({
+                icon_name: iconName, icon_size: 14, style_class: 'litsycal-info-popover-icon',
             }));
-            joinRow.add_child(new St.Label({text: _('Join meeting'), x_expand: true}));
-            joinBtn.set_child(joinRow);
-            joinBtn.connect('clicked', () => {
+            const lbl = new St.Label({text: labelText, style_class: 'litsycal-info-popover-text', x_expand: true});
+            lbl.clutter_text.set_line_wrap(false);
+            lbl.clutter_text.set_ellipsize(Pango.EllipsizeMode.MIDDLE);
+            row.add_child(lbl);
+            btn.set_child(row);
+            btn.connect('clicked', () => {
                 try {
-                    Gio.AppInfo.launch_default_for_uri(meetingUrl, null);
+                    Gio.AppInfo.launch_default_for_uri(uri, null);
                 } catch {}
             });
-            box.add_child(joinBtn);
-        }
+            box.add_child(btn);
+        };
+
+        // ── Join meeting (same detection as the agenda row's own button) ───
+        const meetingUrl = findMeetingUrl(ev);
+        if (meetingUrl && meetingIsJoinable(ev))
+            addLinkRow('camera-video-symbolic', _('Join meeting'), meetingUrl, _('Join meeting'));
 
         // ── Notes / URL ────────────────────────────────────────────────────
         if (ev.notes || ev.url)
             box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
 
         if (ev.notes) {
-            const notesLbl = new St.Label({text: ev.notes, style_class: 'litsycal-info-popover-text'});
-            notesLbl.clutter_text.set_line_wrap(true);
-            notesLbl.clutter_text.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR);
-            box.add_child(notesLbl);
+            const addTextChunk = text => {
+                if (!text)
+                    return;
+                const lbl = new St.Label({text, style_class: 'litsycal-info-popover-text'});
+                lbl.clutter_text.set_line_wrap(true);
+                lbl.clutter_text.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR);
+                box.add_child(lbl);
+            };
+            // Split on embedded links (e.g. the "Join with Google Meet: <url>"
+            // boilerplate calendar servers add to notes) so each one renders
+            // as its own clickable row instead of inert text.
+            const urlRe = new RegExp(URL_REGEXP.source, URL_REGEXP.flags);
+            let lastIndex = 0;
+            let match;
+            while ((match = urlRe.exec(ev.notes))) {
+                addTextChunk(ev.notes.slice(lastIndex, match.index));
+                addLinkRow('web-browser-symbolic', match[0], match[0], _('Open link'));
+                lastIndex = urlRe.lastIndex;
+            }
+            addTextChunk(ev.notes.slice(lastIndex));
         }
 
-        if (ev.url) {
-            const urlBtn = new St.Button({style_class: 'litsycal-info-popover-link-btn', x_expand: true});
-            const urlRow = new St.BoxLayout({style_class: 'litsycal-panel-icon-row'});
-            urlRow.add_child(new St.Icon({
-                icon_name: 'web-browser-symbolic', icon_size: 14,
-                style_class: 'litsycal-info-popover-icon', y_align: Clutter.ActorAlign.START,
-            }));
-            const urlLbl = new St.Label({text: ev.url, style_class: 'litsycal-info-popover-text', x_expand: true});
-            urlLbl.clutter_text.set_line_wrap(true);
-            urlLbl.clutter_text.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR);
-            urlRow.add_child(urlLbl);
-            urlBtn.set_child(urlRow);
-            urlBtn.connect('clicked', () => {
-                try {
-                    Gio.AppInfo.launch_default_for_uri(ev.url, null);
-                } catch {}
-            });
-            box.add_child(urlBtn);
-        }
+        if (ev.url)
+            addLinkRow('web-browser-symbolic', ev.url, ev.url, _('Open link'));
     }
 
     // Same confirm-then-delete flow as the event edit panel's own Delete

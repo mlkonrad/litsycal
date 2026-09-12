@@ -653,6 +653,7 @@
     padding: 14px 16px;
     spacing: 8px;
     width: 320px;
+    max-height: 480px;
     border-radius: 12px;
 }
 
@@ -685,7 +686,6 @@
     border: none;
     background: none;
     padding: 2px 4px;
-    margin: -2px -4px;
     border-radius: 4px;
 }
 .litsycal-info-popover-link-btn:hover { background-color: rgba(128,128,128,0.12); }
@@ -956,17 +956,7 @@
 }
 .litsycal-confirm-btn-danger:hover { background-color: rgba(230,45,66,0.28); }
 
-/* ── Agenda URL button ───────────────────────────────────────────────────── */
-.litsycal-agenda-url-btn {
-    border: none;
-    background: none;
-    padding: 1px 4px;
-    border-radius: 4px;
-    opacity: 0.55;
-}
-.litsycal-agenda-url-btn:hover { opacity: 1.0; background-color: rgba(128,128,128,0.12); }
-
-/* ── Agenda meeting-join button ─────────────────────────────────────────── */
+/* ── Agenda meeting-join / URL button ───────────────────────────────────── */
 .litsycal-agenda-join-btn {
     border: none;
     background: none;

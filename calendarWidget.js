@@ -1029,26 +1029,30 @@ class LitsycalCalendar extends St.BoxLayout {
                         style_class: 'litsycal-agenda-time',
                     }));
 
-                    const meetingUrl = findMeetingUrl(ev);
-                    if (meetingUrl && meetingIsJoinable(ev)) {
-                        const joinIcon = new St.Icon({
-                            icon_name: 'camera-video-symbolic',
-                            style_class: 'litsycal-agenda-join-icon',
+                    const addRow2LinkBtn = (iconName, accessibleName, uri) => {
+                        const icon = new St.Icon({icon_name: iconName, style_class: 'litsycal-agenda-join-icon'});
+                        icon.style = `color: ${ev.color};`;
+                        const btn = new St.Button({
+                            style_class: 'litsycal-agenda-join-btn', accessible_name: accessibleName, child: icon,
                         });
-                        joinIcon.style = `color: ${ev.color};`;
-                        const joinBtn = new St.Button({
-                            style_class: 'litsycal-agenda-join-btn',
-                            accessible_name: _('Join meeting'),
-                            child: joinIcon,
-                        });
-                        joinBtn.connect('clicked', () => {
+                        btn.connect('clicked', () => {
                             try {
-                                Gio.AppInfo.launch_default_for_uri(meetingUrl, null);
+                                Gio.AppInfo.launch_default_for_uri(uri, null);
                             } catch {}
                         });
-                        row2.add_child(joinBtn);
-                        this._joinButtons.push(joinBtn);
+                        row2.add_child(btn);
+                        return btn;
+                    };
+
+                    const meetingUrl = findMeetingUrl(ev);
+                    if (meetingUrl && meetingIsJoinable(ev)) {
+                        this._joinButtons.push(
+                            addRow2LinkBtn('camera-video-symbolic', _('Join meeting'), meetingUrl));
                     }
+
+                    if (ev.url)
+                        addRow2LinkBtn('web-browser-symbolic', _('Open link'), ev.url);
+
                     evtBox.add_child(row2);
 
                     if (ev.location && this._showEventLocation) {
@@ -1086,26 +1090,7 @@ class LitsycalCalendar extends St.BoxLayout {
                         return Clutter.EVENT_STOP;
                     });
 
-                    const evtRow = new St.BoxLayout({x_expand: true});
-                    evtRow.add_child(evtBtn);
-
-                    if (ev.url) {
-                        const urlBtn = new St.Button({
-                            style_class: 'litsycal-agenda-url-btn',
-                            accessible_name: _('Open link'),
-                            child: new St.Icon({
-                                icon_name: 'web-browser-symbolic',
-                                style_class: 'litsycal-gear-icon',
-                            }),
-                        });
-                        urlBtn.connect('clicked', () => {
-                            try {
-                                Gio.AppInfo.launch_default_for_uri(ev.url, null);
-                            } catch {}
-                        });
-                        evtRow.add_child(urlBtn);
-                    }
-                    this._agendaBox.add_child(evtRow);
+                    this._agendaBox.add_child(evtBtn);
                 }
             }
 

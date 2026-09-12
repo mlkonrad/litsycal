@@ -177,6 +177,10 @@ const MEETING_PATTERNS = [
     /https?:\/\/8x8\.vc\/[^\s<>"']+/i,
 ];
 
+// Shared with the event info popover, which uses it to split notes text
+// around embedded links so each one can be rendered as its own clickable row.
+export const URL_REGEXP = /https?:\/\/[^\s<>"']+/gi;
+
 // Scans the event's URL, location, and notes (in that order) for the first
 // link that matches a known video-call provider — organizers often paste the
 // dial-in link into notes/location rather than the dedicated URL field.
@@ -187,7 +191,7 @@ export function findMeetingUrl(ev) {
     for (const text of [ev.url, ev.location, ev.notes]) {
         if (!text)
             continue;
-        const urls = text.match(/https?:\/\/[^\s<>"']+/gi) ?? [];
+        const urls = text.match(URL_REGEXP) ?? [];
         for (const url of urls) {
             if (MEETING_PATTERNS.some(re => re.test(url)))
                 return url;
