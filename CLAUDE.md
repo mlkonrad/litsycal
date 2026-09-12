@@ -29,6 +29,35 @@ cached even across a clean disable/enable cycle). If behavior still looks
 stale after reloading, a full log out/in is the sure fix — GNOME Shell can't
 restart in place on Wayland like it can on X11 (`Alt+F2` → `r`).
 
+## Negative CSS margin corrupts St layout on this Shell version
+
+Hit for real fixing the event info popover, 2026-09-12 (see CHANGELOG's
+Unreleased/Fixed entry): a negative `margin` on an St widget's style class —
+`.litsycal-info-popover-link-btn` had `margin: -2px -4px;`, meant to offset
+extra `padding` for a bigger hover/click area — corrupts that widget's
+`get_preferred_height()`/`get_height()` on this machine's GNOME Shell/Mutter
+build (Shell 50 dev, `mutter-18`/`St-18` typelibs) to exactly `8589934592`
+(2^33), regardless of the widget's actual content. Reproduced identically on
+both `St.Button` and a plain `St.BoxLayout` — it's not a `St.Button`-specific
+bug. A *hard* CSS `width`/`height` value on a widget is respected fine; a
+*soft* `max-height` on an ancestor does **not** clamp this corrupted value —
+it passes straight through. No JS exception is thrown anywhere, so this
+class of bug is invisible to `journalctl` error-grepping; the corrupted
+number just silently becomes the actor's real allocated size, blowing up
+(or collapsing) whatever contains it.
+
+If a popup/panel ever renders at a wildly wrong size again with nothing in
+the logs, grep `stylesheet.css` for `margin: -` on the actor involved before
+suspecting a JS logic bug. More generally, the fastest way to debug "insane
+size, no exception" bugs in this project is live, on this machine's actual
+running GNOME Shell (see "Local install is a symlink" above): temporarily
+add `console.error()` calls logging `get_width()`/`get_height()` and each
+child's `get_preferred_height()`, reload, ask for a repro click, then
+`journalctl --user -b 0 | grep <marker>`. Stylesheet-only changes reload
+reliably via plain disable/enable; JS module changes need the full log
+out/in from the caveat above to be sure they took effect — don't trust a
+disable/enable alone when chasing a change that doesn't seem to have landed.
+
 ## extensions.gnome.org review guidelines (publishing target)
 
 Full guide: https://gjs.guide/extensions/review-guidelines/review-guidelines.html

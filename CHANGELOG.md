@@ -17,6 +17,30 @@ longer carries a `version` key — see that file's history for why).
   three-letter abbreviations, derived from the same locale data so it works
   in any language (e.g. S T Q Q S S D for pt_BR) without new translation
   strings for the letters themselves.
+- The event info popover's Notes text now splits around any URLs it
+  contains (e.g. the "Join with Google Meet: <url>" boilerplate many
+  calendar servers add) so each one renders as its own clickable row
+  instead of inert text.
+
+### Changed
+
+- The agenda list's icon for a plain URL (as opposed to a detected meeting
+  link) now sits inline with the time, coloured to match the event's own
+  calendar — the same treatment the meeting-join icon already had, instead
+  of a separate grey icon in its own column at the far right.
+
+### Fixed
+
+- Clicking an event with a meeting link, a URL, or a link embedded in its
+  notes broke the event info popover: instead of the usual small card, it
+  rendered as a hugely oversized, mostly-empty rectangle covering most of
+  the screen. A negative CSS margin on the popover's link-row style class
+  (`margin: -2px -4px`, meant to offset extra padding for a bigger hover
+  area) corrupted that row's computed height on this Shell version — an
+  underlying Clutter/St layout bug (reproducibly returns exactly 2^33
+  regardless of content), not a logic error, and no exception was ever
+  thrown. Removing the negative margin fixes it; see CLAUDE.md's dev notes
+  for how this was tracked down.
 
 ## [4] - 2026-09-10
 
