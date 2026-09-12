@@ -43,6 +43,13 @@ longer carries a `version` key — see that file's history for why).
 
 ### Fixed
 
+- `Ctrl+F` search could surface (and let you navigate to) events from a
+  calendar you'd explicitly disabled — `searchEvents` now excludes disabled
+  calendars the same way the grid/agenda already do.
+- Quick-adding a time later than the current hour (e.g. "call at 3pm" typed
+  at 10am) prefilled the New Event form with an end time before its start
+  (end time was always wall-clock-relative, ignoring the parsed draft).
+
 - The extension could fail to activate at all under `mutter-devkit`'s nested
   Shell (`scripts/dev-session.sh`) with `TypeError: can't access property
   "height", monitor is null`, leaving no panel icon: `_updateAgendaMaxHeight`

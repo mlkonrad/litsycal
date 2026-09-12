@@ -6,7 +6,8 @@ import Gio     from 'gi://Gio';
 import Shell   from 'gi://Shell';
 import Pango   from 'gi://Pango';
 
-import {parseQuickAdd} from './quickAddParser.js';
+import {parseQuickAdd}    from './quickAddParser.js';
+import {FloatingModalPanel} from './floatingPanel.js';
 
 const _ = str => GLib.dgettext('litsycal@mlkonrad.github.com', str);
 
@@ -534,8 +535,13 @@ export class EventPanel {
         box.add_child(this._startsRow);
 
         // ── Ends ───────────────────────────────────────────────────────────────
-        const defEndTime = ev && !ev.allDay
-            ? ev.time?.split(' - ')[1]?.trim() ?? this._nextHour() : this._nextHour();
+        let defEndTime;
+        if (ev && !ev.allDay)
+            defEndTime = ev.time?.split(' - ')[1]?.trim() ?? this._nextHour();
+        else if (this._draft?.time)
+            defEndTime = this._hourAfter(this._draft.time);
+        else
+            defEndTime = this._nextHour();
         this._endsRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
         this._endsRow.add_child(new St.Label({text: _('Ends'), style_class: 'litsycal-panel-lbl'}));
         this._endDatePicker = this._makeDateField(ev?.endDate ?? this._selDate);
@@ -675,6 +681,17 @@ export class EventPanel {
     _nextHour() {
         const n = GLib.DateTime.new_now_local();
         return `${pad((n.get_hour() + 1) % 24)}:00`;
+    }
+
+    // One hour after a given 'HH:MM' time string, minutes reset to :00 —
+    // same rounding _nextHour() above already applies to "now". Used to
+    // derive an end time from a quick-add draft's parsed start time,
+    // instead of _nextHour() itself, which is relative to the current wall
+    // clock and not the draft — e.g. quick-adding "3pm" at 10am used to
+    // prefill start=15:00, end=11:00 (before the start).
+    _hourAfter(timeStr) {
+        const [h] = timeStr.split(':').map(Number);
+        return `${pad((h + 1) % 24)}:00`;
     }
 
     _refreshCalBtn() {
@@ -1444,82 +1461,11 @@ export class EventPanel {
 // used by the settings menu's "Go to date" item. Follows the same floating-
 // panel-in-uiGroup pattern as EventPanel above (own stage click/Escape
 // handling, explicit teardown), just much smaller.
-export class GoToDatePanel {
+export class GoToDatePanel extends FloatingModalPanel {
     // onClose is called exactly once, with the parsed GLib.DateTime on a
     // successful submit or null on cancel (Escape / click outside).
     constructor(anchorActor, onClose) {
-        this._onClose = onClose;
-
-        this._box = new St.BoxLayout({
-            vertical: true,
-            style_class: 'popup-menu-content litsycal-goto-panel',
-            reactive: true,
-            // Hidden via opacity (not `visible`, which the modal grab below
-            // needs the actor mapped for) until _position() places it.
-            opacity: 0,
-        });
-
-        this._build();
-        Main.layoutManager.uiGroup.add_child(this._box);
-
-        // Needed because this can now appear while the calendar dropdown
-        // (this.menu) is still open, i.e. still holding its own modal grab:
-        // without a competing grab here, input is redelivered starting from
-        // that grab's actor rather than the stage, so our own stage-level
-        // listeners below would never see it, and even a click on our own
-        // entry/button would be swallowed as a click-outside-of-that-menu
-        // instead of reaching us. See SettingsMenuPanel in extension.js for
-        // the full explanation — same mechanism, same fix.
-        this._grab = Main.pushModal(this._box, {actionMode: Shell.ActionMode.POPUP});
-
-        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-            this._position(anchorActor);
-            this._box.opacity = 255;
-            this._entry.grab_key_focus();
-            return GLib.SOURCE_REMOVE;
-        });
-
-        this._eventId = this._box.connect('captured-event', (_actor, ev) => {
-            if (ev.type() === Clutter.EventType.BUTTON_PRESS) {
-                const [x, y] = ev.get_coords();
-                const actor  = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
-                if (actor && !this._box.contains(actor)) {
-                    this._finish(null);
-                    return Clutter.EVENT_STOP;
-                }
-            } else if (ev.type() === Clutter.EventType.KEY_PRESS &&
-                       ev.get_key_symbol() === Clutter.KEY_Escape) {
-                this._finish(null);
-                return Clutter.EVENT_STOP;
-            }
-            return Clutter.EVENT_PROPAGATE;
-        });
-    }
-
-    _position(anchor) {
-        const monitor = Main.layoutManager.primaryMonitor;
-        const panelH  = Main.panel.get_height();
-        const boxW    = this._box.get_width()  || 220;
-        const boxH    = this._box.get_height() || 100;
-
-        if (anchor) {
-            const [ax, ay] = anchor.get_transformed_position();
-            const aw = anchor.get_width();
-            const ah = anchor.get_height();
-
-            let x = ax + Math.round((aw - boxW) / 2);
-            x = Math.max(monitor.x + 4, Math.min(x, monitor.x + monitor.width - boxW - 4));
-
-            const y = Math.max(monitor.y + panelH + 4,
-                Math.min(ay + ah + 6, monitor.y + monitor.height - boxH - 4));
-
-            this._box.set_position(x, y);
-        } else {
-            this._box.set_position(
-                monitor.x + Math.round((monitor.width  - boxW) / 2),
-                monitor.y + panelH + Math.round((monitor.height - panelH) * 0.18)
-            );
-        }
+        super('litsycal-goto-panel', 220, 100, anchorActor, onClose);
     }
 
     _build() {
@@ -1568,27 +1514,6 @@ export class GoToDatePanel {
         }
         this._finish(GLib.DateTime.new_local(y, m, d, 0, 0, 0));
     }
-
-    _finish(dt) {
-        if (!this._box)
-            return;
-        if (this._eventId) {
-            this._box.disconnect(this._eventId);
-            this._eventId = null;
-        }
-        if (this._grab)    {
-            Main.popModal(this._grab);
-            this._grab = null;
-        }
-        Main.layoutManager.uiGroup.remove_child(this._box);
-        this._box.destroy();
-        this._box = null;
-        this._onClose(dt);
-    }
-
-    close() {
-        this._finish(null);
-    }
 }
 
 // Single-line "quick add" entry (Ctrl+Shift+N): parses a one-liner into a
@@ -1598,76 +1523,11 @@ export class GoToDatePanel {
 // chance to confirm or fix anything before anything is actually saved. See
 // quickAddParser.js for the parsing itself. Modeled directly on
 // GoToDatePanel just above — same modal-grab/Escape/click-outside pattern.
-export class QuickAddPanel {
+export class QuickAddPanel extends FloatingModalPanel {
     // onClose is called exactly once, with the parsed draft on a successful
     // submit or null on cancel (Escape / click outside).
     constructor(anchorActor, onClose) {
-        this._onClose = onClose;
-
-        this._box = new St.BoxLayout({
-            vertical: true,
-            style_class: 'popup-menu-content litsycal-quickadd-panel',
-            reactive: true,
-            // Hidden via opacity (not `visible`, which the modal grab below
-            // needs the actor mapped for) until _position() places it.
-            opacity: 0,
-        });
-
-        this._build();
-        Main.layoutManager.uiGroup.add_child(this._box);
-
-        // Same competing-grab need as GoToDatePanel above — see its own
-        // comment for the full explanation.
-        this._grab = Main.pushModal(this._box, {actionMode: Shell.ActionMode.POPUP});
-
-        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-            this._position(anchorActor);
-            this._box.opacity = 255;
-            this._entry.grab_key_focus();
-            return GLib.SOURCE_REMOVE;
-        });
-
-        this._eventId = this._box.connect('captured-event', (_actor, ev) => {
-            if (ev.type() === Clutter.EventType.BUTTON_PRESS) {
-                const [x, y] = ev.get_coords();
-                const actor  = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
-                if (actor && !this._box.contains(actor)) {
-                    this._finish(null);
-                    return Clutter.EVENT_STOP;
-                }
-            } else if (ev.type() === Clutter.EventType.KEY_PRESS &&
-                       ev.get_key_symbol() === Clutter.KEY_Escape) {
-                this._finish(null);
-                return Clutter.EVENT_STOP;
-            }
-            return Clutter.EVENT_PROPAGATE;
-        });
-    }
-
-    _position(anchor) {
-        const monitor = Main.layoutManager.primaryMonitor;
-        const panelH  = Main.panel.get_height();
-        const boxW    = this._box.get_width()  || 320;
-        const boxH    = this._box.get_height() || 100;
-
-        if (anchor) {
-            const [ax, ay] = anchor.get_transformed_position();
-            const aw = anchor.get_width();
-            const ah = anchor.get_height();
-
-            let x = ax + Math.round((aw - boxW) / 2);
-            x = Math.max(monitor.x + 4, Math.min(x, monitor.x + monitor.width - boxW - 4));
-
-            const y = Math.max(monitor.y + panelH + 4,
-                Math.min(ay + ah + 6, monitor.y + monitor.height - boxH - 4));
-
-            this._box.set_position(x, y);
-        } else {
-            this._box.set_position(
-                monitor.x + Math.round((monitor.width  - boxW) / 2),
-                monitor.y + panelH + Math.round((monitor.height - panelH) * 0.18)
-            );
-        }
+        super('litsycal-quickadd-panel', 320, 100, anchorActor, onClose);
     }
 
     _build() {
@@ -1712,26 +1572,5 @@ export class QuickAddPanel {
         if (!draft)
             return;
         this._finish(draft);
-    }
-
-    _finish(draft) {
-        if (!this._box)
-            return;
-        if (this._eventId) {
-            this._box.disconnect(this._eventId);
-            this._eventId = null;
-        }
-        if (this._grab) {
-            Main.popModal(this._grab);
-            this._grab = null;
-        }
-        Main.layoutManager.uiGroup.remove_child(this._box);
-        this._box.destroy();
-        this._box = null;
-        this._onClose(draft);
-    }
-
-    close() {
-        this._finish(null);
     }
 }

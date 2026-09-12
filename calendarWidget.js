@@ -242,10 +242,6 @@ class LitsycalCalendar extends St.BoxLayout {
             GLib.source_remove(this._dayInfoTimeoutId);
             this._dayInfoTimeoutId = null;
         }
-        if (this._searchPopoverRetryId) {
-            GLib.source_remove(this._searchPopoverRetryId);
-            this._searchPopoverRetryId = null;
-        }
         if (this._dragStartY !== undefined)
             this._endHandleDrag(this._resizeHandle);
         for (const id of this._sids)
@@ -1301,40 +1297,27 @@ class LitsycalCalendar extends St.BoxLayout {
             this._searchPanel = null;
             if (!ev)
                 return; // cancelled
-            const [y, m, d] = ev.date.split('-').map(Number);
-            this._goToDate(GLib.DateTime.new_local(y, m, d, 0, 0, 0));
             this._eventPanel?.close();
-            this._openEventInfoPopoverForSearchResult(ev);
+            const [y, m, d] = ev.date.split('-').map(Number);
+            // Wait for _goToDate's own fetch to actually finish (its onDone,
+            // not just the synchronous grid/agenda rebuild it does
+            // immediately) before looking for the row — otherwise, for a
+            // month not already cached, the agenda that exists at that
+            // instant is still whatever was there before navigating.
+            this._goToDate(GLib.DateTime.new_local(y, m, d, 0, 0, 0), () => {
+                this._openEventInfoPopoverForSearchResult(ev);
+            });
         });
     }
 
     // Anchors the popover to the actual rendered agenda row for `ev`, same
     // as a normal row click does — anchoring to `this` (the whole calendar
     // widget) instead positions the popover nowhere near anything
-    // meaningful. _goToDate() just above may have navigated to a different
-    // month, whose agenda is still rendering off stale/cached data for a
-    // moment (fetchMonth's own fetch is async) before the real row exists,
-    // so this retries briefly rather than giving up on the very first
-    // (possibly too-early) look.
-    _openEventInfoPopoverForSearchResult(ev, attemptsLeft = 10) {
-        if (this._searchPopoverRetryId) {
-            GLib.source_remove(this._searchPopoverRetryId);
-            this._searchPopoverRetryId = null;
-        }
+    // meaningful. Falls back to that only if the row genuinely isn't there
+    // (e.g. the event was deleted server-side between the search and now).
+    _openEventInfoPopoverForSearchResult(ev) {
         const btn = this._agendaBox.get_children().find(c => this._sameEvent(c._litsycalEvent, ev));
-        if (btn) {
-            this._openEventInfoPopover(btn, ev);
-            return;
-        }
-        if (attemptsLeft <= 0) {
-            this._openEventInfoPopover(this, ev); // never found one — better than nothing
-            return;
-        }
-        this._searchPopoverRetryId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
-            this._searchPopoverRetryId = null;
-            this._openEventInfoPopoverForSearchResult(ev, attemptsLeft - 1);
-            return GLib.SOURCE_REMOVE;
-        });
+        this._openEventInfoPopover(btn ?? this, ev);
     }
 
     _openEventDialog(ev) {
@@ -1515,14 +1498,21 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     // Used by the settings menu's "Go to date" dialog.
-    _goToDate(dt) {
+    // onDone (optional), if given, fires once the fetch this triggers for
+    // the new month has actually completed — see _openEventInfoPopoverFor
+    // SearchResult below for why that matters more than it sounds like it
+    // should.
+    _goToDate(dt, onDone) {
         this._year = dt.get_year();
         this._month = dt.get_month();
         this._selected = dt;
         this._updateMonthLabel();
         this._buildGrid();
         this._buildAgenda();
-        this._calManager?.fetchMonth(this._year, this._month);
+        if (this._calManager)
+            this._calManager.fetchMonth(this._year, this._month, onDone);
+        else
+            onDone?.();
     }
 
     _updateMonthLabel() {

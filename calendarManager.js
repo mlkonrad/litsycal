@@ -36,6 +36,7 @@ export class CalendarManager {
         this._month       = null;
         this._available   = false;
         this._searchToken = 0; // see searchEvents() — discards stale/out-of-order results
+        this._fetchToken  = 0; // see fetchMonth() — discards a superseded batch's stale onDone
         this._disabled  = new Set(settings.get_strv('disabled-calendars'));
         this._disabledCalsSettingsId = settings.connect('changed::disabled-calendars', () => {
             this._disabled = new Set(settings.get_strv('disabled-calendars'));
@@ -184,17 +185,34 @@ export class CalendarManager {
 
     // ── Fetch ─────────────────────────────────────────────────────────────────
 
-    fetchMonth(year, month) {
+    // onDone, if given, fires once every connected client has responded to
+    // this specific call — not on the general live-update path (source
+    // added/changed events also call _fetchFromClient for just one client,
+    // without this aggregation). _fetchToken guards against a batch from a
+    // superseded fetchMonth call (e.g. the user navigated to another month
+    // again before this one's clients all finished) still counting down and
+    // firing a stale onDone.
+    fetchMonth(year, month, onDone) {
         this._year   = year;
         this._month  = month;
         this._events = [];
+        const token = ++this._fetchToken;
         if (this._clients.size === 0) {
             this._onEventsChanged([]);
+            onDone?.();
             return;
         }
         this._restartViews();
-        for (const uid of this._clients.keys())
-            this._fetchFromClient(uid, year, month);
+        const state = {pending: this._clients.size};
+        for (const uid of this._clients.keys()) {
+            this._fetchFromClient(uid, year, month, () => {
+                if (token !== this._fetchToken)
+                    return;
+                state.pending--;
+                if (state.pending === 0)
+                    onDone?.();
+            });
+        }
     }
 
     // ── Search (independent of the month cache above) ───────────────────────────
@@ -214,7 +232,11 @@ export class CalendarManager {
     searchEvents(text, callback) {
         const token = ++this._searchToken;
         const query = (text ?? '').trim();
-        if (!query || this._clients.size === 0) {
+        // Same disabled-calendar exclusion as getSources()/_reindex() — a
+        // calendar the user hid shouldn't resurface through search, letting
+        // a result navigate to and open an event from it anyway.
+        const uids = [...this._clients.keys()].filter(uid => !this._disabled.has(uid));
+        if (!query || uids.length === 0) {
             callback([]);
             return;
         }
@@ -234,8 +256,8 @@ export class CalendarManager {
         // separate outer variables closed over from inside a loop — see
         // _searchClient below, called once per source instead of defining
         // the completion closure directly in this loop.
-        const state = {pending: this._clients.size, results: []};
-        for (const uid of this._clients.keys())
+        const state = {pending: uids.length, results: []};
+        for (const uid of uids)
             this._searchClient(uid, sexp, token, state, callback);
     }
 
@@ -294,10 +316,16 @@ export class CalendarManager {
                `(make-time "${this._stamp(rangeEnd)}"))`;
     }
 
-    _fetchFromClient(uid, year, month) {
+    // onDone (optional) fires once this one client's fetch finishes, success
+    // or failure — used by fetchMonth() above to know when every client in
+    // one batch has responded. Every other caller (live-update refetch of
+    // a single client) just omits it.
+    _fetchFromClient(uid, year, month, onDone) {
         const entry = this._clients.get(uid);
-        if (!entry)
+        if (!entry) {
+            onDone?.();
             return;
+        }
         const {client, color} = entry;
 
         const sexp = this._rangeSexp(year, month);
@@ -310,6 +338,7 @@ export class CalendarManager {
                 logError(e, `CalendarManager: failed to fetch events for source ${uid}`);
                 this._onEventsChanged(this._events);
             }
+            onDone?.();
         });
     }
 

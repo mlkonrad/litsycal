@@ -1,14 +1,11 @@
 import St      from 'gi://St';
 import GLib    from 'gi://GLib';
-import Clutter from 'gi://Clutter';
-import Shell   from 'gi://Shell';
 import Pango   from 'gi://Pango';
-
-import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {capitalize} from './helpers.js';
+import {FloatingModalPanel} from './floatingPanel.js';
 
 const DEBOUNCE_MS   = 250;
 const MAX_RESULTS   = 50;
@@ -39,82 +36,19 @@ function shortWhen(ev) {
 // calling CalendarManager.searchEvents(), which queries every connected
 // calendar directly rather than filtering whatever month happens to be
 // cached for the grid — see that method's own comment for why.
-export class SearchPanel {
+export class SearchPanel extends FloatingModalPanel {
     // onClose is called exactly once, with the selected event on a result
     // click/Enter, or null on cancel (Escape / click outside).
     constructor(anchorActor, calManager, onClose) {
-        this._calManager = calManager;
-        this._onClose    = onClose;
-        this._debounceId = null;
+        super('litsycal-search-panel', 340, 140, anchorActor, onClose);
+        this._calManager  = calManager;
+        this._debounceId  = null;
         this._lastResults = [];
         // Guards the UI against a slow query's results landing after a
         // newer one already has — CalendarManager.searchEvents() has its
         // own such guard for query results, but debounced calls here race
         // independently of that, so this needs its own.
         this._searchGen = 0;
-
-        this._box = new St.BoxLayout({
-            vertical: true,
-            style_class: 'popup-menu-content litsycal-search-panel',
-            reactive: true,
-            // Hidden via opacity (not `visible`, which the modal grab below
-            // needs the actor mapped for) until _position() places it.
-            opacity: 0,
-        });
-
-        this._build();
-        Main.layoutManager.uiGroup.add_child(this._box);
-
-        this._grab = Main.pushModal(this._box, {actionMode: Shell.ActionMode.POPUP});
-
-        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-            this._position(anchorActor);
-            this._box.opacity = 255;
-            this._entry.grab_key_focus();
-            return GLib.SOURCE_REMOVE;
-        });
-
-        this._eventId = this._box.connect('captured-event', (_actor, ev) => {
-            if (ev.type() === Clutter.EventType.BUTTON_PRESS) {
-                const [x, y] = ev.get_coords();
-                const actor  = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
-                if (actor && !this._box.contains(actor)) {
-                    this._finish(null);
-                    return Clutter.EVENT_STOP;
-                }
-            } else if (ev.type() === Clutter.EventType.KEY_PRESS &&
-                       ev.get_key_symbol() === Clutter.KEY_Escape) {
-                this._finish(null);
-                return Clutter.EVENT_STOP;
-            }
-            return Clutter.EVENT_PROPAGATE;
-        });
-    }
-
-    _position(anchor) {
-        const monitor = Main.layoutManager.primaryMonitor;
-        const panelH  = Main.panel.get_height();
-        const boxW    = this._box.get_width()  || 340;
-        const boxH    = this._box.get_height() || 140;
-
-        if (anchor) {
-            const [ax, ay] = anchor.get_transformed_position();
-            const aw = anchor.get_width();
-            const ah = anchor.get_height();
-
-            let x = ax + Math.round((aw - boxW) / 2);
-            x = Math.max(monitor.x + 4, Math.min(x, monitor.x + monitor.width - boxW - 4));
-
-            const y = Math.max(monitor.y + panelH + 4,
-                Math.min(ay + ah + 6, monitor.y + monitor.height - boxH - 4));
-
-            this._box.set_position(x, y);
-        } else {
-            this._box.set_position(
-                monitor.x + Math.round((monitor.width  - boxW) / 2),
-                monitor.y + panelH + Math.round((monitor.height - panelH) * 0.18)
-            );
-        }
     }
 
     _build() {
@@ -209,29 +143,11 @@ export class SearchPanel {
         }
     }
 
-    _finish(ev) {
-        if (!this._box)
-            return;
+    _onFinish() {
         if (this._debounceId) {
             GLib.source_remove(this._debounceId);
             this._debounceId = null;
         }
         this._searchGen++; // invalidate any in-flight search
-        if (this._eventId) {
-            this._box.disconnect(this._eventId);
-            this._eventId = null;
-        }
-        if (this._grab) {
-            Main.popModal(this._grab);
-            this._grab = null;
-        }
-        Main.layoutManager.uiGroup.remove_child(this._box);
-        this._box.destroy();
-        this._box = null;
-        this._onClose(ev);
-    }
-
-    close() {
-        this._finish(null);
     }
 }
