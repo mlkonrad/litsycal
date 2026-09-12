@@ -328,6 +328,21 @@
     border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
+/* Meeting countdown pill (icon + "now"/"5m") — same base look as
+   .litsycal-badge above, since the badge-style modifier classes below
+   (litsycal-badge-dark/-calendar/-calendar-dark/-text) get layered onto
+   this too (see LitsycalIndicator._updateBadge) so the chosen icon style
+   applies to both. Declared here, before those modifiers, on purpose:
+   at equal CSS specificity the later rule in the file wins, so this base
+   MUST come before the modifiers or they'd never be able to override it. */
+.litsycal-countdown-box {
+    padding: 1px 5px;
+    border-radius: 5px;
+    background-color: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    spacing: 4px;
+}
+
 /* Badge style: dark background */
 .litsycal-badge-dark {
     background-color: rgba(0, 0, 0, 0.80);
@@ -367,6 +382,16 @@
     font-size: 0.65em;
     color: #e06060;
     padding: 0 4px;
+}
+
+/* Added only when it sits next to the still-visible date badge
+   (countdown-badge-mode: append) — see LitsycalIndicator._updateBadge. */
+.litsycal-countdown-box-spaced {
+    margin-left: 4px;
+}
+.litsycal-countdown-label {
+    font-weight: bold;
+    font-size: 1.02em;
 }
 
 /* ── Calendar size variants ──────────────────────────────────────────────── */

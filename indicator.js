@@ -15,7 +15,8 @@ import {LitsycalCalendar}  from './calendarWidget.js';
 import {SettingsMenuPanel} from './settingsMenuPanel.js';
 import {GoToDatePanel}     from './eventDialog.js';
 import {
-    capitalize, formatPattern, dateStr, findMeetingUrl, meetingIsJoinable, SIZE_MIN_WIDTHS,
+    capitalize, formatPattern, dateStr, findMeetingUrl, meetingIsJoinable, eventTimeRange,
+    SIZE_MIN_WIDTHS,
 } from './helpers.js';
 
 // ── Panel indicator ───────────────────────────────────────────────────────────
@@ -29,18 +30,59 @@ class LitsycalIndicator extends PanelMenu.Button {
         this._uuid        = uuid;
         this._openPrefsFn = openPrefs;
 
+        // Every panel-visible piece (badge, countdown icon+label, logo,
+        // meeting glyph) lives inside this single row box, which is this
+        // button's only direct child. Adding them straight to `this`
+        // instead (as this code used to) only ever correctly painted
+        // whichever ONE of them happened to be visible at a time — with
+        // two visible simultaneously (e.g. countdown-badge-mode: append,
+        // or briefly testing the countdown icon+label alone), nothing
+        // painted at all despite correct visible/text state and no
+        // exception anywhere. That's consistent with PanelMenu.Button not
+        // giving multiple direct children of its own genuine row layout;
+        // a single BoxLayout child, with all the real content inside that,
+        // is the standard pattern most panel-indicator extensions use for
+        // exactly this reason.
+        this._box = new St.BoxLayout({y_align: Clutter.ActorAlign.CENTER});
+        this.add_child(this._box);
+
         this._badge = new St.Label({
             y_align: Clutter.ActorAlign.CENTER,
             style_class: 'litsycal-badge',
         });
-        this.add_child(this._badge);
+        this._box.add_child(this._badge);
+
+        // Meeting countdown ("now"/"5m") next to a meeting icon, shown
+        // alongside or instead of the badge above — see _updateBadge() and
+        // the countdown-badge-mode setting. Icon+label share one pill (the
+        // same badge-style modifier classes as _badge get applied to this
+        // box, not to the label alone) so the icon reads as part of the
+        // countdown rather than a separate, unstyled element floating next
+        // to it. Nesting a box here is fine now that it's inside this._box
+        // rather than a direct child of the panel button itself — see the
+        // comment above this._box for why THAT distinction matters.
+        this._countdownBox = new St.BoxLayout({
+            y_align: Clutter.ActorAlign.CENTER,
+            style_class: 'litsycal-countdown-box', visible: false,
+        });
+        this._countdownIcon = new St.Icon({
+            icon_name: 'camera-video-symbolic', icon_size: 14,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        this._countdownBox.add_child(this._countdownIcon);
+        this._countdownLabel = new St.Label({
+            y_align: Clutter.ActorAlign.CENTER,
+            style_class: 'litsycal-countdown-label',
+        });
+        this._countdownBox.add_child(this._countdownLabel);
+        this._box.add_child(this._countdownBox);
 
         this._logo = new St.Icon({
             y_align: Clutter.ActorAlign.CENTER,
             icon_size: 20, visible: false,
         });
         this._logo.set_gicon(Gio.icon_new_for_string(`${extPath}/litsycal-logo.svg`));
-        this.add_child(this._logo);
+        this._box.add_child(this._logo);
 
         // Shown in place of the (hidden) badge text when there's a meeting
         // starting soon or in progress, so the icon isn't completely blank
@@ -49,7 +91,7 @@ class LitsycalIndicator extends PanelMenu.Button {
             text: '●', y_align: Clutter.ActorAlign.CENTER,
             style_class: 'litsycal-meeting-glyph', visible: false,
         });
-        this.add_child(this._meetingGlyph);
+        this._box.add_child(this._meetingGlyph);
 
         this._updateBadge();
         this._lastHour = GLib.DateTime.new_now_local().get_hour();
@@ -70,6 +112,7 @@ class LitsycalIndicator extends PanelMenu.Button {
         this._sids = [
             'badge-style', 'show-month-in-badge', 'show-dow-in-badge',
             'hide-icon', 'datetime-pattern', 'show-time', 'time-format',
+            'show-countdown-in-badge', 'countdown-badge-mode',
         ].map(k => settings.connect(`changed::${k}`, () => this._updateBadge()));
 
         this._pinned      = false;
@@ -266,9 +309,10 @@ class LitsycalIndicator extends PanelMenu.Button {
         this.accessible_name = `${_('Calendar')} — ${capitalize(today.format('%A, %B %-d, %Y'))}`;
 
         const hidden = this._settings.get_boolean('hide-icon');
-        this._logo.visible  = false;
-        this._badge.visible = !hidden;
+        this._logo.visible = false;
         if (hidden) {
+            this._badge.visible        = false;
+            this._countdownBox.visible = false;
             this._meetingGlyph.visible = this._hasUpcomingMeeting();
             return;
         }
@@ -277,23 +321,47 @@ class LitsycalIndicator extends PanelMenu.Button {
         const style   = this._settings.get_string('badge-style');
         const pattern = this._settings.get_string('datetime-pattern');
 
-        this._badge.remove_style_class_name('litsycal-badge-dark');
-        this._badge.remove_style_class_name('litsycal-badge-calendar');
-        this._badge.remove_style_class_name('litsycal-badge-calendar-dark');
-        this._badge.remove_style_class_name('litsycal-badge-text');
-        if (style === 'number-dark')
-            this._badge.add_style_class_name('litsycal-badge-dark');
-        if (style === 'calendar')
-            this._badge.add_style_class_name('litsycal-badge-calendar');
-        if (style === 'calendar-dark')
-            this._badge.add_style_class_name('litsycal-badge-calendar-dark');
-        if (style === 'text')
-            this._badge.add_style_class_name('litsycal-badge-text');
+        // Same style modifiers on both the badge and the countdown box, so
+        // whichever is visible (or both, in "append" mode) always match.
+        for (const el of [this._badge, this._countdownBox]) {
+            el.remove_style_class_name('litsycal-badge-dark');
+            el.remove_style_class_name('litsycal-badge-calendar');
+            el.remove_style_class_name('litsycal-badge-calendar-dark');
+            el.remove_style_class_name('litsycal-badge-text');
+            if (style === 'number-dark')
+                el.add_style_class_name('litsycal-badge-dark');
+            if (style === 'calendar')
+                el.add_style_class_name('litsycal-badge-calendar');
+            if (style === 'calendar-dark')
+                el.add_style_class_name('litsycal-badge-calendar-dark');
+            if (style === 'text')
+                el.add_style_class_name('litsycal-badge-text');
+        }
 
-        const now = GLib.DateTime.new_now_local();
-        this._badge.set_text(
-            pattern ? formatPattern(now, pattern) : this._defaultText()
-        );
+        const now        = GLib.DateTime.new_now_local();
+        const normalText = pattern ? formatPattern(now, pattern) : this._defaultText();
+
+        const countdown = this._settings.get_boolean('show-countdown-in-badge')
+            ? this._nextMeetingCountdownText() : null;
+
+        if (!countdown) {
+            this._badge.visible = true;
+            this._badge.set_text(normalText);
+            this._countdownBox.visible = false;
+            return;
+        }
+
+        this._countdownBox.visible = true;
+        this._countdownLabel.set_text(countdown);
+
+        const append = this._settings.get_string('countdown-badge-mode') === 'append';
+        this._badge.visible = append;
+        if (append) {
+            this._badge.set_text(normalText);
+            this._countdownBox.add_style_class_name('litsycal-countdown-box-spaced');
+        } else {
+            this._countdownBox.remove_style_class_name('litsycal-countdown-box-spaced');
+        }
     }
 
     // True while today has a video-call event that's joinable right now
@@ -305,6 +373,44 @@ class LitsycalIndicator extends PanelMenu.Button {
         const today = dateStr(GLib.DateTime.new_now_local());
         return calManager.getEventsForDate(today)
             .some(ev => findMeetingUrl(ev) && meetingIsJoinable(ev));
+    }
+
+    // Countdown text ("5m", "1h 20m", "now") to today's soonest not-yet-ended
+    // video-call meeting, or null if there isn't one. Only considers events
+    // with a parsable time (eventTimeRange returns null for all-day/
+    // unparsable ones) — there's no meaningful countdown to those.
+    _nextMeetingCountdownText() {
+        const calManager = this._calWidget?._calManager;
+        if (!calManager)
+            return null;
+
+        const now   = GLib.DateTime.new_now_local();
+        const today = dateStr(now);
+
+        let soonest = null;
+        for (const ev of calManager.getEventsForDate(today)) {
+            if (!findMeetingUrl(ev))
+                continue;
+            const range = eventTimeRange(ev);
+            if (!range || range.end.compare(now) < 0)
+                continue; // all-day/unparsable, or already ended
+            if (!soonest || range.start.compare(soonest.start) < 0)
+                soonest = range;
+        }
+        if (!soonest)
+            return null;
+
+        if (now.compare(soonest.start.add_minutes(-15)) >= 0)
+            return _('now');
+
+        const diffMin = Math.ceil(soonest.start.difference(now) / GLib.TIME_SPAN_MINUTE);
+        if (diffMin < 60)
+            return _('%dm').replace('%d', diffMin);
+        const h = Math.floor(diffMin / 60);
+        const m = diffMin % 60;
+        return m > 0
+            ? _('%Hh %Mm').replace('%H', h).replace('%M', m)
+            : _('%Hh').replace('%H', h);
     }
 
     _checkHourlyBeep() {

@@ -18,6 +18,12 @@ longer carries a `version` key — see that file's history for why).
   each with a colored status dot (green = accepted, red = declined,
   amber = tentative, grey = no response yet) — Itsycal's own attendee
   coloring, ported. Capped at 5 shown, with a "+N more" row beyond that.
+- Appearance has a new "Show countdown to next meeting" toggle: when
+  today has an upcoming or in-progress video-call meeting, the panel
+  icon shows a meeting icon + countdown ("5m", "1h 20m", "now") in a
+  pill matching the chosen icon style. A second option, "When a meeting
+  is coming up", controls whether that countdown replaces the normal
+  icon text or sits alongside it. Off by default.
 
 ### Fixed
 

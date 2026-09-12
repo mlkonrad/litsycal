@@ -203,7 +203,7 @@ export function findMeetingUrl(ev) {
 /**
  * @param {object} ev
  */
-function eventTimeRange(ev) {
+export function eventTimeRange(ev) {
     if (ev.allDay || !ev.time)
         return null;
     const [y, m, d] = ev.date.split('-').map(Number);

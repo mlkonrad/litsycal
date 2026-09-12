@@ -92,6 +92,19 @@
       <default>false</default>
       <summary>Hide the panel badge entirely</summary>
     </key>
+    <key name="show-countdown-in-badge" type="b">
+      <default>false</default>
+      <summary>Show a countdown to today's next meeting in the badge</summary>
+      <description>Shows a countdown (e.g. "5m", "now") next to a meeting icon whenever today has an upcoming or in-progress joinable meeting. See countdown-badge-mode for whether it replaces or joins the normal badge text.</description>
+    </key>
+    <key name="countdown-badge-mode" type="s">
+      <choices>
+        <choice value="replace"/>
+        <choice value="append"/>
+      </choices>
+      <default>'replace'</default>
+      <summary>Whether the meeting countdown replaces or joins the normal badge text</summary>
+    </key>
     <key name="datetime-pattern" type="s">
       <default>''</default>
       <summary>Custom strftime pattern for the badge (overrides other badge settings)</summary>

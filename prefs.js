@@ -440,6 +440,30 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         settings.bind('show-time', showTimeRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         iconGroup.add(showTimeRow);
 
+        const showCountdownRow = new Adw.SwitchRow({
+            title:    _('Show countdown to next meeting'),
+            subtitle: _('Shows a countdown (e.g. "5m", "now") next to a meeting icon whenever today has an upcoming video-call meeting'),
+        });
+        settings.bind('show-countdown-in-badge', showCountdownRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        iconGroup.add(showCountdownRow);
+
+        const COUNTDOWN_MODE_IDS    = ['replace', 'append'];
+        const COUNTDOWN_MODE_LABELS = [_('Replace icon text'), _('Show alongside icon text')];
+        const countdownModeRow = new Adw.ComboRow({
+            title: _('When a meeting is coming up'),
+            model: Gtk.StringList.new(COUNTDOWN_MODE_LABELS),
+        });
+        countdownModeRow.set_selected(
+            Math.max(0, COUNTDOWN_MODE_IDS.indexOf(settings.get_string('countdown-badge-mode')))
+        );
+        countdownModeRow.connect('notify::selected', () => {
+            const i = countdownModeRow.get_selected();
+            if (i < COUNTDOWN_MODE_IDS.length)
+                settings.set_string('countdown-badge-mode', COUNTDOWN_MODE_IDS[i]);
+        });
+        settings.bind('show-countdown-in-badge', countdownModeRow, 'sensitive', Gio.SettingsBindFlags.GET);
+        iconGroup.add(countdownModeRow);
+
         const TIME_FMT_IDS    = ['24h', '12h'];
         const TIME_FMT_LABELS = [_('24-hour (13:05)'), _('12-hour (1:05pm)')];
         const timeFmtRow = new Adw.ComboRow({
