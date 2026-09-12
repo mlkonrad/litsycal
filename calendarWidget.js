@@ -1620,6 +1620,7 @@ class LitsycalCalendar extends St.BoxLayout {
             return false;
         case Clutter.KEY_r: // Ctrl+Alt+R (Itsycal's ⌥⌘R): refresh events
             if (ctrl && alt) {
+                this._calManager?.refreshFromServer();
                 this._calManager?.fetchMonth(this._year, this._month);
                 return true;
             }

@@ -158,6 +158,29 @@ export class CalendarManager {
             this._startView(uid, client);
     }
 
+    // ── Manual refresh (Ctrl+Alt+R) ─────────────────────────────────────────────
+    // fetchMonth() below only re-reads whatever EDS already has cached
+    // locally — it never asks a backend like Google's own to go check for
+    // anything new; EDS polls that on its own schedule (commonly ~30 min),
+    // so a plain fetchMonth() right after a remote change can visibly do
+    // nothing. This asks each backend that supports it to sync now; any
+    // resulting changes land in EDS's cache and reach us automatically via
+    // the live view's own 'objects-added'/'objects-modified' signals
+    // (_startView above), so there's no need to re-fetch here ourselves.
+    refreshFromServer() {
+        for (const {client} of this._clients.values()) {
+            if (!client.check_refresh_supported())
+                continue;
+            client.refresh(null, (obj, res) => {
+                try {
+                    obj.refresh_finish(res);
+                } catch (e) {
+                    logError(e, 'CalendarManager: refresh failed');
+                }
+            });
+        }
+    }
+
     // ── Fetch ─────────────────────────────────────────────────────────────────
 
     fetchMonth(year, month) {
