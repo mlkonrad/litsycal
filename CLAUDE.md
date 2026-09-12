@@ -55,6 +55,40 @@ log out/in for anything that depends on the real session specifically
 lock screen) or if something looks stale in the nested session and you
 need to rule out a devkit-specific quirk.
 
+### The nested session has its own private evolution-data-server
+
+`dev-session.sh` launches gnome-shell under `dbus-run-session`, which gives
+the nested session its own isolated D-Bus session bus, separate from your
+real login session's. Since EDS (evolution-source-registry,
+evolution-calendar-factory) is D-Bus-activated per session bus, the nested
+session gets its own separate EDS process — not the one your real session
+already has running. Calendar *source config* (the `.source` files under
+`~/.config/evolution/sources/`) is shared, so the nested session sees the
+same calendars, but each EDS process keeps its own in-memory view of
+backend data, refreshed only by its own live-update signals.
+
+Practical effect: a calendar data change made against your real session
+(adding/editing/deleting an event via GNOME Calendar, a script, or another
+tool) is invisible to the nested session — its litsycal instance won't
+live-update, because the write happened on a different EDS process it was
+never notified by — even though a raw query against the *real* session's
+EDS would show the change immediately. Confirmed for real testing the
+attendee-colors feature (2026-09-12): a test event created against the
+outer session's bus never appeared in the nested session's agenda; the
+same event created against the nested session's own bus (its address is in
+the nested `gnome-shell --devkit` process's environment as
+`DBUS_SESSION_BUS_ADDRESS`, readable via `/proc/<pid>/environ` for a quick
+one-off script) showed up live, no restart needed — proving litsycal's own
+live-view refresh logic (`calendarManager.js`'s `_startView`) works fine;
+the missed update was purely a which-EDS-process problem, not a litsycal
+bug.
+
+So: to test a calendar data change inside the nested session, either make
+it through a client connected to the nested session's own bus, or just
+restart the nested session (kill + re-run `dev-session.sh`) — a fresh
+launch's EDS process reads the on-disk backend data fresh, same as the
+"JS can't be unloaded" restart above but for data instead of code.
+
 ## Negative CSS margin corrupts St layout on this Shell version
 
 Hit for real fixing the event info popover, 2026-09-12 (see CHANGELOG's
