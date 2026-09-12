@@ -1,5 +1,41 @@
 # Litsycal dev notes
 
+## Pre-push checks (`node`/`npm` aren't installed system-wide here)
+
+This machine has no system `node`/`npm` (and no passwordless `sudo` to
+install one), so `npm run lint` — and therefore any real ESLint check —
+silently couldn't run for a while (2026-09-12: three separate commits landed
+with lint errors CI caught but nothing local ever did: two missing-JSDoc
+violations and one `operator-assignment` violation, all in newly-added
+functions). `gjs`'s own syntax check (`Reflect.parse`) only catches actual
+syntax errors, not lint rules — it says nothing about whether ESLint would
+pass.
+
+Fix in place: a portable Node.js build extracted (no root needed) to
+`~/.local/opt/node-v22.23.2`, symlinked from `~/.local/bin/{node,npm,npx}`
+(already on `PATH`). If that ever goes missing on a fresh machine/environment,
+redo it rather than assuming CI is the only place this can be checked:
+
+```bash
+curl -sLo /tmp/node.tar.xz "https://nodejs.org/dist/latest-v22.x/node-v22.<latest>-linux-x64.tar.xz"
+mkdir -p ~/.local/opt && tar xf /tmp/node.tar.xz -C ~/.local/opt
+ln -sf ~/.local/opt/node-v22.<latest>-linux-x64/bin/{node,npm,npx} ~/.local/bin/
+```
+
+`scripts/check.sh` runs the exact same steps as `.github/workflows/ci.yml`
+(schema compile dry-run, ESLint, JS syntax check, `.po`/`.pot` validation) —
+run it by hand before pushing, or rely on `.githooks/pre-push`, which calls
+it automatically and blocks the push on failure. Git doesn't read hooks out
+of a repo's own tree by default, so the hook only fires once per clone after
+running:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+(already set in this checkout). Keep `scripts/check.sh` in sync with
+`ci.yml` if either one's steps change — they're meant to be identical.
+
 ## Local install is a symlink
 
 On this machine, `~/.local/share/gnome-shell/extensions/litsycal@mlkonrad.github.com`

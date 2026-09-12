@@ -1,0 +1,7 @@
+#!/bin/sh
+# Tracked hook (see CLAUDE.md's "Pre-push checks" section) — enabled per
+# clone with `git config core.hooksPath .githooks`, since git never reads
+# hooks straight out of a repo's own tree otherwise. Blocks a push if
+# scripts/check.sh (the same checks CI runs) fails.
+repo_root="$(git rev-parse --show-toplevel)"
+"$repo_root/scripts/check.sh"
