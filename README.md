@@ -37,6 +37,7 @@ Linux):
 | `.` | Show/hide event locations in the agenda |
 | `Ctrl + ,` | Open Settings |
 | `Ctrl + O` | Open the default calendar app |
+| `Ctrl + F` | Search events across every connected calendar, roughly a year back and forward |
 | `Ctrl + Shift + J` | Open the first active virtual meeting in the agenda |
 | `Ctrl + N` | Create a new event |
 | `Ctrl + Shift + N` | Quick-add an event from a one-liner (e.g. "Lunch tomorrow 12pm at Cafe Nero") — opens the full form pre-filled with whatever it recognized, for you to confirm or fix before saving |

@@ -34,6 +34,12 @@ longer carries a `version` key — see that file's history for why).
   "tomorrow", "next", "at") are translatable and currently only ship in
   English — a pt_BR translation for them is included as an example for
   future translation packs.
+- `Ctrl+F` searches every connected calendar (not just whichever month the
+  grid currently shows) for matching titles, notes, and locations, roughly
+  a year back and forward — EDS filters server/backend-side, so this stays
+  fast even with several calendars. Selecting a result navigates the grid
+  to that date and opens the same read-only info popover a normal agenda
+  click does.
 
 ### Fixed
 

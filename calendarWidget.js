@@ -15,6 +15,7 @@ import {EventPanel, QuickAddPanel, confirmDeleteEvent} from './eventDialog.js';
 import {OutlinePainter}    from './outlinePainter.js';
 import {EventInfoPopover}  from './eventInfoPopover.js';
 import {SettingsMenuPanel} from './settingsMenuPanel.js';
+import {SearchPanel}       from './searchPanel.js';
 import {
     capitalize, localeDayAbbrs, localeDayAbbrsShort,
     DAY_COL, SIZE_CLASSES, FONT_SIZE_CLASSES,
@@ -232,10 +233,18 @@ class LitsycalCalendar extends St.BoxLayout {
         this._eventContextMenu = null;
         this._eventInfoPopover?.close();
         this._eventInfoPopover = null;
+        this._searchPanel?.close();
+        this._searchPanel = null;
+        this._quickAddPanel?.close();
+        this._quickAddPanel = null;
         this._cancelCellTooltip();
         if (this._dayInfoTimeoutId) {
             GLib.source_remove(this._dayInfoTimeoutId);
             this._dayInfoTimeoutId = null;
+        }
+        if (this._searchPopoverRetryId) {
+            GLib.source_remove(this._searchPopoverRetryId);
+            this._searchPopoverRetryId = null;
         }
         if (this._dragStartY !== undefined)
             this._endHandleDrag(this._resizeHandle);
@@ -1280,6 +1289,54 @@ class LitsycalCalendar extends St.BoxLayout {
         });
     }
 
+    // Ctrl+F: search every connected calendar (not just the currently
+    // displayed month — see CalendarManager.searchEvents). Selecting a
+    // result navigates the grid to its date and opens the same read-only
+    // info popover a normal agenda-row click does.
+    _openSearch() {
+        if (!this._calManager?.isAvailable())
+            return;
+        this._searchPanel?.close();
+        this._searchPanel = new SearchPanel(this, this._calManager, ev => {
+            this._searchPanel = null;
+            if (!ev)
+                return; // cancelled
+            const [y, m, d] = ev.date.split('-').map(Number);
+            this._goToDate(GLib.DateTime.new_local(y, m, d, 0, 0, 0));
+            this._eventPanel?.close();
+            this._openEventInfoPopoverForSearchResult(ev);
+        });
+    }
+
+    // Anchors the popover to the actual rendered agenda row for `ev`, same
+    // as a normal row click does — anchoring to `this` (the whole calendar
+    // widget) instead positions the popover nowhere near anything
+    // meaningful. _goToDate() just above may have navigated to a different
+    // month, whose agenda is still rendering off stale/cached data for a
+    // moment (fetchMonth's own fetch is async) before the real row exists,
+    // so this retries briefly rather than giving up on the very first
+    // (possibly too-early) look.
+    _openEventInfoPopoverForSearchResult(ev, attemptsLeft = 10) {
+        if (this._searchPopoverRetryId) {
+            GLib.source_remove(this._searchPopoverRetryId);
+            this._searchPopoverRetryId = null;
+        }
+        const btn = this._agendaBox.get_children().find(c => this._sameEvent(c._litsycalEvent, ev));
+        if (btn) {
+            this._openEventInfoPopover(btn, ev);
+            return;
+        }
+        if (attemptsLeft <= 0) {
+            this._openEventInfoPopover(this, ev); // never found one — better than nothing
+            return;
+        }
+        this._searchPopoverRetryId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+            this._searchPopoverRetryId = null;
+            this._openEventInfoPopoverForSearchResult(ev, attemptsLeft - 1);
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
     _openEventDialog(ev) {
         if (!this._calManager?.isAvailable())
             return;
@@ -1639,6 +1696,13 @@ class LitsycalCalendar extends St.BoxLayout {
         case Clutter.KEY_O: // Ctrl+O (Itsycal's ⌘O): open the default calendar app
             if (ctrl) {
                 this._openCalendar?.();
+                return true;
+            }
+            return false;
+        case Clutter.KEY_f:
+        case Clutter.KEY_F: // Ctrl+F: search events (not one of Itsycal's own shortcuts)
+            if (ctrl) {
+                this._openSearch();
                 return true;
             }
             return false;

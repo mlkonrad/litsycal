@@ -670,6 +670,40 @@
     border-radius: 10px;
 }
 
+/* Fixed width, same reasoning as litsycal-quickadd-panel above. The results
+   scroll view separately caps its own height (max-height, not min/max on
+   the panel) so a large result set scrolls within the panel instead of
+   growing it downward off-screen — the same class of bug as the width one,
+   just on the other axis. */
+.litsycal-search-panel {
+    padding: 12px;
+    spacing: 6px;
+    width: 340px;
+    border-radius: 10px;
+}
+.litsycal-search-results-scroll {
+    max-height: 280px;
+}
+.litsycal-search-results {
+    spacing: 2px;
+}
+.litsycal-search-result {
+    border: none;
+    background: none;
+    padding: 5px 8px;
+    border-radius: 6px;
+    text-align: left;
+}
+.litsycal-search-result:hover,
+.litsycal-search-result:focus { background-color: rgba(128,128,128,0.18); }
+.litsycal-search-result-title { font-weight: bold; }
+.litsycal-search-result-date  { font-size: 0.85em; opacity: 0.7; }
+.litsycal-search-empty {
+    font-size: 0.9em;
+    opacity: 0.6;
+    padding: 6px 2px;
+}
+
 .litsycal-goto-title {
     font-size: 0.95em;
     font-weight: bold;

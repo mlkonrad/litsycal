@@ -31,10 +31,11 @@ export class CalendarManager {
         this._views     = new Map();   // uid → ECalClientView (live change listener)
         this._events    = [];
         this._byDate    = new Map();   // dateStr → Event[] (sorted, kept in sync with _events)
-        this._registry  = null;
-        this._year      = null;
-        this._month     = null;
-        this._available = false;
+        this._registry    = null;
+        this._year        = null;
+        this._month       = null;
+        this._available   = false;
+        this._searchToken = 0; // see searchEvents() — discards stale/out-of-order results
         this._disabled  = new Set(settings.get_strv('disabled-calendars'));
         this._disabledCalsSettingsId = settings.connect('changed::disabled-calendars', () => {
             this._disabled = new Set(settings.get_strv('disabled-calendars'));
@@ -196,6 +197,83 @@ export class CalendarManager {
             this._fetchFromClient(uid, year, month);
     }
 
+    // ── Search (independent of the month cache above) ───────────────────────────
+    //
+    // A one-off query across every connected calendar, over a wide-but-bounded
+    // time window (±1 year — wide enough to find "that thing from a few
+    // months back" without an unbounded query against a backend with years
+    // of history). EDS does the text filtering itself (the (contains? ...)
+    // clauses below run server/backend-side), so this stays fast even with
+    // several calendars — never touches this._events/_byDate, the grid's own
+    // month cache, so it can't disturb whatever's currently displayed.
+    //
+    // callback(events) fires once, with every match across every source,
+    // sorted by date/time. Stale results — a slower-to-respond earlier
+    // search finishing after a newer one already has — are silently
+    // discarded via _searchToken rather than clobbering fresher results.
+    searchEvents(text, callback) {
+        const token = ++this._searchToken;
+        const query = (text ?? '').trim();
+        if (!query || this._clients.size === 0) {
+            callback([]);
+            return;
+        }
+
+        const now   = GLib.DateTime.new_now_local();
+        const start = now.add_years(-1);
+        const end   = now.add_years(1);
+        const needle = this._escapeSexpString(query);
+        const sexp = '(and ' +
+            `(occur-in-time-range? (make-time "${this._stamp(start)}") (make-time "${this._stamp(end)}")) ` +
+            '(or ' +
+            `(contains? "summary" "${needle}") ` +
+            `(contains? "description" "${needle}") ` +
+            `(contains? "location" "${needle}")))`;
+
+        // {pending, results} is one shared, mutable object rather than two
+        // separate outer variables closed over from inside a loop — see
+        // _searchClient below, called once per source instead of defining
+        // the completion closure directly in this loop.
+        const state = {pending: this._clients.size, results: []};
+        for (const uid of this._clients.keys())
+            this._searchClient(uid, sexp, token, state, callback);
+    }
+
+    _searchClient(uid, sexp, token, state, callback) {
+        const {client, color} = this._clients.get(uid);
+        client.get_object_list_as_comps(sexp, null, (_obj, res) => {
+            if (token !== this._searchToken)
+                return; // superseded by a newer search — drop this result
+            try {
+                const [, comps] = client.get_object_list_as_comps_finish(res);
+                for (const comp of comps ?? []) {
+                    const ev = this._parseComp(comp, color, uid);
+                    if (ev)
+                        state.results.push(ev);
+                }
+            } catch (e) {
+                logError(e, `CalendarManager: search failed for source ${uid}`);
+            }
+            state.pending--;
+            if (state.pending === 0) {
+                state.results.sort((a, b) => `${a.date} ${a.time ?? ''}`.localeCompare(`${b.date} ${b.time ?? ''}`));
+                callback(state.results);
+            }
+        });
+    }
+
+    // Lisp string-literal escaping for the search text embedded above —
+    // correctness (a title containing a literal `"` would otherwise corrupt
+    // the S-expression), not a security boundary.
+    _escapeSexpString(s) {
+        return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    }
+
+    _stamp(dt) {
+        return `${dt.get_year()}${String(dt.get_month()).padStart(2, '0')}` +
+               `${String(dt.get_day_of_month()).padStart(2, '0')}T000000Z`;
+    }
+
     // Grid overflow buffer: the calendar can show up to 6 leading days from
     // the previous month (a partial first row) and, on the trailing side, up
     // to 6 days filling a partial last row plus MAX_EXTRA_WEEK_ROWS
@@ -211,11 +289,9 @@ export class CalendarManager {
         const monthStart = GLib.DateTime.new_local(year, month, 1, 0, 0, 0);
         const rangeStart = monthStart.add_days(-LEADING_OVERFLOW_DAYS);
         const rangeEnd   = monthStart.add_months(1).add_days(TRAILING_OVERFLOW_DAYS);
-        const stamp = dt => `${dt.get_year()}${String(dt.get_month()).padStart(2, '0')}` +
-                             `${String(dt.get_day_of_month()).padStart(2, '0')}T000000Z`;
         return '(occur-in-time-range? ' +
-               `(make-time "${stamp(rangeStart)}") ` +
-               `(make-time "${stamp(rangeEnd)}"))`;
+               `(make-time "${this._stamp(rangeStart)}") ` +
+               `(make-time "${this._stamp(rangeEnd)}"))`;
     }
 
     _fetchFromClient(uid, year, month) {
@@ -241,76 +317,88 @@ export class CalendarManager {
         this._events = this._events.filter(e => e.clientUid !== clientUid);
 
         for (const comp of comps) {
-            try {
-                const title  = comp.get_summary()?.get_value() ?? '';
-                const tObj   = comp.get_dtstart()?.get_value();
-                if (!tObj)
-                    continue;
-
-                const y = tObj.get_year();
-                const m = tObj.get_month();
-                const d = tObj.get_day();
-                const date = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-
-                const isAllDay = tObj.is_date();
-                let time = null;
-                let endDate = null;
-                if (!isAllDay) {
-                    const pad = n => String(n).padStart(2, '0');
-                    const startStr = `${pad(tObj.get_hour())}:${pad(tObj.get_minute())}`;
-                    const eObj = comp.get_dtend()?.get_value();
-                    const endStr = eObj && !eObj.is_date()
-                        ? `${pad(eObj.get_hour())}:${pad(eObj.get_minute())}`
-                        : null;
-                    time = endStr ? `${startStr} - ${endStr}` : startStr;
-
-                    if (eObj) {
-                        const eDate = `${eObj.get_year()}-${String(eObj.get_month()).padStart(2, '0')}-${String(eObj.get_day()).padStart(2, '0')}`;
-                        if (eDate !== date)
-                            endDate = eDate;
-                    }
-                }
-
-                let notes = null, url = null, location = null, recurrence = null, alarm = null,
-                    recurrenceId = null, attendees = [];
-                try {
-                    const ic = comp.get_icalcomponent?.();
-                    if (ic) {
-                        notes = ic.get_description?.() || null;
-                        const up = ic.get_first_property?.(ICalGLib.PropertyKind.URL_PROPERTY);
-                        url = up ? up.get_value_as_string?.() || null : null;
-                        location = ic.get_location?.() || null;
-                        if (notes    === '')
-                            notes    = null;
-                        if (url      === '')
-                            url      = null;
-                        if (location === '')
-                            location = null;
-
-                        recurrence = this._parseRecurrence(ic);
-                        alarm      = this._parseAlarm(ic);
-                        attendees  = this._parseAttendees(ic);
-
-                        // Present only on one occurrence of a recurring series (never
-                        // on the master) — identifies which occurrence this is, so a
-                        // "delete this event only" can target it specifically.
-                        const ridProp = ic.get_first_property?.(ICalGLib.PropertyKind.RECURRENCEID_PROPERTY);
-                        recurrenceId = ridProp ? ridProp.get_value_as_string?.() || null : null;
-                    }
-                } catch {} // notes/url/location/etc are optional extras; missing data is expected
-
-                this._events.push({
-                    date, title, time, color, allDay: isAllDay, endDate,
-                    uid: comp.get_uid(), clientUid, notes, url,
-                    location, recurrence, alarm, recurrenceId, attendees,
-                });
-            } catch (e) {
-                logError(e, `CalendarManager: failed to parse calendar component ${comp.get_uid?.() ?? '?'}`);
-            }
+            const ev = this._parseComp(comp, color, clientUid);
+            if (ev)
+                this._events.push(ev);
         }
 
         this._reindex();
         this._onEventsChanged(this._events);
+    }
+
+    // Shared by _ingestComps (month cache) and searchEvents (a separate,
+    // one-off query — see below) so both build the exact same event shape
+    // from a raw ECal component. Returns null (logging) rather than
+    // throwing on a single malformed component, so one bad event never
+    // takes down a whole batch.
+    _parseComp(comp, color, clientUid) {
+        try {
+            const title = comp.get_summary()?.get_value() ?? '';
+            const tObj  = comp.get_dtstart()?.get_value();
+            if (!tObj)
+                return null;
+
+            const y = tObj.get_year();
+            const m = tObj.get_month();
+            const d = tObj.get_day();
+            const date = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+            const isAllDay = tObj.is_date();
+            let time = null;
+            let endDate = null;
+            if (!isAllDay) {
+                const pad = n => String(n).padStart(2, '0');
+                const startStr = `${pad(tObj.get_hour())}:${pad(tObj.get_minute())}`;
+                const eObj = comp.get_dtend()?.get_value();
+                const endStr = eObj && !eObj.is_date()
+                    ? `${pad(eObj.get_hour())}:${pad(eObj.get_minute())}`
+                    : null;
+                time = endStr ? `${startStr} - ${endStr}` : startStr;
+
+                if (eObj) {
+                    const eDate = `${eObj.get_year()}-${String(eObj.get_month()).padStart(2, '0')}-${String(eObj.get_day()).padStart(2, '0')}`;
+                    if (eDate !== date)
+                        endDate = eDate;
+                }
+            }
+
+            let notes = null, url = null, location = null, recurrence = null, alarm = null,
+                recurrenceId = null, attendees = [];
+            try {
+                const ic = comp.get_icalcomponent?.();
+                if (ic) {
+                    notes = ic.get_description?.() || null;
+                    const up = ic.get_first_property?.(ICalGLib.PropertyKind.URL_PROPERTY);
+                    url = up ? up.get_value_as_string?.() || null : null;
+                    location = ic.get_location?.() || null;
+                    if (notes    === '')
+                        notes    = null;
+                    if (url      === '')
+                        url      = null;
+                    if (location === '')
+                        location = null;
+
+                    recurrence = this._parseRecurrence(ic);
+                    alarm      = this._parseAlarm(ic);
+                    attendees  = this._parseAttendees(ic);
+
+                    // Present only on one occurrence of a recurring series (never
+                    // on the master) — identifies which occurrence this is, so a
+                    // "delete this event only" can target it specifically.
+                    const ridProp = ic.get_first_property?.(ICalGLib.PropertyKind.RECURRENCEID_PROPERTY);
+                    recurrenceId = ridProp ? ridProp.get_value_as_string?.() || null : null;
+                }
+            } catch {} // notes/url/location/etc are optional extras; missing data is expected
+
+            return {
+                date, title, time, color, allDay: isAllDay, endDate,
+                uid: comp.get_uid(), clientUid, notes, url,
+                location, recurrence, alarm, recurrenceId, attendees,
+            };
+        } catch (e) {
+            logError(e, `CalendarManager: failed to parse calendar component ${comp.get_uid?.() ?? '?'}`);
+            return null;
+        }
     }
 
     // Only understands a plain FREQ/INTERVAL/UNTIL rule (what our UI can build).
