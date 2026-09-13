@@ -95,9 +95,10 @@ function alertLabel(value, allDay) {
 //
 // onDone(err) fires once, after the delete attempt (or immediately with
 // undefined if the user cancels the prompt). onOverlayChange, if given, is
-// called with the overlay actor while the prompt is up and with null once
-// it's gone — EventPanel uses this to keep its own click-outside/Escape
-// handling from closing the whole panel out from under the prompt.
+// called with a function that closes the prompt while it's up, and with null
+// once it's gone — callers use this to keep their own click-outside/Escape
+// handling from closing out from under the prompt, and to close the prompt
+// along with themselves if they're torn down first.
 /**
  *
  * @param {CalendarManager} calManager
@@ -127,7 +128,12 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
         style_class: 'litsycal-confirm-title',
     }));
 
+    let positionIdleId = null;
     const closeOverlay = () => {
+        if (positionIdleId) {
+            GLib.source_remove(positionIdleId);
+            positionIdleId = null;
+        }
         overlay.disconnect(eventId);
         if (grab)
             Main.popModal(grab);
@@ -184,7 +190,6 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
     });
 
     Main.layoutManager.uiGroup.add_child(overlay);
-    onOverlayChange?.(overlay);
 
     // Opens nested inside EventPanel's own modal grab (which itself nests
     // inside the calendar dropdown's grab) — needs its own competing grab
@@ -192,7 +197,8 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
     // this._grab.
     const grab = Main.pushModal(overlay, {actionMode: Shell.ActionMode.POPUP});
 
-    GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+    positionIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+        positionIdleId = null;
         const monitor = Main.layoutManager.primaryMonitor;
         const w = overlay.get_width()  || 260;
         const h = overlay.get_height() || 160;
@@ -222,6 +228,8 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
         }
         return Clutter.EVENT_PROPAGATE;
     });
+
+    onOverlayChange?.(closeOverlay);
 }
 
 export class EventPanel {
@@ -290,7 +298,8 @@ export class EventPanel {
         this._grab = Main.pushModal(this._root, {actionMode: Shell.ActionMode.POPUP});
 
         // Defer positioning until after layout pass so actor size is known
-        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+        this._positionIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this._positionIdleId = null;
             this._position(anchorActor);
             this._box.opacity = 255;
             this._titleEntry.grab_key_focus();
@@ -298,7 +307,7 @@ export class EventPanel {
         });
 
         this._clickId = global.stage.connect('button-press-event', (_stage, ev) => {
-            if (this._confirmOverlay)
+            if (this._closeConfirmOverlay)
                 return Clutter.EVENT_PROPAGATE; // let it handle its own clicks
             const [x, y] = ev.get_coords();
             const actor  = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
@@ -325,7 +334,7 @@ export class EventPanel {
     }
 
     _handleKeyEvent(ev) {
-        if (this._confirmOverlay)
+        if (this._closeConfirmOverlay)
             return Clutter.EVENT_PROPAGATE; // let it handle Escape itself
         if (ev.type() !== Clutter.EventType.KEY_PRESS)
             return Clutter.EVENT_PROPAGATE;
@@ -626,6 +635,7 @@ export class EventPanel {
 
         // ── Alert ──────────────────────────────────────────────────────────────
         const alertInit = this._alertInitFor(ev?.alarm, this._allDay);
+        this._customAlarm = alertInit.customAlarm;
         const alertRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
         alertRow.add_child(new St.Label({text: _('Alert'), style_class: 'litsycal-panel-lbl'}));
         this._alertPicker = this._makeDropdownField(alertInit.options, alertInit.value);
@@ -851,18 +861,23 @@ export class EventPanel {
     _alertInitFor(alarm, allDay) {
         const presets = this._alertPresetOptions(allDay);
         if (!alarm)
-            return {value: 'NONE', options: presets};
-        if (alarm.raw)
-            return {value: 'CUSTOM', options: [{value: 'CUSTOM', label: _('Custom')}, ...presets]};
+            return {value: 'NONE', options: presets, customAlarm: null};
+        if (alarm.raw) {
+            return {
+                value: 'CUSTOM',
+                options: [{value: 'CUSTOM', label: _('Custom')}, ...presets],
+                customAlarm: alarm,
+            };
+        }
 
         const key = String(alarm.minutesBefore);
         if (presets.some(o => o.value === key))
-            return {value: key, options: presets};
+            return {value: key, options: presets, customAlarm: null};
 
         // Exact offset from another app that isn't one of our presets — inject
         // it so it stays visible and editable instead of looking unsupported.
         const extra = {value: key, label: minutesLabel(alarm.minutesBefore, allDay)};
-        return {value: key, options: [extra, ...presets]};
+        return {value: key, options: [extra, ...presets], customAlarm: null};
     }
 
     _repeatInitFor(recurrence) {
@@ -1083,7 +1098,10 @@ export class EventPanel {
             // visible this frame means it hasn't been through an allocation
             // pass yet, so mapped/reactive filtering in _collectFocusable
             // isn't reliable until then.
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            if (this._dropdownFocusIdleId)
+                GLib.source_remove(this._dropdownFocusIdleId);
+            this._dropdownFocusIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                this._dropdownFocusIdleId = null;
                 if (this._openDropdown !== dropdown)
                     return GLib.SOURCE_REMOVE;
                 const items = this._collectFocusable(dropdown);
@@ -1371,7 +1389,10 @@ export class EventPanel {
 
                 if (idx < 0)
                     return;
-                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                if (this._timeScrollIdleId)
+                    GLib.source_remove(this._timeScrollIdleId);
+                this._timeScrollIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    this._timeScrollIdleId = null;
                     const adjustment = scroll.vadjustment ?? scroll.vscroll.adjustment;
                     const rowH  = optBtns[0].get_height() || 0;
                     const viewH = scroll.get_height() || 0;
@@ -1535,17 +1556,26 @@ export class EventPanel {
                 return;
             }
             this.close();
-        }, overlay => {
-            this._confirmOverlay = overlay;
+        }, close => {
+            this._closeConfirmOverlay = close;
         });
     }
 
     close() {
-        if (this._confirmOverlay) {
-            Main.layoutManager.uiGroup.remove_child(this._confirmOverlay);
-            this._confirmOverlay.destroy();
-            this._confirmOverlay = null;
+        if (this._positionIdleId) {
+            GLib.source_remove(this._positionIdleId);
+            this._positionIdleId = null;
         }
+        if (this._dropdownFocusIdleId) {
+            GLib.source_remove(this._dropdownFocusIdleId);
+            this._dropdownFocusIdleId = null;
+        }
+        if (this._timeScrollIdleId) {
+            GLib.source_remove(this._timeScrollIdleId);
+            this._timeScrollIdleId = null;
+        }
+        if (this._closeConfirmOverlay)
+            this._closeConfirmOverlay();
         if (this._clickId) {
             global.stage.disconnect(this._clickId);
             this._clickId = null;

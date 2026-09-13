@@ -76,7 +76,6 @@
 .litsycal-day-btn {
     min-width: 32px;
     min-height: 26px;
-    border-radius: 50%;
     text-align: center;
     font-size: 0.95em;
     color: white;
@@ -90,8 +89,7 @@
 }
 
 /* Today and selected: background-color + color set via JS inline style */
-.litsycal-today   { border-radius: 50%; font-weight: bold; }
-.litsycal-selected { border-radius: 50%; }
+.litsycal-today   { font-weight: bold; }
 .litsycal-weekend  { color: #e06060; }
 
 /* ── Column highlight ────────────────────────────────────────────────────── */

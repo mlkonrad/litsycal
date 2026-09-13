@@ -99,7 +99,7 @@ export class EventInfoPopover {
         this._watchdogId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => {
             // Don't force through a live delete confirmation — it has its
             // own, separately-scoped grab/close logic; just check back later.
-            if (this._confirmOverlay)
+            if (this._closeConfirmOverlay)
                 return GLib.SOURCE_CONTINUE;
             this._watchdogId = null;
             this.close();
@@ -107,7 +107,8 @@ export class EventInfoPopover {
         });
 
         // Defer positioning until after layout pass so actor size is known.
-        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+        this._positionIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this._positionIdleId = null;
             this._position(anchorActor);
             const bg = this._box.get_theme_node().get_background_color();
             this._arrow.set_style(
@@ -118,22 +119,17 @@ export class EventInfoPopover {
             return GLib.SOURCE_REMOVE;
         });
 
-        // Established by direct instrumentation (see project memory
-        // litsycal-modal-grab-pitfall / this session's history), not theory:
-        // under this competing Main.pushModal() grab, NOTHING reaches
-        // capture-phase 'captured-event' listeners — not on this._root, not
-        // on this._box, not on global.stage itself, regardless of focus.
-        // The only delivery path that ever actually fires is a plain
-        // (bubble-phase) signal connected directly to the specific actor
-        // that was clicked or currently holds key focus. Both mechanisms
-        // below are built on that one proven-working path, not on capture
-        // phase or a second stage-level listener.
+        // Under this competing Main.pushModal() grab, capture-phase
+        // 'captured-event' listeners don't receive input — not on
+        // this._root, this._box, or global.stage. Only a plain bubble-phase
+        // signal on the actor that was clicked or holds key focus does, so
+        // both handlers below are connected that way.
 
         // Escape/Backspace/Delete: a plain 'key-press-event' on this._deleteBtn
         // itself, which holds real key focus (grabbed above) — not captured-
         // event on an ancestor, which the instrumentation showed never fires.
         this._btnKeyId = this._deleteBtn.connect('key-press-event', (_actor, event) => {
-            if (this._confirmOverlay)
+            if (this._closeConfirmOverlay)
                 return Clutter.EVENT_PROPAGATE; // let it handle its own keys
             const sym = event.get_key_symbol();
             if (sym === Clutter.KEY_Escape) {
@@ -164,7 +160,7 @@ export class EventInfoPopover {
         this._backdrop.set_size(global.stage.width, global.stage.height);
         this._root.insert_child_at_index(this._backdrop, 0);
         this._backdropId = this._backdrop.connect('button-press-event', (_actor, event) => {
-            if (this._confirmOverlay)
+            if (this._closeConfirmOverlay)
                 return Clutter.EVENT_PROPAGATE; // let it handle its own clicks
             // Resolve what's actually under the click before tearing
             // anything down: with the backdrop itself excluded, picking
@@ -372,8 +368,8 @@ export class EventInfoPopover {
                 return;
             }
             this.close();
-        }, overlay => {
-            this._confirmOverlay = overlay;
+        }, close => {
+            this._closeConfirmOverlay = close;
         });
     }
 
@@ -423,11 +419,12 @@ export class EventInfoPopover {
             GLib.source_remove(this._watchdogId);
             this._watchdogId = null;
         }
-        if (this._confirmOverlay) {
-            Main.layoutManager.uiGroup.remove_child(this._confirmOverlay);
-            this._confirmOverlay.destroy();
-            this._confirmOverlay = null;
+        if (this._positionIdleId) {
+            GLib.source_remove(this._positionIdleId);
+            this._positionIdleId = null;
         }
+        if (this._closeConfirmOverlay)
+            this._closeConfirmOverlay();
         if (this._btnKeyId)  {
             this._deleteBtn?.disconnect(this._btnKeyId);
             this._btnKeyId  = null;

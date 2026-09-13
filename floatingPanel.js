@@ -51,7 +51,8 @@ export class FloatingModalPanel {
         // same fix.
         this._grab = Main.pushModal(this._box, {actionMode: Shell.ActionMode.POPUP});
 
-        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+        this._positionIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this._positionIdleId = null;
             this._position(anchorActor);
             this._box.opacity = 255;
             this._entry?.grab_key_focus();
@@ -113,6 +114,10 @@ export class FloatingModalPanel {
     _finish(result) {
         if (!this._box)
             return;
+        if (this._positionIdleId) {
+            GLib.source_remove(this._positionIdleId);
+            this._positionIdleId = null;
+        }
         this._onFinish();
         if (this._eventId) {
             this._box.disconnect(this._eventId);

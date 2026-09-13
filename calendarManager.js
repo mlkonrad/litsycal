@@ -2,6 +2,7 @@ import EDataServer from 'gi://EDataServer';
 import ECal        from 'gi://ECal';
 import ICalGLib    from 'gi://ICalGLib';
 import GLib        from 'gi://GLib';
+import Gio         from 'gi://Gio';
 
 // EDS calendar backends report colour in whatever format they like — hex,
 // "rgb(r,g,b)"/"rgba(r,g,b,a)" (Google's backend switched to this after a
@@ -23,12 +24,20 @@ function normalizeColor(color, fallback = '#3584e4') {
     return color; // named colour or unrecognized format — CSS still accepts it
 }
 
+// An EDS call cut short by destroy() cancelling this._cancellable: not a
+// failure worth logging, and there's nothing left for its callback to update.
+function isCancelled(e) {
+    return e instanceof GLib.Error && e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED);
+}
+
 export class CalendarManager {
     constructor(settings, onEventsChanged) {
         this._settings  = settings;
         this._onEventsChanged = onEventsChanged;
         this._clients   = new Map();   // uid → {client, color, name}
-        this._views     = new Map();   // uid → ECalClientView (live change listener)
+        this._views     = new Map();   // uid → {view, signalIds} (live change listener)
+        this._viewTokens = new Map();  // uid → latest view request; see _startView()
+        this._cancellable = new Gio.Cancellable();
         this._events    = [];
         this._byDate    = new Map();   // dateStr → Event[] (sorted, kept in sync with _events)
         this._registry    = null;
@@ -50,7 +59,7 @@ export class CalendarManager {
 
     _initRegistry() {
         try {
-            EDataServer.SourceRegistry.new(null, (_obj, res) => {
+            EDataServer.SourceRegistry.new(this._cancellable, (_obj, res) => {
                 try {
                     this._registry  = EDataServer.SourceRegistry.new_finish(res);
                     this._available = true;
@@ -65,7 +74,8 @@ export class CalendarManager {
                     this._disabledId = this._registry.connect('source-disabled',
                         (_r, src) => this._dropSource(src.get_uid()));
                 } catch (e) {
-                    logError(e, 'CalendarManager: registry init failed');
+                    if (!isCancelled(e))
+                        logError(e, 'CalendarManager: registry init failed');
                 }
             });
         } catch (e) {
@@ -94,7 +104,7 @@ export class CalendarManager {
         const color  = normalizeColor(calExt.get_color?.());
         const name   = source.get_display_name();
 
-        ECal.Client.connect(source, ECal.ClientSourceType.EVENTS, 10, null, (_obj, res) => {
+        ECal.Client.connect(source, ECal.ClientSourceType.EVENTS, 10, this._cancellable, (_obj, res) => {
             try {
                 const client = ECal.Client.connect_finish(res);
                 this._clients.set(uid, {client, color, name});
@@ -103,7 +113,8 @@ export class CalendarManager {
                     this._startView(uid, client);
                 }
             } catch (e) {
-                logError(e, `CalendarManager: failed to connect to calendar source '${name}' (${uid})`);
+                if (!isCancelled(e))
+                    logError(e, `CalendarManager: failed to connect to calendar source '${name}' (${uid})`);
             }
         });
     }
@@ -124,33 +135,49 @@ export class CalendarManager {
 
     // ── Live view (change notifications) ──────────────────────────────────────
 
+    // get_view() is async, so two quick month changes can leave two requests
+    // for the same source in flight. Every start/stop bumps that source's
+    // token, and a response for an older token is dropped instead of
+    // replacing (and leaking) the view that should stay.
     _startView(uid, client) {
-        client.get_view(this._rangeSexp(this._year, this._month), null, (_obj, res) => {
+        const token = this._bumpViewToken(uid);
+        client.get_view(this._rangeSexp(this._year, this._month), this._cancellable, (_obj, res) => {
             try {
                 const [, view] = client.get_view_finish(res);
+                if (token !== this._viewTokens.get(uid))
+                    return;
                 const refresh = () => {
                     if (this._year !== null)
                         this._fetchFromClient(uid, this._year, this._month);
                 };
-                view.connect('objects-added',    refresh);
-                view.connect('objects-modified',  refresh);
-                view.connect('objects-removed',   refresh);
+                const signalIds = ['objects-added', 'objects-modified', 'objects-removed']
+                    .map(signal => view.connect(signal, refresh));
+                this._views.set(uid, {view, signalIds});
                 view.start();
-                this._views.set(uid, view);
             } catch (e) {
-                logError(e, `CalendarManager: failed to start live view for source ${uid}`);
+                if (!isCancelled(e))
+                    logError(e, `CalendarManager: failed to start live view for source ${uid}`);
             }
         });
     }
 
     _stopView(uid) {
-        const view = this._views.get(uid);
-        if (!view)
+        this._bumpViewToken(uid);
+        const entry = this._views.get(uid);
+        if (!entry)
             return;
+        for (const id of entry.signalIds)
+            entry.view.disconnect(id);
         try {
-            view.stop();
+            entry.view.stop();
         } catch {} // stop() can throw if the view is already stopped
         this._views.delete(uid);
+    }
+
+    _bumpViewToken(uid) {
+        const token = (this._viewTokens.get(uid) ?? 0) + 1;
+        this._viewTokens.set(uid, token);
+        return token;
     }
 
     _restartViews() {
@@ -173,11 +200,12 @@ export class CalendarManager {
         for (const {client} of this._clients.values()) {
             if (!client.check_refresh_supported())
                 continue;
-            client.refresh(null, (obj, res) => {
+            client.refresh(this._cancellable, (obj, res) => {
                 try {
                     obj.refresh_finish(res);
                 } catch (e) {
-                    logError(e, 'CalendarManager: refresh failed');
+                    if (!isCancelled(e))
+                        logError(e, 'CalendarManager: refresh failed');
                 }
             });
         }
@@ -263,7 +291,7 @@ export class CalendarManager {
 
     _searchClient(uid, sexp, token, state, callback) {
         const {client, color} = this._clients.get(uid);
-        client.get_object_list_as_comps(sexp, null, (_obj, res) => {
+        client.get_object_list_as_comps(sexp, this._cancellable, (_obj, res) => {
             if (token !== this._searchToken)
                 return; // superseded by a newer search — drop this result
             try {
@@ -274,6 +302,8 @@ export class CalendarManager {
                         state.results.push(ev);
                 }
             } catch (e) {
+                if (isCancelled(e))
+                    return;
                 logError(e, `CalendarManager: search failed for source ${uid}`);
             }
             state.pending--;
@@ -330,11 +360,13 @@ export class CalendarManager {
 
         const sexp = this._rangeSexp(year, month);
 
-        client.get_object_list_as_comps(sexp, null, (_obj, res) => {
+        client.get_object_list_as_comps(sexp, this._cancellable, (_obj, res) => {
             try {
                 const [, comps] = client.get_object_list_as_comps_finish(res);
                 this._ingestComps(comps ?? [], color, uid);
             } catch (e) {
+                if (isCancelled(e))
+                    return;
                 logError(e, `CalendarManager: failed to fetch events for source ${uid}`);
                 this._onEventsChanged(this._events);
             }
@@ -703,9 +735,12 @@ export class CalendarManager {
 
         let dtLines;
         if (allDay) {
+            // DTEND is exclusive, so it's the following day — through GLib so
+            // month/year boundaries roll over, in UTC so no DST shift applies.
+            const next = GLib.DateTime.new_utc(y, m, d, 0, 0, 0).add_days(1);
             dtLines = [
                 `DTSTART;VALUE=DATE:${y}${pad(m)}${pad(d)}`,
-                `DTEND;VALUE=DATE:${y}${pad(m)}${pad(d + 1)}`,
+                `DTEND;VALUE=DATE:${next.get_year()}${pad(next.get_month())}${pad(next.get_day_of_month())}`,
             ];
         } else {
             // Tagged with the system's own timezone rather than left floating:
@@ -747,14 +782,15 @@ export class CalendarManager {
 
         const icalStr = this._buildICal(GLib.uuid_string_random(), fields);
         const ical = ICalGLib.Component.new_from_string(icalStr);
-        entry.client.create_object(ical, ECal.OperationFlags.NONE, null, (_obj, res) => {
+        entry.client.create_object(ical, ECal.OperationFlags.NONE, this._cancellable, (_obj, res) => {
             try {
                 entry.client.create_object_finish(res);
                 onDone?.(null);
                 if (this._year !== null)
                     this._fetchFromClient(sourceUid, this._year, this._month);
             } catch (e) {
-                onDone?.(e);
+                if (!isCancelled(e))
+                    onDone?.(e);
             }
         });
     }
@@ -815,24 +851,26 @@ export class CalendarManager {
             return;
         }
 
-        entry.client.get_object(uid, null, null, (_obj, res) => {
+        entry.client.get_object(uid, null, this._cancellable, (_obj, res) => {
             let ical;
             try {
                 [, ical] = entry.client.get_object_finish(res);
             } catch (e) {
-                onDone?.(e);
+                if (!isCancelled(e))
+                    onDone?.(e);
                 return;
             }
 
             this._applyFieldsToIcal(ical, fields);
-            entry.client.modify_object(ical, ECal.ObjModType.ALL, ECal.OperationFlags.NONE, null, (_obj2, res2) => {
+            entry.client.modify_object(ical, ECal.ObjModType.ALL, ECal.OperationFlags.NONE, this._cancellable, (_obj2, res2) => {
                 try {
                     entry.client.modify_object_finish(res2);
                     onDone?.(null);
                     if (this._year !== null)
                         this._fetchFromClient(clientUid, this._year, this._month);
                 } catch (e) {
-                    onDone?.(e);
+                    if (!isCancelled(e))
+                        onDone?.(e);
                 }
             });
         });
@@ -858,7 +896,7 @@ export class CalendarManager {
         }[scope] ?? ECal.ObjModType.ALL;
         const rid = scope === 'ALL' ? null : recurrenceId;
 
-        entry.client.remove_object(uid, rid, modType, ECal.OperationFlags.NONE, null, (_obj, res) => {
+        entry.client.remove_object(uid, rid, modType, ECal.OperationFlags.NONE, this._cancellable, (_obj, res) => {
             try {
                 entry.client.remove_object_finish(res);
                 onDone?.(null);
@@ -867,7 +905,8 @@ export class CalendarManager {
                 this._reindex();
                 this._onEventsChanged(this._events);
             } catch (e) {
-                onDone?.(e);
+                if (!isCancelled(e))
+                    onDone?.(e);
             }
         });
     }
@@ -903,6 +942,9 @@ export class CalendarManager {
     // ── Cleanup ───────────────────────────────────────────────────────────────
 
     destroy() {
+        // Keeps every in-flight EDS call from calling back into this manager
+        // (and the calendar widget behind it) after teardown.
+        this._cancellable.cancel();
         if (this._disabledCalsSettingsId) {
             this._settings.disconnect(this._disabledCalsSettingsId);
             this._disabledCalsSettingsId = null;

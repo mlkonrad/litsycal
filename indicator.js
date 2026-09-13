@@ -129,7 +129,10 @@ class LitsycalIndicator extends PanelMenu.Button {
                 // (never actually mapped/shown, and stuck with a stale
                 // pointer-grab ":insensitive" style). Defer the unpin to
                 // the next idle, once the grab has settled.
-                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                if (this._unpinIdleId)
+                    GLib.source_remove(this._unpinIdleId);
+                this._unpinIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    this._unpinIdleId = null;
                     if (this._pinned)
                         this._unpinCalendar(false);
                     this._calWidget._updateAgendaMaxHeight();
@@ -273,7 +276,10 @@ class LitsycalIndicator extends PanelMenu.Button {
         // Disabling from inside this handler would tear this actor down
         // mid-event; defer to the next idle tick.
         const uuid = this._uuid;
-        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+        if (this._quitIdleId)
+            GLib.source_remove(this._quitIdleId);
+        this._quitIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this._quitIdleId = null;
             Main.extensionManager.disableExtension(uuid);
             return GLib.SOURCE_REMOVE;
         });
@@ -494,10 +500,17 @@ class LitsycalIndicator extends PanelMenu.Button {
     }
 
     destroy() {
-        if (this._floatingBox) {
-            Main.layoutManager.uiGroup.remove_child(this._floatingBox);
-            this._floatingBox.destroy();
-            this._floatingBox = null;
+        if (this._timer) {
+            GLib.source_remove(this._timer);
+            this._timer = null;
+        }
+        if (this._unpinIdleId) {
+            GLib.source_remove(this._unpinIdleId);
+            this._unpinIdleId = null;
+        }
+        if (this._quitIdleId) {
+            GLib.source_remove(this._quitIdleId);
+            this._quitIdleId = null;
         }
         if (this._keyPressId) {
             this.menu.actor.disconnect(this._keyPressId);
@@ -507,9 +520,10 @@ class LitsycalIndicator extends PanelMenu.Button {
             this.menu.disconnect(this._menuOpenId);
             this._menuOpenId = null;
         }
-        if (this._timer)      {
-            GLib.source_remove(this._timer);
-            this._timer = null;
+        if (this._floatingBox) {
+            Main.layoutManager.uiGroup.remove_child(this._floatingBox);
+            this._floatingBox.destroy();
+            this._floatingBox = null;
         }
         this._goToDatePanel?.close();
         this._goToDatePanel = null;

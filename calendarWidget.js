@@ -233,6 +233,11 @@ class LitsycalCalendar extends St.BoxLayout {
     // ── Cleanup ───────────────────────────────────────────────────────────────
 
     destroy() {
+        this._cancelCellTooltip();
+        if (this._dayInfoTimeoutId) {
+            GLib.source_remove(this._dayInfoTimeoutId);
+            this._dayInfoTimeoutId = null;
+        }
         this._eventPanel?.close();
         this._eventPanel = null;
         this._eventContextMenu?.close();
@@ -243,11 +248,8 @@ class LitsycalCalendar extends St.BoxLayout {
         this._searchPanel = null;
         this._quickAddPanel?.close();
         this._quickAddPanel = null;
-        this._cancelCellTooltip();
-        if (this._dayInfoTimeoutId) {
-            GLib.source_remove(this._dayInfoTimeoutId);
-            this._dayInfoTimeoutId = null;
-        }
+        if (this._closeDeleteConfirm)
+            this._closeDeleteConfirm();
         if (this._dragStartY !== undefined)
             this._endHandleDrag(this._resizeHandle);
         for (const id of this._sids)
@@ -632,7 +634,11 @@ class LitsycalCalendar extends St.BoxLayout {
     // the calendar/header/footer, mirroring Itsycal's agendaMaxPossibleHeight —
     // rather than letting a busy week grow the popup past the monitor edge.
     _updateAgendaMaxHeight() {
-        if (!this._agendaScroll)
+        // Measuring children before this widget is on the stage (during
+        // construction, before the indicator joins the panel) makes St log a
+        // "not in the stage" warning for every widget measured. The menu's
+        // open-state-changed handler recomputes this once it's shown anyway.
+        if (!this._agendaScroll || !this.get_stage())
             return;
 
         const monitor = Main.layoutManager.monitors[
@@ -876,6 +882,10 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     _hideCellTooltip() {
+        if (this._tooltipIdleId) {
+            GLib.source_remove(this._tooltipIdleId);
+            this._tooltipIdleId = null;
+        }
         if (this._tooltipBox) {
             Main.layoutManager.uiGroup.remove_child(this._tooltipBox);
             this._tooltipBox.destroy();
@@ -938,10 +948,10 @@ class LitsycalCalendar extends St.BoxLayout {
         Main.layoutManager.uiGroup.add_child(box);
         this._tooltipBox = box;
 
-        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-            if (!this._tooltipBox)
-                return GLib.SOURCE_REMOVE; // hidden again already
-
+        if (this._tooltipIdleId)
+            GLib.source_remove(this._tooltipIdleId);
+        this._tooltipIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this._tooltipIdleId = null;
             const monitor = Main.layoutManager.monitors[
                 Main.layoutManager.findIndexForActor(this)
             ] ?? Main.layoutManager.primaryMonitor;
@@ -1467,6 +1477,8 @@ class LitsycalCalendar extends St.BoxLayout {
         confirmDeleteEvent(this._calManager, ev, err => {
             if (err)
                 Main.notifyError(_('Litsycal'), err.message);
+        }, close => {
+            this._closeDeleteConfirm = close;
         });
     }
 

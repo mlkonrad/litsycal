@@ -72,6 +72,26 @@ longer carries a `version` key — see that file's history for why).
   isn't blocked). The event info popover and the agenda's own "Open link"
   button both fall back to plain text/no button instead of a
   clickable-looking link for a non-URL value.
+- Editing an event with reminders the form can't represent (several alarms,
+  an absolute trigger, a non-display alarm, ...) and saving any change
+  deleted all of its reminders. They're now kept as-is unless you pick a
+  different Alert.
+- An all-day event created on the last day of a month was saved with an
+  invalid end date (e.g. September 31st). The end date now rolls over into
+  the next month/year correctly.
+- Enabling the extension logged thousands of "not in the stage" warnings
+  (the agenda height was measured before the calendar was on screen), plus
+  "percentage lengths not currently supported" warnings from
+  `border-radius: 50%` rules St was ignoring anyway. Both are gone, with no
+  visual change.
+- Disabling the extension (including on every screen lock) while calendar
+  requests or deferred UI updates were still pending could leave callbacks
+  running against torn-down widgets, leak live calendar views, or crash a
+  floating panel closed before it finished positioning. Pending calendar
+  requests are now cancelled and every deferred callback is removed on
+  close/disable. The delete-confirmation prompt opened from an agenda row's
+  right-click menu is now also closed on disable instead of being left
+  holding its input grab.
 
 ## [6] - 2026-09-12
 

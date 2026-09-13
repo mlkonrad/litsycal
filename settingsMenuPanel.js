@@ -73,7 +73,10 @@ export class SettingsMenuPanel {
                     // still-live 'clicked' handler is asking for trouble —
                     // finish the event first (same reasoning as the quit
                     // action's own idle_add deferral).
-                    GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    if (this._actionIdleId)
+                        GLib.source_remove(this._actionIdleId);
+                    this._actionIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                        this._actionIdleId = null;
                         this.close();
                         item.action();
                         return GLib.SOURCE_REMOVE;
@@ -94,7 +97,8 @@ export class SettingsMenuPanel {
         Main.layoutManager.uiGroup.add_child(this._box);
         this._grab = Main.pushModal(this._box, {actionMode: Shell.ActionMode.POPUP});
 
-        GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+        this._positionIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this._positionIdleId = null;
             this._position(anchorActor);
             this._box.opacity = 255;
             // No actor here actually holds Clutter key focus — the modal
@@ -170,6 +174,14 @@ export class SettingsMenuPanel {
     }
 
     close() {
+        if (this._positionIdleId) {
+            GLib.source_remove(this._positionIdleId);
+            this._positionIdleId = null;
+        }
+        if (this._actionIdleId) {
+            GLib.source_remove(this._actionIdleId);
+            this._actionIdleId = null;
+        }
         if (this._eventId) {
             this._box?.disconnect(this._eventId);
             this._eventId = null;
