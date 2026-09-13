@@ -5,8 +5,6 @@ import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import EDataServer from 'gi://EDataServer';
-import Geoclue from 'gi://Geoclue';
-import GWeather from 'gi://GWeather';
 
 // Every IANA time zone id available on this system, read from the same
 // tzdata tables GLib.TimeZone itself needs to resolve a zone id — so this
@@ -454,16 +452,44 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             valign:       Gtk.Align.CENTER,
             css_classes:  ['flat'],
             tooltip_text: _('Detect my location'),
+            visible:      false,
         });
+
+        // Geoclue/GWeather aren't guaranteed to be installed (minimal GNOME
+        // setups can lack either typelib) — a static top-level import throws
+        // ImportError at module load and takes down the whole Preferences
+        // window, not just this one feature, so both are loaded lazily and
+        // the button stays hidden if either is missing.
+        let Geoclue, GWeather;
+        let detectCancellable = null;
+        (async () => {
+            try {
+                ({default: Geoclue} = await import('gi://Geoclue'));
+                ({default: GWeather} = await import('gi://GWeather'));
+                detectBtn.visible = true;
+            } catch {
+                // Feature unavailable — button stays hidden.
+            }
+        })();
+
         // Sets home to wherever the user physically is *right now* — only
         // correct if that's actually their home base; someone traveling
         // should pick their real home city from the list above instead.
         detectBtn.connect('clicked', () => {
             detectBtn.set_sensitive(false);
             homeRow.set_subtitle(_('Detecting…'));
+            detectCancellable = new Gio.Cancellable();
 
             try {
-                Geoclue.Simple.new('org.gnome.Shell', Geoclue.AccuracyLevel.CITY, null, (_obj, res) => {
+                Geoclue.Simple.new('org.gnome.Shell', Geoclue.AccuracyLevel.CITY, detectCancellable, (_obj, res) => {
+                    const cancelled = detectCancellable.is_cancelled();
+                    detectCancellable = null;
+                    // The window (and these widgets) may already be gone if
+                    // detection was still in flight when Preferences closed
+                    // — close-request cancels it, so bail out here without
+                    // touching anything rather than risk a use-after-close.
+                    if (cancelled)
+                        return;
                     detectBtn.set_sensitive(true);
                     try {
                         const simple = Geoclue.Simple.new_finish(res);
@@ -473,18 +499,27 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                         const idx  = homeIds.indexOf(tzid);
                         if (idx < 0)
                             throw new Error(`detected id ${tzid} not in local zoneinfo tables`);
-                        homeRow.set_selected(idx); // triggers notify::selected above
+                        if (idx === homeRow.get_selected())
+                            updateHomeSubtitle(); // notify::selected won't fire on a no-op selection
+                        else
+                            homeRow.set_selected(idx); // triggers notify::selected above
                     } catch {
                         homeRow.set_subtitle(_('Could not detect your location — check Settings ▸ Privacy ▸ Location Services is on'));
                     }
                 });
             } catch {
+                detectCancellable = null;
                 detectBtn.set_sensitive(true);
                 homeRow.set_subtitle(_('Could not detect your location — check Settings ▸ Privacy ▸ Location Services is on'));
             }
         });
         homeRow.add_suffix(detectBtn);
         homeGroup.add(homeRow);
+
+        window.connect('close-request', () => {
+            detectCancellable?.cancel();
+            return false;
+        });
 
         // ════════════════════════════════════════════════════════════════════
         // APPEARANCE PAGE  (options that were previously in "General")

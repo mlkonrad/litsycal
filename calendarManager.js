@@ -409,9 +409,17 @@ export class CalendarManager {
             if (!isAllDay) {
                 const tzid = dtstart.get_tzid();
                 if (tzid || tObj.is_utc()) {
-                    originalTzid = tObj.is_utc() ? 'UTC' : tzid;
                     localTz = this._resolveLocalTimezone();
-                    tObj = this._convertToLocal(tObj, tzid, localTz) ?? tObj;
+                    const converted = this._convertToLocal(tObj, tzid, localTz);
+                    // Only report an originalTzid (and only display the
+                    // converted digits) when conversion actually succeeded —
+                    // otherwise tObj still holds the raw, unconverted digits
+                    // and labeling them as "originally scheduled in <tzid>"
+                    // would misrepresent a conversion that never happened.
+                    if (converted) {
+                        originalTzid = tObj.is_utc() ? 'UTC' : tzid;
+                        tObj = converted;
+                    }
                 }
             }
 
@@ -700,10 +708,17 @@ export class CalendarManager {
                 `DTEND;VALUE=DATE:${y}${pad(m)}${pad(d + 1)}`,
             ];
         } else {
+            // Tagged with the system's own timezone rather than left floating:
+            // _parseComp() shows/edits times as local wall-clock digits, and a
+            // floating DTSTART/DTEND is reinterpreted as *each viewer's own*
+            // local time by other clients — silently shifting the instant for
+            // anyone not in this machine's timezone. An explicit TZID keeps
+            // the instant fixed no matter who views it next.
+            const tzid = GLib.TimeZone.new_local().get_identifier();
             const [ey, em2, ed2] = (endDate ?? date).split('-').map(Number);
             dtLines = [
-                `DTSTART:${y}${pad(m)}${pad(d)}T${pad(hour)}${pad(minute)}00`,
-                `DTEND:${ey}${pad(em2)}${pad(ed2)}T${pad(endHour)}${pad(endMinute)}00`,
+                `DTSTART;TZID=${tzid}:${y}${pad(m)}${pad(d)}T${pad(hour)}${pad(minute)}00`,
+                `DTEND;TZID=${tzid}:${ey}${pad(em2)}${pad(ed2)}T${pad(endHour)}${pad(endMinute)}00`,
             ];
         }
 

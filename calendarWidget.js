@@ -22,7 +22,7 @@ import {
     MAX_EXTRA_WEEK_ROWS, OUTLINE_TOP_INSET,
     readAccent, accentAlpha, dateStr, daysInMonth, daysBetween, prevMonthOf,
     displayYear, isoWeekNumber, findMeetingUrl, meetingIsJoinable, formatEventWhen,
-    formatRelativeOffset,
+    formatRelativeOffset, isLikelyUrl, makeTzRow,
 } from './helpers.js';
 
 // ── Calendar widget ───────────────────────────────────────────────────────────
@@ -1069,7 +1069,7 @@ class LitsycalCalendar extends St.BoxLayout {
                             addRow2LinkBtn('camera-video-symbolic', _('Join meeting'), meetingUrl));
                     }
 
-                    if (ev.url)
+                    if (ev.url && isLikelyUrl(ev.url))
                         addRow2LinkBtn('web-browser-symbolic', _('Open link'), ev.url);
 
                     evtBox.add_child(row2);
@@ -1234,35 +1234,7 @@ class LitsycalCalendar extends St.BoxLayout {
             const relOffset = homeOffset !== null && offset !== homeOffset
                 ? formatRelativeOffset(offset - homeOffset) : null;
 
-            // Dotted leader between city and time, same left-label/spacer/
-            // right-label layout the agenda's day-name/day-date header uses
-            // — a clipped run of dots rather than a CSS border, since St's
-            // theme engine has no track record of rendering dashed/dotted
-            // borders anywhere in GNOME Shell's own stylesheets.
-            const leader = new St.Label({
-                text: '.'.repeat(200), x_expand: true, y_align: Clutter.ActorAlign.END,
-                style_class: 'litsycal-tz-leader',
-            });
-            leader.clutter_text.set_line_wrap(false);
-            leader.clip_to_allocation = true;
-
-            // Grouped in their own box so the row's own (wider) spacing
-            // between city/leader/time doesn't also apply between the time
-            // and its offset — those two read as one unit, so they sit
-            // tight together instead.
-            const timeBox = new St.BoxLayout({style_class: 'litsycal-tz-time-box'});
-            timeBox.add_child(new St.Label({text: time, style_class: 'litsycal-tz-time litsycal-agenda-title'}));
-            if (relOffset) {
-                timeBox.add_child(new St.Label({
-                    text: `(${relOffset})`, style_class: 'litsycal-tz-offset',
-                }));
-            }
-
-            const row = new St.BoxLayout({style_class: 'litsycal-tz-row'});
-            row.add_child(new St.Label({text: city, style_class: 'litsycal-tz-city litsycal-agenda-title'}));
-            row.add_child(leader);
-            row.add_child(timeBox);
-            this._tzBox.add_child(row);
+            this._tzBox.add_child(makeTzRow(city, time, relOffset));
         }
     }
 

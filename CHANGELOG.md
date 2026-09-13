@@ -38,7 +38,9 @@ longer carries a `version` key — see that file's history for why).
   detecting sets home to wherever you physically are *right now* — correct
   only if you're actually at home when you click it; if you're traveling,
   pick your real home city from the list instead. Offset labels are hidden
-  entirely until a home timezone is set.
+  entirely until a home timezone is set. The "Detect my location" button is
+  hidden if the required system location services aren't installed, rather
+  than preventing Preferences from opening at all.
 
 ### Fixed
 
@@ -46,7 +48,11 @@ longer carries a `version` key — see that file's history for why).
   someone in a different region) displayed the wrong local time — the
   organizer's clock time was shown as-is, mislabeled as your own local
   time, instead of being converted. Event times are now converted to your
-  system's timezone when read. Known limitation: a non-IANA timezone name
+  system's timezone when read, and saved edits are anchored to your
+  system's timezone too, so the event's real time no longer shifts for
+  other viewers after an unrelated field is edited and saved. The
+  "Originally scheduled in `<zone>`" note is now only shown when
+  conversion actually succeeded. Known limitation: a non-IANA timezone name
   (as some Windows/Exchange sources use) still isn't converted, same as
   before this fix.
 
@@ -59,9 +65,13 @@ longer carries a `version` key — see that file's history for why).
   event info popover then rendered it as a clickable "Open link" row with a
   link icon even when it wasn't an actual link (e.g. plain text typed into
   the wrong field), and clicking it silently did nothing. Saving now
-  rejects a URL that doesn't include a scheme (e.g. `https://`), and the
-  popover falls back to plain text instead of a link row for an event
-  synced in from elsewhere with a non-URL value already in that field.
+  rejects a URL that doesn't include a scheme (e.g. `https://`, or an
+  authority-less scheme like `mailto:`), unless that field's value came in
+  unchanged from a synced event (so editing an unrelated field on an event
+  synced in with non-URL text already in its URL field, e.g. a room code,
+  isn't blocked). The event info popover and the agenda's own "Open link"
+  button both fall back to plain text/no button instead of a
+  clickable-looking link for a non-URL value.
 
 ## [6] - 2026-09-12
 

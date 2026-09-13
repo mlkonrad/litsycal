@@ -8,7 +8,7 @@ import Pango   from 'gi://Pango';
 
 import {parseQuickAdd}    from './quickAddParser.js';
 import {FloatingModalPanel} from './floatingPanel.js';
-import {isLikelyUrl, formatRelativeOffset} from './helpers.js';
+import {isLikelyUrl, formatRelativeOffset, makeTzRow} from './helpers.js';
 
 const _ = str => GLib.dgettext('litsycal@mlkonrad.github.com', str);
 
@@ -525,6 +525,7 @@ export class EventPanel {
             x_expand: true,
             can_focus: true,
         });
+        this._origUrl = ev?.url ?? null;
         if (ev?.url)
             this._urlEntry.set_text(ev.url);
         this._focusOnClick(this._urlEntry);
@@ -838,30 +839,7 @@ export class EventPanel {
             const relOffset = homeOffset !== null && offset !== homeOffset
                 ? formatRelativeOffset(offset - homeOffset) : null;
 
-            const leader = new St.Label({
-                text: '.'.repeat(200), x_expand: true, y_align: Clutter.ActorAlign.END,
-                style_class: 'litsycal-tz-leader',
-            });
-            leader.clutter_text.set_line_wrap(false);
-            leader.clip_to_allocation = true;
-
-            // Grouped in their own box so the row's own (wider) spacing
-            // between city/leader/time doesn't also apply between the time
-            // and its offset — those two read as one unit, so they sit
-            // tight together instead.
-            const timeBox = new St.BoxLayout({style_class: 'litsycal-tz-time-box'});
-            timeBox.add_child(new St.Label({text: time, style_class: 'litsycal-tz-time litsycal-agenda-title'}));
-            if (relOffset) {
-                timeBox.add_child(new St.Label({
-                    text: `(${relOffset})`, style_class: 'litsycal-tz-offset',
-                }));
-            }
-
-            const row = new St.BoxLayout({style_class: 'litsycal-tz-row'});
-            row.add_child(new St.Label({text: city, style_class: 'litsycal-tz-city litsycal-agenda-title'}));
-            row.add_child(leader);
-            row.add_child(timeBox);
-            this._tzPreviewRows.add_child(row);
+            this._tzPreviewRows.add_child(makeTzRow(city, time, relOffset));
         }
     }
 
@@ -1514,8 +1492,12 @@ export class EventPanel {
         // the wrong field, or tabbing past it while filling in other fields)
         // got saved as-is and the event info popover would still render it
         // as a clickable "Open link" row with a link icon — misleading,
-        // since it isn't actually a link and clicking it does nothing.
-        if (url && !isLikelyUrl(url)) {
+        // since it isn't actually a link and clicking it does nothing. Only
+        // enforced when the field actually changed — synced events often
+        // arrive with non-URL text (room codes, "TBD") already in this
+        // field, and editing an unrelated field shouldn't be blocked by
+        // data this dialog didn't put there.
+        if (url && url !== this._origUrl && !isLikelyUrl(url)) {
             this._showError(_('URL must include a scheme, e.g. https://'));
             return;
         }

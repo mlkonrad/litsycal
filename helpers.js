@@ -1,5 +1,7 @@
-import GLib from 'gi://GLib';
-import Gio  from 'gi://Gio';
+import GLib    from 'gi://GLib';
+import Gio     from 'gi://Gio';
+import St      from 'gi://St';
+import Clutter from 'gi://Clutter';
 
 import {gettext as _, ngettext} from 'resource:///org/gnome/shell/extensions/extension.js';
 
@@ -189,7 +191,7 @@ export const URL_REGEXP = /https?:\/\/[^\s<>"']+/gi;
  * @param {string} str
  */
 export function isLikelyUrl(str) {
-    return /^[a-zA-Z][\w+.-]*:\/\/\S+$/.test(str);
+    return /^[a-zA-Z][\w+.-]*:\S+$/.test(str);
 }
 
 // Scans the event's URL, location, and notes (in that order) for the first
@@ -329,4 +331,41 @@ export function formatRelativeOffset(diffSeconds) {
     const hours = Math.floor(abs / 60);
     const mins  = abs % 60;
     return mins === 0 ? `${sign}${hours}h` : `${sign}${hours}h${String(mins).padStart(2, '0')}`;
+}
+
+// Builds one "city ..... time (+6h)" row for a world-clock listing — shared
+// by calendarWidget.js's own world-clock section and eventDialog.js's
+// per-event time-zone preview, which otherwise had this markup duplicated
+// verbatim. A dotted leader between city and time (a clipped run of dots
+// rather than a CSS border, since St's theme engine has no track record of
+// rendering dashed/dotted borders anywhere in GNOME Shell's own stylesheets).
+/**
+ * @param {string} city
+ * @param {string} time
+ * @param {string|null} relOffset
+ */
+export function makeTzRow(city, time, relOffset) {
+    const leader = new St.Label({
+        text: '.'.repeat(200), x_expand: true, y_align: Clutter.ActorAlign.END,
+        style_class: 'litsycal-tz-leader',
+    });
+    leader.clutter_text.set_line_wrap(false);
+    leader.clip_to_allocation = true;
+
+    // Grouped in their own box so the row's own (wider) spacing between
+    // city/leader/time doesn't also apply between the time and its offset —
+    // those two read as one unit, so they sit tight together instead.
+    const timeBox = new St.BoxLayout({style_class: 'litsycal-tz-time-box'});
+    timeBox.add_child(new St.Label({text: time, style_class: 'litsycal-tz-time litsycal-agenda-title'}));
+    if (relOffset) {
+        timeBox.add_child(new St.Label({
+            text: `(${relOffset})`, style_class: 'litsycal-tz-offset',
+        }));
+    }
+
+    const row = new St.BoxLayout({style_class: 'litsycal-tz-row'});
+    row.add_child(new St.Label({text: city, style_class: 'litsycal-tz-city litsycal-agenda-title'}));
+    row.add_child(leader);
+    row.add_child(timeBox);
+    return row;
 }
