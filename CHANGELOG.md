@@ -8,7 +8,7 @@ release instead, numbered sequentially ([1], [2], [3], …). This counter is
 maintained by hand here and is independent of `metadata.json` (which no
 longer carries a `version` key — see that file's history for why).
 
-## [Unreleased]
+## [7] - 2026-09-13
 
 ### Added
 
@@ -434,7 +434,9 @@ longer carries a `version` key — see that file's history for why).
 - Internationalization via gettext, including a Brazilian Portuguese
   translation.
 
-[Unreleased]: https://github.com/mlkonrad/litsycal/compare/d257c22...HEAD
+[Unreleased]: https://github.com/mlkonrad/litsycal/compare/9e7980e...HEAD
+[7]: https://github.com/mlkonrad/litsycal/compare/6fd7207...9e7980e
+[6]: https://github.com/mlkonrad/litsycal/compare/d257c22...6fd7207
 [5]: https://github.com/mlkonrad/litsycal/compare/b9c302f...d257c22
 [4]: https://github.com/mlkonrad/litsycal/compare/776d203...b9c302f
 [3]: https://github.com/mlkonrad/litsycal/compare/9c3a415...776d203
