@@ -31,18 +31,10 @@ class LitsycalIndicator extends PanelMenu.Button {
         this._openPrefsFn = openPrefs;
 
         // Every panel-visible piece (badge, countdown icon+label, logo,
-        // meeting glyph) lives inside this single row box, which is this
-        // button's only direct child. Adding them straight to `this`
-        // instead (as this code used to) only ever correctly painted
-        // whichever ONE of them happened to be visible at a time — with
-        // two visible simultaneously (e.g. countdown-badge-mode: append,
-        // or briefly testing the countdown icon+label alone), nothing
-        // painted at all despite correct visible/text state and no
-        // exception anywhere. That's consistent with PanelMenu.Button not
-        // giving multiple direct children of its own genuine row layout;
-        // a single BoxLayout child, with all the real content inside that,
-        // is the standard pattern most panel-indicator extensions use for
-        // exactly this reason.
+        // meeting glyph) lives inside this single row box, the button's only
+        // direct child: PanelMenu.Button doesn't lay out several direct
+        // children in a row, and with two of them visible at once (e.g.
+        // countdown-badge-mode: append) nothing painted at all.
         this._box = new St.BoxLayout({y_align: Clutter.ActorAlign.CENTER});
         this.add_child(this._box);
 
@@ -58,9 +50,7 @@ class LitsycalIndicator extends PanelMenu.Button {
         // same badge-style modifier classes as _badge get applied to this
         // box, not to the label alone) so the icon reads as part of the
         // countdown rather than a separate, unstyled element floating next
-        // to it. Nesting a box here is fine now that it's inside this._box
-        // rather than a direct child of the panel button itself — see the
-        // comment above this._box for why THAT distinction matters.
+        // to it.
         this._countdownBox = new St.BoxLayout({
             y_align: Clutter.ActorAlign.CENTER,
             style_class: 'litsycal-countdown-box', visible: false,
@@ -94,20 +84,6 @@ class LitsycalIndicator extends PanelMenu.Button {
         this._box.add_child(this._meetingGlyph);
 
         this._updateBadge();
-        this._lastHour = GLib.DateTime.new_now_local().get_hour();
-
-        this._timer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => {
-            this._updateBadge();
-            this._checkHourlyBeep();
-            // Keep the meeting join-button window (15 min before → end) and
-            // the time zone clocks fresh while the calendar is actually
-            // visible.
-            if (this._menuIsOpen || this._pinned) {
-                this._calWidget._buildAgenda();
-                this._calWidget._updateTimeZones();
-            }
-            return GLib.SOURCE_CONTINUE;
-        });
 
         this._sids = [
             'badge-style', 'show-month-in-badge', 'show-dow-in-badge',
@@ -204,6 +180,20 @@ class LitsycalIndicator extends PanelMenu.Button {
         item.add_child(cal);
         section.addMenuItem(item);
         this.menu.addMenuItem(section);
+
+        this._lastHour = GLib.DateTime.new_now_local().get_hour();
+        this._timer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => {
+            this._updateBadge();
+            this._checkHourlyBeep();
+            // Keep the meeting join-button window (15 min before → end) and
+            // the time zone clocks fresh while the calendar is actually
+            // visible.
+            if (this._menuIsOpen || this._pinned) {
+                this._calWidget._buildAgenda();
+                this._calWidget._updateTimeZones();
+            }
+            return GLib.SOURCE_CONTINUE;
+        });
 
         this.menu.actor.style = 'border: none; background-color: transparent; box-shadow: none; padding: 0;';
         this.menu.box.style   = 'padding: 0; background-color: transparent; border: none;';
@@ -424,13 +414,11 @@ class LitsycalIndicator extends PanelMenu.Button {
             this._lastHour = h;
             if (this._settings.get_boolean('beep-on-hour')) {
                 const customFile = this._settings.get_string('hour-sound-file');
-                if (customFile) {
-                    try {
-                        Gio.Subprocess.new(['paplay', customFile], Gio.SubprocessFlags.NONE);
-                    } catch { /* paplay unavailable or file missing */ }
-                } else {
-                    global.display.get_sound_player().play_from_theme('bell', 'Hour bell', null);
-                }
+                const player = global.display.get_sound_player();
+                if (customFile)
+                    player.play_from_file(Gio.File.new_for_path(customFile), 'Hour bell', null);
+                else
+                    player.play_from_theme('bell', 'Hour bell', null);
             }
         }
     }
@@ -472,7 +460,7 @@ class LitsycalIndicator extends PanelMenu.Button {
         const calW = this._calWidget.get_width() ||
             SIZE_MIN_WIDTHS[this._settings.get_int('calendar-size')] || 255;
 
-        this._floatingBox = new St.BoxLayout({vertical: true});
+        this._floatingBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL});
         Main.layoutManager.uiGroup.add_child(this._floatingBox);
         this._menuItem.remove_child(this._calWidget);
         this._floatingBox.add_child(this._calWidget);

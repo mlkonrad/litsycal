@@ -30,7 +30,7 @@ import {
 export const LitsycalCalendar = GObject.registerClass(
 class LitsycalCalendar extends St.BoxLayout {
     _init(settings, openSettingsMenu, openCalendar, onPinToggle, onDataChanged, openGoToDate, quit) {
-        super._init({vertical: true, style_class: 'litsycal-calendar'});
+        super._init({orientation: Clutter.Orientation.VERTICAL, style_class: 'litsycal-calendar'});
 
         this._settings         = settings;
         this._openSettingsMenu = openSettingsMenu;
@@ -196,10 +196,10 @@ class LitsycalCalendar extends St.BoxLayout {
         // math (which is based on the overlay's own allocated width).
         this._calBody    = new St.BoxLayout({x_expand: true});
         this._weekGutter = new St.BoxLayout({
-            vertical: true, style_class: 'litsycal-week-gutter',
+            orientation: Clutter.Orientation.VERTICAL, style_class: 'litsycal-week-gutter',
             visible: this._showWeekNumbers,
         });
-        this._calRight   = new St.BoxLayout({vertical: true, x_expand: true});
+        this._calRight   = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
         this._calBody.add_child(this._weekGutter);
         this._calBody.add_child(this._calRight);
 
@@ -213,7 +213,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._agendaSep = new St.Widget({style_class: 'litsycal-sep'});
         this.add_child(this._agendaSep);
 
-        this._agendaBox = new St.BoxLayout({vertical: true, style_class: 'litsycal-agenda', x_expand: true});
+        this._agendaBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, style_class: 'litsycal-agenda', x_expand: true});
         this._agendaScroll = new St.ScrollView({
             style_class: 'litsycal-agenda-scroll',
             x_expand: true,
@@ -397,7 +397,7 @@ class LitsycalCalendar extends St.BoxLayout {
         });
 
         this._gridBox = new St.BoxLayout({
-            vertical: true, style_class: 'litsycal-grid',
+            orientation: Clutter.Orientation.VERTICAL, style_class: 'litsycal-grid',
             x_expand: true, y_expand: true,
         });
 
@@ -593,7 +593,7 @@ class LitsycalCalendar extends St.BoxLayout {
         // not between the spacer above and the first row, which sits flush
         // against the day-name row/grid boundary with no gap, same as
         // _calRight's dayNameRow-to-grid-overlay join.
-        const rows = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'litsycal-week-rows'});
+        const rows = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true, style_class: 'litsycal-week-rows'});
         this._weekGutter.add_child(rows);
 
         const gridRows = this._gridBox.get_children();
@@ -620,7 +620,7 @@ class LitsycalCalendar extends St.BoxLayout {
             x_expand: true, y_expand: true,
             x_align: Clutter.ActorAlign.FILL, y_align: Clutter.ActorAlign.CENTER,
         });
-        const box = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'litsycal-cell-box'});
+        const box = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true, style_class: 'litsycal-cell-box'});
         const lbl = new St.Label({text: String(weekNum), x_expand: true, style_class: 'litsycal-week-num'});
         lbl.clutter_text.set_x_align(Clutter.ActorAlign.CENTER);
         box.add_child(lbl);
@@ -705,7 +705,7 @@ class LitsycalCalendar extends St.BoxLayout {
             btn.add_style_class_name('litsycal-weekend');
 
 
-        const box    = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'litsycal-cell-box'});
+        const box    = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true, style_class: 'litsycal-cell-box'});
         const numLbl = new St.Label({
             text: String(day), x_expand: true,
             // A today-in-overflow cell gets the same accent treatment as a
@@ -781,7 +781,7 @@ class LitsycalCalendar extends St.BoxLayout {
             btn.add_style_class_name('litsycal-weekend');
 
 
-        const box    = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'litsycal-cell-box'});
+        const box    = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true, style_class: 'litsycal-cell-box'});
         const numLbl = new St.Label({text: String(day), x_expand: true, style_class: 'litsycal-cell-num'});
         numLbl.clutter_text.set_x_align(Clutter.ActorAlign.CENTER);
         box.add_child(numLbl);
@@ -901,7 +901,7 @@ class LitsycalCalendar extends St.BoxLayout {
         const evs  = this._calManager.getEventsForDate(ds);
 
         const box = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             style_class: 'popup-menu-content litsycal-cell-tooltip',
             // Painted at (0,0) until the idle-positioning callback below runs
             // a frame later — stay invisible until then so it doesn't flash
@@ -1037,7 +1037,7 @@ class LitsycalCalendar extends St.BoxLayout {
                     // EventInfoPopover's backdrop is up can be traced back to
                     // the event it belongs to — see _eventButtonAt().
                     evtBtn._litsycalEvent = ev;
-                    const evtBox = new St.BoxLayout({vertical: true, x_expand: true});
+                    const evtBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
 
                     const row1 = new St.BoxLayout({style_class: 'litsycal-agenda-row'});
                     const dot  = new St.Widget({style_class: 'litsycal-agenda-pill'});
@@ -1186,7 +1186,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._tzSep = new St.Widget({style_class: 'litsycal-sep', visible: false});
         this.add_child(this._tzSep);
 
-        this._tzBox = new St.BoxLayout({vertical: true, style_class: 'litsycal-tz-box', visible: false});
+        this._tzBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, style_class: 'litsycal-tz-box', visible: false});
         this.add_child(this._tzBox);
 
         this._updateTimeZones();

@@ -14,7 +14,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 // GoToDatePanel instead — a floating box in uiGroup.
 //
 // It does still need its own Main.pushModal grab, though: `this.menu`'s own
-// grab (see the open-state-changed handler below, "Capture phase on the
+// grab (see indicator.js's open-state-changed handler, "Capture phase on the
 // menu's own actor, not the stage") means input while it's active is
 // redelivered starting from ITS grab actor, not the stage — so without a
 // competing grab of our own, a click on one of our rows is swallowed as a
@@ -29,7 +29,7 @@ export class SettingsMenuPanel {
     // with `action: null` renders disabled.
     constructor(anchorActor, items) {
         this._box = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             style_class: 'popup-menu-content litsycal-settings-menu',
             reactive: true,
             // See _showCellTooltip's box for why: hidden via opacity (not

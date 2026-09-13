@@ -42,6 +42,15 @@ longer carries a `version` key — see that file's history for why).
   hidden if the required system location services aren't installed, rather
   than preventing Preferences from opening at all.
 
+### Changed
+
+- The event info popover no longer closes itself after 60 seconds; it stays
+  open until you dismiss it (Escape, clicking outside, or deleting).
+- A custom hourly-beep sound now plays through GNOME Shell's own sound
+  player (the same one the default bell uses) instead of the external
+  `paplay` command, and the Preferences preview plays in-process — neither
+  needs PulseAudio's command-line tools installed any more.
+
 ### Fixed
 
 - Events synced in with an explicit timezone (e.g. a calendar invite from

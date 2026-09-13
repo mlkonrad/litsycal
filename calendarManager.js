@@ -4,13 +4,13 @@ import ICalGLib    from 'gi://ICalGLib';
 import GLib        from 'gi://GLib';
 import Gio         from 'gi://Gio';
 
+import {MAX_EXTRA_WEEK_ROWS} from './helpers.js';
+
 // EDS calendar backends report colour in whatever format they like — hex,
-// "rgb(r,g,b)"/"rgba(r,g,b,a)" (Google's backend switched to this after a
-// colour change), or occasionally a named CSS colour. Normalizing to hex
-// here, once, means every consumer downstream (day-cell dots, agenda pills,
-// the event dialog's calendar picker, prefs.js's row) gets one predictable
-// format instead of each needing to tolerate every backend's quirks — see
-// the Pango-markup title that silently went blank on "rgb(...)" before this.
+// "rgb(r,g,b)"/"rgba(r,g,b,a)" (Google's backend, after a colour change), or
+// occasionally a named CSS colour. Normalizing to hex here, once, gives every
+// consumer downstream (day-cell dots, agenda pills, the event dialog's
+// calendar picker) one predictable format.
 function normalizeColor(color, fallback = '#3584e4') {
     if (!color)
         return fallback;
@@ -329,12 +329,10 @@ export class CalendarManager {
     // Grid overflow buffer: the calendar can show up to 6 leading days from
     // the previous month (a partial first row) and, on the trailing side, up
     // to 6 days filling a partial last row plus MAX_EXTRA_WEEK_ROWS
-    // dragged-in extra weeks (see extension.js's resize handle and
-    // schemas/…gschema.xml's extra-week-rows max — keep these in sync).
+    // dragged-in extra weeks (see calendarWidget.js's resize handle).
     // Fetching only makes sense in whole-day units, so this pads a bit past
     // the exact worst case rather than tracking it to the day.
     _rangeSexp(year, month) {
-        const MAX_EXTRA_WEEK_ROWS   = 5;
         const LEADING_OVERFLOW_DAYS  = 7;
         const TRAILING_OVERFLOW_DAYS = 7 + MAX_EXTRA_WEEK_ROWS * 7;
 
@@ -646,7 +644,7 @@ export class CalendarManager {
     // day it spans, not just its start day. Mirrors Itsycal's EventCenter,
     // which walks each event's date range and adds it to every day's
     // bucket rather than just the start date. Public because the hover
-    // highlight (extension.js) needs the identical range.
+    // highlight (calendarWidget.js) needs the identical range.
     datesSpanned(ev) {
         if (!ev.endDate || ev.endDate === ev.date)
             return [ev.date];
@@ -801,7 +799,7 @@ export class CalendarManager {
     // DTEND, DESCRIPTION, LOCATION, URL, RRULE, VALARMs) on the live component,
     // leaving everything else (ORGANIZER, ATTENDEE, SEQUENCE, conferencing
     // data, ...) untouched. Rebuilding the whole VEVENT from only our fields
-    // and PUTting that as a full replacement used to silently drop those other
+    // and PUTting that as a full replacement would drop those other
     // properties, which Google's CalDAV backend rejects for meeting events
     // with a 409 (Conflict) — it won't accept a modification that strips a
     // meeting's organizer/attendees/conferencing structure.

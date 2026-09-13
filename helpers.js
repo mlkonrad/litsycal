@@ -330,8 +330,7 @@ export function formatRelativeOffset(diffSeconds) {
 
 // Builds one "city ..... time (+6h)" row for a world-clock listing — shared
 // by calendarWidget.js's own world-clock section and eventDialog.js's
-// per-event time-zone preview, which otherwise had this markup duplicated
-// verbatim. A dotted leader between city and time (a clipped run of dots
+// per-event time-zone preview. A dotted leader between city and time (a clipped run of dots
 // rather than a CSS border, since St's theme engine has no track record of
 // rendering dashed/dotted borders anywhere in GNOME Shell's own stylesheets).
 /**

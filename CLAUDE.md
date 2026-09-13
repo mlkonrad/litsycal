@@ -266,7 +266,7 @@ new code should keep meeting these — checked clean as of 2026-09-07:
   original MIT notice (Sanjay Madan, 2016 — litsycal ports/adapts parts of
   its design and behavior, e.g. `_makeOverflow`'s `MoCalCell` comment and
   `_updateAgendaMaxHeight`'s `agendaMaxPossibleHeight` comment in
-  extension.js, so MIT's "include the original notice" condition applies),
+  calendarWidget.js, so MIT's "include the original notice" condition applies),
   and adds an explicit grant permitting extensions.gnome.org/GNOME Foundation
   to distribute under GPL-2.0-or-later-compatible terms — the pattern the
   guide describes for permissively-licensed extension code. Keep all three

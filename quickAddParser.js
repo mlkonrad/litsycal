@@ -1,12 +1,11 @@
 import GLib from 'gi://GLib';
 
-// Own domain-qualified gettext wrappers (matching eventDialog.js's own local
-// `_`/`ngettext`) rather than importing from extension.js, and its own tiny
-// dateStr (matching eventDialog.js's own local copy, same reason) rather
-// than importing helpers.js, which itself imports gettext from a
-// Shell-process-only resource path. This module has no Shell-process
-// dependency at all and stays that way on purpose, so it can be
-// unit-tested with plain `gjs`, no running Shell required.
+// Own domain-qualified gettext wrappers rather than importing from
+// extension.js, and its own tiny dateStr rather than importing helpers.js
+// (which imports gettext from a Shell-process-only resource path). This
+// module has no Shell-process dependency at all and stays that way on
+// purpose, so it can be unit-tested with plain `gjs`, no running Shell
+// required.
 function dateStr(dt) {
     return `${dt.get_year()}-${String(dt.get_month()).padStart(2, '0')}-${String(dt.get_day_of_month()).padStart(2, '0')}`;
 }
@@ -83,10 +82,8 @@ function extractDate(text, now) {
         const hit = stripWord(text, wd.full) ?? stripWord(text, wd.abbr);
         if (!hit)
             continue;
-        // Drop an optional filler "next" left over next to the weekday —
-        // it doesn't change the meaning (see the comment above weekday
-        // matching in the module doc), it's just filler either found before
-        // or after where the weekday used to be.
+        // Drop an optional "next" before or after the weekday — it doesn't
+        // change which date is meant.
         const withoutNext = stripWord(hit.rest, nextWord);
         return {date: dateStr(nextOccurrenceOf(wd.dow, now)), rest: withoutNext ? withoutNext.rest : hit.rest};
     }
@@ -148,7 +145,7 @@ function extractTime(text, atWord) {
 }
 
 // Pulls a trailing "<location marker> <place>" clause out of `text` — the
-// marker is deliberately its own translation (see the C_ comment up top),
+// marker is deliberately its own translation (see the pgettext comment up top),
 // independent of the time preposition above. Takes the LAST match so a
 // location clause always wins over an earlier, coincidental use of the same
 // word elsewhere in the title. Returns {location, rest} or null.

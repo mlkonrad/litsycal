@@ -62,7 +62,7 @@
 }
 
 /* ── Grid ────────────────────────────────────────────────────────────────── */
-/* spacing must match SPACING constant in _drawOverlay() in extension.js */
+/* spacing must match the SPACING constant in OutlinePainter.paint() (outlinePainter.js) */
 .litsycal-grid {
     spacing: 4px;
 }
@@ -191,7 +191,7 @@
 }
 
 /* Event row: pill + title */
-/* Clickable event wrapper — opens GNOME Calendar edit dialog */
+/* Clickable event row — opens the event info popover */
 .litsycal-agenda-event-btn {
     border: none;
     background: none;
@@ -207,7 +207,7 @@
     padding: 2px 0 0 0;
 }
 
-/* Coloured pill indicator (replaces text dot) */
+/* Coloured pill indicator */
 .litsycal-agenda-pill {
     width: 8px;
     height: 8px;
@@ -469,7 +469,7 @@
 .litsycal-font-sm { font-size: 0.90em; }
 .litsycal-font-lg { font-size: 1.12em; }
 
-/* ── Calendar widget background (replaces inline style from JS) ──────────────── */
+/* ── Calendar widget background──────────────── */
 .litsycal-theme-dark  { background-color: #1e1e1e; border-radius: 8px; }
 .litsycal-theme-light { background-color: #f2f0ed; border-radius: 8px; }
 
@@ -491,7 +491,6 @@
 .litsycal-theme-light .litsycal-add-btn          { color: rgba(0, 0, 0, 0.55); }
 .litsycal-theme-light .litsycal-agenda-location-icon { color: rgba(0, 0, 0, 0.55); }
 .litsycal-theme-light .litsycal-day-name         { color: #1a1a1a; }
-.litsycal-theme-light .litsycal-agenda-date      { color: #1a1a1a; }
 .litsycal-theme-light .litsycal-agenda-empty     { color: #1a1a1a; }
 .litsycal-theme-light .litsycal-agenda-title     { color: #1a1a1a; }
 .litsycal-theme-light .litsycal-agenda-time      { color: rgba(0,0,0,0.50); }
@@ -514,7 +513,6 @@
 .litsycal-theme-dark .litsycal-add-btn           { color: rgba(255, 255, 255, 0.55); }
 .litsycal-theme-dark .litsycal-agenda-location-icon { color: rgba(255, 255, 255, 0.55); }
 .litsycal-theme-dark .litsycal-day-name          { color: white; }
-.litsycal-theme-dark .litsycal-agenda-date       { color: white; }
 .litsycal-theme-dark .litsycal-agenda-empty      { color: white; }
 .litsycal-theme-dark .litsycal-agenda-title      { color: white; }
 .litsycal-theme-dark .litsycal-agenda-time       { color: rgba(255,255,255,0.50); }
@@ -572,80 +570,6 @@
 }
 .litsycal-add-btn:hover { opacity: 1.0; }
 
-/* ── Create event form ───────────────────────────────────────────────────── */
-.litsycal-create-form {
-    padding: 4px 2px 2px 2px;
-    spacing: 6px;
-}
-
-.litsycal-create-entry {
-    border-radius: 6px;
-    padding: 4px 8px;
-    font-size: 0.95em;
-}
-
-.litsycal-create-row {
-    spacing: 6px;
-}
-
-.litsycal-create-lbl {
-    font-size: 0.88em;
-    opacity: 0.7;
-}
-
-.litsycal-create-time {
-    min-width: 36px;
-    max-width: 42px;
-    border-radius: 6px;
-    padding: 2px 4px;
-    font-size: 0.92em;
-    text-align: center;
-}
-
-.litsycal-create-toggle {
-    border-radius: 6px;
-    padding: 2px 8px;
-    font-size: 0.86em;
-    border: none;
-}
-.litsycal-create-toggle-on  { background-color: rgba(128,128,128,0.30); }
-.litsycal-create-toggle-off { background-color: rgba(128,128,128,0.10); }
-
-.litsycal-create-cal-btn {
-    border-radius: 6px;
-    padding: 2px 6px;
-    border: none;
-    background-color: rgba(128,128,128,0.15);
-}
-.litsycal-create-cal-btn:hover { background-color: rgba(128,128,128,0.25); }
-
-.litsycal-create-cal-lbl { font-size: 0.86em; }
-
-.litsycal-create-error {
-    font-size: 0.84em;
-    color: #e62d42;
-}
-
-.litsycal-create-cancel {
-    border-radius: 6px;
-    padding: 3px 10px;
-    border: none;
-    background-color: rgba(128,128,128,0.15);
-    font-size: 0.88em;
-}
-.litsycal-create-cancel:hover { background-color: rgba(128,128,128,0.25); }
-
-.litsycal-create-save {
-    border-radius: 6px;
-    padding: 3px 10px;
-    border: none;
-    font-size: 0.88em;
-    font-weight: bold;
-    background-color: #3584e4;
-    color: white;
-}
-.litsycal-create-save:hover { background-color: #2870c2; }
-
 /* ── Event panel (floating, non-modal) ───────────────────────────────────── */
 /* Background/text come from popup-menu-content (shell theme). */
 .litsycal-event-panel {
@@ -666,8 +590,8 @@
 
 /* Fixed, not min/max, same reasoning as litsycal-event-panel above — a
    free-text one-liner has no natural length limit the way GoToDatePanel's
-   yyyy-mm-dd entry does, so without a fixed width here the panel just grew
-   to fit however much the entry text needed instead of scrolling within
+   yyyy-mm-dd entry does, so without a fixed width here the panel would grow
+   to fit however much the entry text needs instead of scrolling within
    itself. */
 .litsycal-quickadd-panel {
     padding: 12px;
@@ -679,8 +603,7 @@
 /* Fixed width, same reasoning as litsycal-quickadd-panel above. The results
    scroll view separately caps its own height (max-height, not min/max on
    the panel) so a large result set scrolls within the panel instead of
-   growing it downward off-screen — the same class of bug as the width one,
-   just on the other axis. */
+   growing it downward off-screen. */
 .litsycal-search-panel {
     padding: 12px;
     spacing: 6px;

@@ -42,6 +42,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         // About switcher from the header down to a bottom bar.
         window.set_default_size(600, 660);
         const settings = this.getSettings();
+        const settingsHandlerIds = [];
 
         // ════════════════════════════════════════════════════════════════════
         // GENERAL PAGE
@@ -147,11 +148,9 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         });
 
         recordBtn.connect('clicked', () => {
-            const dlg = new Adw.MessageDialog({
-                heading:       _('Record Shortcut'),
-                body:          _('Press the key combination you want to use.\nEsc = cancel  ·  Backspace = clear.'),
-                transient_for: window,
-                modal:         true,
+            const dlg = new Adw.AlertDialog({
+                heading: _('Record Shortcut'),
+                body:    _('Press the key combination you want to use.\nEsc = cancel  ·  Backspace = clear.'),
             });
 
             const hint = new Gtk.ShortcutLabel({
@@ -162,7 +161,9 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             dlg.set_extra_child(hint);
             dlg.add_response('cancel', _('Cancel'));
 
-            const ctrl = new Gtk.EventControllerKey();
+            // Capture phase, so the recorder sees every key (Space, Return,
+            // ...) before the dialog's own Cancel button can act on it.
+            const ctrl = new Gtk.EventControllerKey({propagation_phase: Gtk.PropagationPhase.CAPTURE});
             ctrl.connect('key-pressed', (_c, keyval, _code, state) => {
                 if (keyval === Gdk.KEY_Escape) {
                     dlg.close();
@@ -193,7 +194,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                 return Gdk.EVENT_STOP;
             });
             dlg.add_controller(ctrl);
-            dlg.present();
+            dlg.present(window);
         });
 
         kbRow.add_suffix(recordBtn);
@@ -209,16 +210,8 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             subtitle: _('Play a sound at the start of every hour'),
         });
 
-        const beepSwitch = new Gtk.Switch({
-            valign: Gtk.Align.CENTER,
-            active: settings.get_boolean('beep-on-hour'),
-        });
-        beepSwitch.connect('notify::active', () => {
-            settings.set_boolean('beep-on-hour', beepSwitch.get_active());
-        });
-        settings.connect('changed::beep-on-hour', () => {
-            beepSwitch.set_active(settings.get_boolean('beep-on-hour'));
-        });
+        const beepSwitch = new Gtk.Switch({valign: Gtk.Align.CENTER});
+        settings.bind('beep-on-hour', beepSwitch, 'active', Gio.SettingsBindFlags.DEFAULT);
 
         const speakerBtn = new Gtk.Button({
             icon_name:    'audio-volume-high-symbolic',
@@ -226,20 +219,14 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             valign:       Gtk.Align.CENTER,
             tooltip_text: _('Preview the sound'),
         });
+        // Held outside the handler so playback isn't garbage-collected
+        // partway through; a new click restarts it.
+        let previewMedia = null;
         speakerBtn.connect('clicked', () => {
-            const customFile = settings.get_string('hour-sound-file');
-            const candidates = customFile
-                ? [['paplay', customFile]]
-                : [
-                    ['paplay', '/usr/share/sounds/freedesktop/stereo/bell.oga'],
-                    ['canberra-gtk-play', '-i', 'bell'],
-                ];
-            for (const argv of candidates) {
-                try {
-                    Gio.Subprocess.new(argv, Gio.SubprocessFlags.NONE);
-                    break;
-                } catch { /* try next */ }
-            }
+            previewMedia?.pause();
+            previewMedia = Gtk.MediaFile.new_for_filename(
+                settings.get_string('hour-sound-file') || '/usr/share/sounds/freedesktop/stereo/bell.oga');
+            previewMedia.play();
         });
 
         beepRow.add_suffix(beepSwitch);
@@ -261,9 +248,9 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             css_classes: ['dim-label'],
             valign:      Gtk.Align.CENTER,
         });
-        settings.connect('changed::hour-sound-file', () => {
+        settingsHandlerIds.push(settings.connect('changed::hour-sound-file', () => {
             soundFileLabel.set_label(basename(settings.get_string('hour-sound-file')));
-        });
+        }));
 
         const resetBtn = new Gtk.Button({
             icon_name:    'edit-clear-symbolic',
@@ -272,9 +259,9 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             tooltip_text: _('Reset to default sound'),
             visible:      !!settings.get_string('hour-sound-file'),
         });
-        settings.connect('changed::hour-sound-file', () => {
+        settingsHandlerIds.push(settings.connect('changed::hour-sound-file', () => {
             resetBtn.set_visible(!!settings.get_string('hour-sound-file'));
-        });
+        }));
         resetBtn.connect('clicked', () => settings.set_string('hour-sound-file', ''));
 
         const chooseBtn = new Gtk.Button({
@@ -387,7 +374,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             }
         };
         rebuildZoneRows();
-        settings.connect('changed::timezones', rebuildZoneRows);
+        settingsHandlerIds.push(settings.connect('changed::timezones', rebuildZoneRows));
 
         addBtn.connect('clicked', () => {
             const i = addRow.get_selected();
@@ -516,11 +503,6 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         homeRow.add_suffix(detectBtn);
         homeGroup.add(homeRow);
 
-        window.connect('close-request', () => {
-            detectCancellable?.cancel();
-            return false;
-        });
-
         // ════════════════════════════════════════════════════════════════════
         // APPEARANCE PAGE  (options that were previously in "General")
         // ════════════════════════════════════════════════════════════════════
@@ -617,7 +599,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             tooltip_text: _('Pattern help'),
         });
         helpBtn.connect('clicked', () => {
-            const dlg = new Adw.MessageDialog({
+            const dlg = new Adw.AlertDialog({
                 heading:       _('Datetime Pattern'),
                 body:          _('Uses strftime format codes:\n\n' +
                                '%d  — Day number (01–31)\n' +
@@ -636,12 +618,10 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                                '  %H:%M       → 13:05\n' +
                                '  %-I:%M%P    → 1:05pm\n' +
                                '  %d %H:%M    → 03 13:05'),
-                transient_for: window,
-                modal:         true,
             });
             dlg.add_response('ok', _('OK'));
             dlg.set_default_response('ok');
-            dlg.present();
+            dlg.present(window);
         });
         patBox.append(patEntry);
         patBox.append(helpBtn);
@@ -740,9 +720,9 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             if (i < DOT_COLOR_IDS.length)
                 settings.set_string('dot-color-mode', DOT_COLOR_IDS[i]);
         });
-        settings.connect('changed::show-event-dots', () => {
+        settingsHandlerIds.push(settings.connect('changed::show-event-dots', () => {
             dotColorRow.visible = settings.get_boolean('show-event-dots');
-        });
+        }));
         dotsGroup.add(dotColorRow);
 
         // ── Agenda ────────────────────────────────────────────────────────
@@ -824,7 +804,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             themeRow.subtitle = `${_('System follows your GNOME appearance setting')} (${_('currently')}: ${state})`;
         };
         updateThemeSubtitle();
-        iface.connect('changed::color-scheme', updateThemeSubtitle);
+        const ifaceHandlerId = iface.connect('changed::color-scheme', updateThemeSubtitle);
 
         themeRow.connect('notify::selected', () => {
             const i = themeRow.get_selected();
@@ -914,7 +894,16 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         makeLinkRow(_('Report an Issue'), _('Bug reports and feature requests'),
             'https://github.com/mlkonrad/litsycal/issues');
 
-        // The settings menu (extension.js) sets this right before calling
+        window.connect('close-request', () => {
+            detectCancellable?.cancel();
+            previewMedia?.pause();
+            for (const id of settingsHandlerIds)
+                settings.disconnect(id);
+            iface.disconnect(ifaceHandlerId);
+            return false;
+        });
+
+        // The settings menu (indicator.js) sets this right before calling
         // openPreferences(), so the window opens on the tab the user actually
         // asked for. Reset it back to 'general' immediately so an unrelated
         // direct open (e.g. `gnome-extensions prefs`) doesn't inherit a stale tab.
@@ -975,33 +964,20 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                     });
 
                     // Backends report colour in whatever format they like (hex,
-                    // "rgb(...)", named, ...) — Gdk.RGBA.parse() accepts all of
-                    // those, unlike embedding the raw string in Pango markup
-                    // (only hex/named there), which silently blanked the whole
-                    // row's title if a backend ever handed back "rgb(...)".
-                    if (color) {
-                        const rgba = new Gdk.RGBA();
-                        if (rgba.parse(color)) {
-                            // Gdk.RGBA.to_string() renders "rgb(...)", not hex —
-                            // convert explicitly so this normalizes the same way
-                            // CalendarManager does on the Shell-process side.
-                            const toHex = v => Math.round(Math.max(0, Math.min(1, v)) * 255)
-                                .toString(16).padStart(2, '0');
-                            const hex = `#${toHex(rgba.red)}${toHex(rgba.green)}${toHex(rgba.blue)}`;
-
-                            const dot = new Gtk.Box({
-                                width_request: 10, height_request: 10,
-                                valign: Gtk.Align.CENTER,
-                                css_classes: ['litsycal-prefs-cal-dot'],
-                            });
-                            const provider = new Gtk.CssProvider();
-                            provider.load_from_string(
-                                `.litsycal-prefs-cal-dot { background-color: ${hex}; border-radius: 50%; }`
-                            );
-                            dot.get_style_context()
-                                .add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
-                            row.add_prefix(dot);
-                        }
+                    // "rgb(...)", named, ...); Gdk.RGBA.parse() accepts all of them.
+                    const rgba = new Gdk.RGBA();
+                    if (color && rgba.parse(color)) {
+                        const dot = new Gtk.DrawingArea({
+                            content_width: 10, content_height: 10,
+                            valign: Gtk.Align.CENTER,
+                        });
+                        dot.set_draw_func((_area, cr, width, height) => {
+                            cr.setSourceRGBA(rgba.red, rgba.green, rgba.blue, rgba.alpha);
+                            cr.arc(width / 2, height / 2, Math.min(width, height) / 2, 0, 2 * Math.PI);
+                            cr.fill();
+                            cr.$dispose();
+                        });
+                        row.add_prefix(dot);
                     }
 
                     row.connect('notify::active', () => {

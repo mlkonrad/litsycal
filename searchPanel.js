@@ -1,5 +1,6 @@
 import St      from 'gi://St';
 import GLib    from 'gi://GLib';
+import Clutter from 'gi://Clutter';
 import Pango   from 'gi://Pango';
 
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -29,10 +30,9 @@ function shortWhen(ev) {
 
 // ── Event search (Ctrl+F) ────────────────────────────────────────────────────
 //
-// Floating panel — same Main.pushModal/Escape/click-outside pattern as
-// GoToDatePanel/QuickAddPanel/SettingsMenuPanel (see SettingsMenuPanel's own
-// comment for why a competing grab is needed here too, since this can open
-// while the calendar dropdown still holds its own). Debounces typing before
+// A FloatingModalPanel (see floatingPanel.js for its Main.pushModal/Escape/
+// click-outside handling, and settingsMenuPanel.js for why a competing grab
+// is needed while the calendar dropdown holds its own). Debounces typing before
 // calling CalendarManager.searchEvents(), which queries every connected
 // calendar directly rather than filtering whatever month happens to be
 // cached for the grid — see that method's own comment for why.
@@ -70,7 +70,7 @@ export class SearchPanel extends FloatingModalPanel {
         box.add_child(this._entry);
 
         this._resultsBox = new St.BoxLayout({
-            vertical: true, x_expand: true, style_class: 'litsycal-search-results',
+            orientation: Clutter.Orientation.VERTICAL, x_expand: true, style_class: 'litsycal-search-results',
         });
         this._resultsScroll = new St.ScrollView({
             style_class: 'litsycal-search-results-scroll', x_expand: true,
@@ -120,7 +120,7 @@ export class SearchPanel extends FloatingModalPanel {
             const btn = new St.Button({
                 style_class: 'litsycal-search-result', x_expand: true, can_focus: true,
             });
-            const row = new St.BoxLayout({vertical: true, x_expand: true});
+            const row = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
 
             const titleRow = new St.BoxLayout({style_class: 'litsycal-panel-icon-row', x_expand: true});
             const dot = new St.Widget({style_class: 'litsycal-panel-dot'});

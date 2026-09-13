@@ -23,11 +23,11 @@ import {
 // now opens instead of the full edit form. Built the same hand-rolled way as
 // EventPanel/SettingsMenuPanel (own Main.pushModal grab, own click-outside/
 // Escape handling) for the same reason: it opens while the calendar dropdown
-// (a PopupMenu) still holds its own grab — see SettingsMenuPanel below for the
+// (a PopupMenu) still holds its own grab — see settingsMenuPanel.js for the
 // full explanation of why that needs a competing grab here too.
 export class EventInfoPopover {
     // onClose is called exactly once, however the popover ends up closing —
-    // deleted, dismissed via Escape, or force-closed by the watchdog below.
+    // deleted, dismissed via Escape or an outside click, or closed by its owner.
     // onOutsideClick, if given, is called (after the popover has already
     // closed) as (actorUnderClick, thisPopoversEvent) with whatever actor
     // was actually under an outside click and the event this popover was
@@ -71,7 +71,7 @@ export class EventInfoPopover {
         // widget does; fontSize 1 (Medium) needs no extra class.
         const fontSizeCls = FONT_SIZE_CLASSES[fontSize] ?? null;
         this._box = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             style_class: `popup-menu-content litsycal-info-popover${
                 fontSizeCls ? ` ${fontSizeCls}` : ''}`,
             reactive: true,
@@ -85,26 +85,6 @@ export class EventInfoPopover {
         // a competing grab of its own rather than relying on the calendar
         // dropdown's.
         this._grab = Main.pushModal(this._root, {actionMode: Shell.ActionMode.POPUP});
-
-        // Safety net: unconditionally force this._grab to release after a
-        // while no matter what, regardless of whether Escape/backdrop-click/
-        // delete ever fire correctly. This popover held a stuck
-        // Main.pushModal() grab and locked up all desktop input twice during
-        // development, each time requiring a hard reset — click-outside and
-        // Escape/Backspace/Delete are now on a proven-reliable path (see
-        // this._btnKeyId/this._backdrop below), but this stays in as cheap
-        // insurance against ever regressing back to that failure mode. Long
-        // enough that it never fires in normal use (reading a popover for
-        // over a minute shouldn't auto-dismiss it).
-        this._watchdogId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => {
-            // Don't force through a live delete confirmation — it has its
-            // own, separately-scoped grab/close logic; just check back later.
-            if (this._closeConfirmOverlay)
-                return GLib.SOURCE_CONTINUE;
-            this._watchdogId = null;
-            this.close();
-            return GLib.SOURCE_REMOVE;
-        });
 
         // Defer positioning until after layout pass so actor size is known.
         this._positionIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
@@ -126,8 +106,7 @@ export class EventInfoPopover {
         // both handlers below are connected that way.
 
         // Escape/Backspace/Delete: a plain 'key-press-event' on this._deleteBtn
-        // itself, which holds real key focus (grabbed above) — not captured-
-        // event on an ancestor, which the instrumentation showed never fires.
+        // itself, which holds real key focus (grabbed above).
         this._btnKeyId = this._deleteBtn.connect('key-press-event', (_actor, event) => {
             if (this._closeConfirmOverlay)
                 return Clutter.EVENT_PROPAGATE; // let it handle its own keys
@@ -415,10 +394,6 @@ export class EventInfoPopover {
     }
 
     close() {
-        if (this._watchdogId) {
-            GLib.source_remove(this._watchdogId);
-            this._watchdogId = null;
-        }
         if (this._positionIdleId) {
             GLib.source_remove(this._positionIdleId);
             this._positionIdleId = null;

@@ -6,11 +6,10 @@ import Shell   from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 // Shared base for GoToDatePanel, QuickAddPanel, and SearchPanel — three
-// small floating text-entry panels that all opened the same way: their own
+// small floating text-entry panels that open the same way: their own
 // Main.pushModal grab, Escape/click-outside via a captured-event listener,
 // the same anchor-relative _position() math, and the same disconnect/
-// popModal/destroy teardown in _finish(). Extracted here after they'd
-// accumulated to three near-identical ~40-line copies of that boilerplate.
+// popModal/destroy teardown in _finish().
 //
 // EventInfoPopover and SettingsMenuPanel are NOT based on this: they have
 // enough of their own shape (an arrow actor, a focus-navigable row list)
@@ -30,7 +29,7 @@ export class FloatingModalPanel {
         this._defaultHeight = defaultHeight;
 
         this._box = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             style_class: `popup-menu-content ${styleClass}`,
             reactive: true,
             // Hidden via opacity (not `visible`, which the modal grab below

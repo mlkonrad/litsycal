@@ -58,9 +58,13 @@ Clicking an event in the agenda opens a small read-only popover with its details
 | Key | Action |
 | --- | --- |
 | `Esc` | Close the popover |
-| `Backspace` / `Delete` | Delete the event (repeating events ask you to confirm first, same as the edit dialog's own Delete button) |
+| `Backspace` / `Delete` | Delete the event (asks you to confirm first, same as the edit dialog's own Delete button) |
 
 Clicking anywhere outside the popover closes it; clicking a different event closes this one and opens that event's popover in the same click. Editing an event is one step further away now — right-click the event and choose **Edit…**.
+
+### Time zones
+
+Add time zones under **Preferences → General → Time Zones** to show live clocks between the agenda and the footer. To also show how far ahead or behind each one is (e.g. `São Paulo ........ 14:32 (-6h)`), set **Home Timezone** in the same page — pick your home city, or use **Detect my location**. The offset labels stay hidden while Home Timezone is unset; it's deliberately a separate setting rather than your system's timezone, so the offsets stay correct while you travel.
 
 ## Installation
 

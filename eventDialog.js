@@ -6,33 +6,16 @@ import Gio     from 'gi://Gio';
 import Shell   from 'gi://Shell';
 import Pango   from 'gi://Pango';
 
+import {gettext as _, ngettext} from 'resource:///org/gnome/shell/extensions/extension.js';
+
 import {parseQuickAdd}    from './quickAddParser.js';
 import {FloatingModalPanel} from './floatingPanel.js';
-import {isLikelyUrl, formatRelativeOffset, makeTzRow} from './helpers.js';
-
-const _ = str => GLib.dgettext('litsycal@mlkonrad.github.com', str);
+import {
+    capitalize, dateStr, daysInMonth, displayYear, formatRelativeOffset, isLikelyUrl, makeTzRow,
+} from './helpers.js';
 
 function pad(n) {
     return String(n).padStart(2, '0');
-}
-function dateStr(dt) {
-    return `${dt.get_year()}-${pad(dt.get_month())}-${pad(dt.get_day_of_month())}`;
-}
-function capitalize(s) {
-    return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-}
-function daysInMonth(year, month) {
-    const nm = month === 12 ? 1 : month + 1, ny = month === 12 ? year + 1 : year;
-    return GLib.DateTime.new_local(ny, nm, 1, 0, 0, 0).add_days(-1).get_day_of_month();
-}
-// Buddhist Era year = Gregorian + 543 — display only; every date value that
-// flows into save/parse logic below stays Gregorian (see _makeDateField).
-const BUDDHIST_ERA_OFFSET = 543;
-function displayYear(gregorianYear, calendarSystem) {
-    return calendarSystem === 'buddhist' ? gregorianYear + BUDDHIST_ERA_OFFSET : gregorianYear;
-}
-function ngettext(one, many, n) {
-    return GLib.dngettext('litsycal@mlkonrad.github.com', one, many, n);
 }
 
 // Repeat presets are keyed "FREQ:INTERVAL". An existing event whose recurrence
@@ -115,7 +98,7 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
     const isRecurring = !!(event.recurrence || event.recurrenceId);
 
     const overlay = new St.BoxLayout({
-        vertical: true,
+        orientation: Clutter.Orientation.VERTICAL,
         style_class: 'popup-menu-content litsycal-confirm-panel',
         reactive: true,
         // Hidden via opacity until the idle-positioning callback below
@@ -168,14 +151,11 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
 
     // Plain St widgets have no built-in Tab-traversal. A capture-phase
     // listener on the overlay (or on Main.pushModal's grabbed actor itself)
-    // is NOT reliable here — this overlay's grab nests inside a caller's own
-    // competing grab (EventPanel's or the info popover's), and this
-    // codebase has confirmed by direct instrumentation elsewhere (see
-    // eventInfoPopover.js's this._btnKeyId comment) that capture-phase
-    // events can silently fail to reach anything under a nested/competing
-    // grab. The one path proven reliable there — a bubble-phase
-    // 'key-press-event' on the specific actor currently holding key focus —
-    // is used here too.
+    // isn't reliable here: this overlay's grab nests inside a caller's own
+    // competing grab (EventPanel's or the info popover's), where
+    // capture-phase events don't reach anything (see eventInfoPopover.js's
+    // this._btnKeyId comment). A bubble-phase 'key-press-event' on the actor
+    // holding key focus does, so that's what's used here.
     buttons.forEach((b, i) => {
         b.connect('key-press-event', (_actor, keyEvent) => {
             const sym = keyEvent.get_key_symbol();
@@ -235,10 +215,7 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
 export class EventPanel {
     // onClose is called exactly once, however the panel ends up closing —
     // saved, deleted, cancelled via Escape, or dismissed by clicking
-    // outside. Callers rely on this to know the panel is gone (e.g. to null
-    // out their own reference to it); wiring it to fire only on a
-    // successful save left that reference stuck pointing at a dead panel
-    // after every plain cancel.
+    // outside. Callers rely on this to null out their own reference to it.
     // draft (title/date/time/location, all optional) prefills a NEW event
     // from quick-add (see QuickAddPanel/quickAddParser.js) — ignored when
     // editing an existing one, which already has its own values.
@@ -261,7 +238,7 @@ export class EventPanel {
 
         // Use popup-menu-content so background/text follow the user's shell theme
         this._box = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             style_class: 'popup-menu-content litsycal-event-panel',
             reactive: true,
             // Hidden via opacity until _position() below places it, so it
@@ -293,8 +270,8 @@ export class EventPanel {
         // close-on-Escape handling sits upstream of a plain global.stage
         // listener in that delivery chain, so it was consuming Escape and
         // closing the whole calendar dropdown before our own key-press-event
-        // handler below ever saw it. See SettingsMenuPanel in extension.js
-        // for the full explanation — same mechanism, same fix.
+        // handler below ever saw it. See settingsMenuPanel.js for the full
+        // explanation — same mechanism, same fix.
         this._grab = Main.pushModal(this._root, {actionMode: Shell.ActionMode.POPUP});
 
         // Defer positioning until after layout pass so actor size is known
@@ -469,7 +446,7 @@ export class EventPanel {
         box.add_child(this._titleEntry);
 
         // ── Calendar picker ────────────────────────────────────────────────────
-        const calBox = new St.BoxLayout({vertical: true, x_expand: true});
+        const calBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
         this._calPickerBtn = new St.Button({
             style_class: 'litsycal-panel-cal-btn',
             x_expand: true,
@@ -479,7 +456,7 @@ export class EventPanel {
 
         if (!ev) {
             this._calDropdown = new St.BoxLayout({
-                vertical: true,
+                orientation: Clutter.Orientation.VERTICAL,
                 style_class: 'popup-menu-content litsycal-panel-cal-dropdown',
                 visible: false,
             });
@@ -663,9 +640,9 @@ export class EventPanel {
         this._notesEntry.clutter_text.set_activatable(false);
         this._notesEntry.clutter_text.set_line_wrap(true);
         // Default word-wrap has no break point in a run of text with no
-        // spaces, so it just requests a wider box instead of wrapping —
-        // this is what was stretching the whole dialog. WORD_CHAR falls
-        // back to breaking mid-word once a line has nowhere else to wrap.
+        // spaces, so it would request a wider box (stretching the whole
+        // dialog) instead of wrapping. WORD_CHAR falls back to breaking
+        // mid-word once a line has nowhere else to wrap.
         this._notesEntry.clutter_text.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR);
         if (ev?.notes)
             this._notesEntry.set_text(ev.notes);
@@ -673,7 +650,7 @@ export class EventPanel {
         // St.ScrollView.set_child() requires an St.Scrollable child, which
         // St.Entry doesn't implement (only container types like BoxLayout
         // do) — go through a plain wrapper, same as the time picker's list.
-        const notesInner = new St.BoxLayout({vertical: true, x_expand: true});
+        const notesInner = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
         notesInner.add_child(this._notesEntry);
         notesScroll.set_child(notesInner);
         notesRow.add_child(notesScroll);
@@ -734,11 +711,10 @@ export class EventPanel {
     }
 
     // One hour after a given 'HH:MM' time string, minutes reset to :00 —
-    // same rounding _nextHour() above already applies to "now". Used to
-    // derive an end time from a quick-add draft's parsed start time,
-    // instead of _nextHour() itself, which is relative to the current wall
-    // clock and not the draft — e.g. quick-adding "3pm" at 10am used to
-    // prefill start=15:00, end=11:00 (before the start).
+    // same rounding _nextHour() above applies to "now". Derives a quick-add
+    // draft's end time from its parsed start time; _nextHour() is relative
+    // to the current wall clock, so quick-adding "3pm" at 10am would
+    // otherwise end at 11:00, before the start.
     _hourAfter(timeStr) {
         const [h] = timeStr.split(':').map(Number);
         return `${pad((h + 1) % 24)}:00`;
@@ -793,9 +769,9 @@ export class EventPanel {
     // world-clock section reads) — lets you see what time a remote
     // invitee would see without doing the math yourself.
     _buildTzPreview() {
-        this._tzPreviewBox = new St.BoxLayout({vertical: true, visible: false});
+        this._tzPreviewBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, visible: false});
         this._tzPreviewBox.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
-        this._tzPreviewRows = new St.BoxLayout({vertical: true, style_class: 'litsycal-tz-box'});
+        this._tzPreviewRows = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, style_class: 'litsycal-tz-box'});
         this._tzPreviewBox.add_child(this._tzPreviewRows);
     }
 
@@ -1116,13 +1092,13 @@ export class EventPanel {
     // setOptions(newOptions, newValue) so the Alert list can be rebuilt when
     // All-day toggles.
     _makeDropdownField(options, initialValue, onChange) {
-        const wrap    = new St.BoxLayout({vertical: true, x_expand: true});
+        const wrap    = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
         const btnLbl  = new St.Label({x_expand: true});
         const btn     = new St.Button({
             style_class: 'litsycal-panel-dropdown-btn', x_expand: true, child: btnLbl,
         });
         const dropdown = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             style_class: 'popup-menu-content litsycal-panel-dropdown-list',
             visible: false,
         });
@@ -1187,14 +1163,14 @@ export class EventPanel {
         const labelFor = ({y, m, d}) =>
             `${displayYear(y, this._calendarSystem)}-${pad(m)}-${pad(d)}`;
 
-        const wrap = new St.BoxLayout({vertical: true, x_expand: true});
+        const wrap = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
         const btnLbl = new St.Label({text: labelFor(cur)});
         const btn = new St.Button({
             style_class: 'litsycal-panel-date-btn', x_expand: true, child: btnLbl,
         });
 
         const dropdown = new St.BoxLayout({
-            vertical: true,
+            orientation: Clutter.Orientation.VERTICAL,
             style_class: 'popup-menu-content litsycal-panel-date-dropdown',
             visible: false,
         });
@@ -1222,7 +1198,7 @@ export class EventPanel {
         }
         dropdown.add_child(dowRow);
 
-        const gridBox = new St.BoxLayout({vertical: true});
+        const gridBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL});
         dropdown.add_child(gridBox);
 
         const todayStr = dateStr(GLib.DateTime.new_now_local());
@@ -1335,7 +1311,7 @@ export class EventPanel {
     }
 
     _makeTimeField(initialStr, onChange) {
-        const wrap = new St.BoxLayout({vertical: true});
+        const wrap = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL});
         const btnLbl = new St.Label({text: initialStr});
         const btn = new St.Button({style_class: 'litsycal-panel-time-btn', child: btnLbl});
 
@@ -1346,7 +1322,7 @@ export class EventPanel {
             vscrollbar_policy: St.PolicyType.AUTOMATIC,
         });
         const list = new St.BoxLayout({
-            vertical: true, style_class: 'popup-menu-content litsycal-panel-time-dropdown',
+            orientation: Clutter.Orientation.VERTICAL, style_class: 'popup-menu-content litsycal-panel-time-dropdown',
         });
         scroll.set_child(list);
         this._attachFloatingDropdown(scroll, btn);
@@ -1378,10 +1354,9 @@ export class EventPanel {
             this._toggleDropdown(scroll, btn, () => {
                 const idx = optBtns.findIndex(b => b.get_label() === cur);
                 // Buttons are built once and never rebuilt, so picking a
-                // time only moves `cur` — the "-selected" mark (used both
-                // visually and by _toggleDropdown's auto-focus-on-open) was
-                // left stuck on whatever was current when they were built.
-                // Re-derive it here every time the list opens.
+                // time only moves `cur` — re-derive the "-selected" mark
+                // (used both visually and by _toggleDropdown's
+                // auto-focus-on-open) every time the list opens.
                 for (const b of optBtns)
                     b.remove_style_class_name('litsycal-panel-time-option-selected');
                 if (idx >= 0)
@@ -1509,11 +1484,8 @@ export class EventPanel {
         const url      = this._urlEntry.get_text().trim()      || null;
         const location = this._locationEntry.get_text().trim() || null;
 
-        // Without this, plain text with no scheme (e.g. someone typing into
-        // the wrong field, or tabbing past it while filling in other fields)
-        // got saved as-is and the event info popover would still render it
-        // as a clickable "Open link" row with a link icon — misleading,
-        // since it isn't actually a link and clicking it does nothing. Only
+        // Plain text with no scheme (e.g. typed into the wrong field) isn't a
+        // link, so it's rejected rather than saved as one. Only
         // enforced when the field actually changed — synced events often
         // arrive with non-URL text (room codes, "TBD") already in this
         // field, and editing an unrelated field shouldn't be blocked by
