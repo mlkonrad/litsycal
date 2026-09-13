@@ -22,6 +22,7 @@ import {
     MAX_EXTRA_WEEK_ROWS, OUTLINE_TOP_INSET,
     readAccent, accentAlpha, dateStr, daysInMonth, daysBetween, prevMonthOf,
     displayYear, isoWeekNumber, findMeetingUrl, meetingIsJoinable, formatEventWhen,
+    formatRelativeOffset,
 } from './helpers.js';
 
 // ── Calendar widget ───────────────────────────────────────────────────────────
@@ -67,6 +68,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._showEmptyAgendaDays = settings.get_boolean('show-empty-agenda-days');
         this._calendarSystem   = settings.get_string('calendar-system');
         this._timezones        = settings.get_strv('timezones');
+        this._homeTimezone     = settings.get_string('home-timezone');
         this._timeFormat       = settings.get_string('time-format');
         this._applySizeClass();
         this._applyFontSizeClass();
@@ -152,6 +154,10 @@ class LitsycalCalendar extends St.BoxLayout {
             }),
             settings.connect('changed::timezones', () => {
                 this._timezones = settings.get_strv('timezones');
+                this._updateTimeZones();
+            }),
+            settings.connect('changed::home-timezone', () => {
+                this._homeTimezone = settings.get_string('home-timezone');
                 this._updateTimeZones();
             }),
             settings.connect('changed::time-format', () => {
@@ -1211,10 +1217,22 @@ class LitsycalCalendar extends St.BoxLayout {
         this._tzBox.add_child(new St.Label({
             text: _('Time Zones'), style_class: 'litsycal-tz-title litsycal-agenda-day-name',
         }));
-        for (const {id, tz} of zones) {
+
+        // Reference point for the "(-6h)"-style relative labels below —
+        // deliberately set in Preferences rather than read from the
+        // system's own local zone, since a traveling user's system clock
+        // may already be showing wherever they physically are right now.
+        const homeTz = this._homeTimezone && GLib.TimeZone.new_identifier(this._homeTimezone);
+        const homeOffset = homeTz
+            ? homeTz.get_offset(homeTz.find_interval(GLib.TimeType.UNIVERSAL, nowUtc.to_unix()))
+            : null;
+
+        for (const {id, tz, offset} of zones) {
             const now  = GLib.DateTime.new_now(tz);
             const time = this._timeFormat === '12h' ? now.format('%-I:%M%P') : now.format('%H:%M');
             const city = id.split('/').pop().replace(/_/g, ' ');
+            const relOffset = homeOffset !== null && offset !== homeOffset
+                ? formatRelativeOffset(offset - homeOffset) : null;
 
             // Dotted leader between city and time, same left-label/spacer/
             // right-label layout the agenda's day-name/day-date header uses
@@ -1228,10 +1246,22 @@ class LitsycalCalendar extends St.BoxLayout {
             leader.clutter_text.set_line_wrap(false);
             leader.clip_to_allocation = true;
 
+            // Grouped in their own box so the row's own (wider) spacing
+            // between city/leader/time doesn't also apply between the time
+            // and its offset — those two read as one unit, so they sit
+            // tight together instead.
+            const timeBox = new St.BoxLayout({style_class: 'litsycal-tz-time-box'});
+            timeBox.add_child(new St.Label({text: time, style_class: 'litsycal-tz-time litsycal-agenda-title'}));
+            if (relOffset) {
+                timeBox.add_child(new St.Label({
+                    text: `(${relOffset})`, style_class: 'litsycal-tz-offset',
+                }));
+            }
+
             const row = new St.BoxLayout({style_class: 'litsycal-tz-row'});
             row.add_child(new St.Label({text: city, style_class: 'litsycal-tz-city litsycal-agenda-title'}));
             row.add_child(leader);
-            row.add_child(new St.Label({text: time, style_class: 'litsycal-tz-time litsycal-agenda-title'}));
+            row.add_child(timeBox);
             this._tzBox.add_child(row);
         }
     }
@@ -1256,7 +1286,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._eventPanel?.close();
         this._eventInfoPopover?.close();
         this._eventPanel = new EventPanel(
-            this._calManager, null, this._selected, this,
+            this._calManager, this._settings, null, this._selected, this,
             () => {
                 this._eventPanel = null;
             }, this._calendarSystem
@@ -1277,7 +1307,7 @@ class LitsycalCalendar extends St.BoxLayout {
             this._eventPanel?.close();
             this._eventInfoPopover?.close();
             this._eventPanel = new EventPanel(
-                this._calManager, null, this._selected, this,
+                this._calManager, this._settings, null, this._selected, this,
                 () => {
                     this._eventPanel = null;
                 }, this._calendarSystem, draft
@@ -1326,7 +1356,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._eventPanel?.close();
         this._eventInfoPopover?.close();
         this._eventPanel = new EventPanel(
-            this._calManager, ev, null, this,
+            this._calManager, this._settings, ev, null, this,
             () => {
                 this._eventPanel = null;
             }, this._calendarSystem

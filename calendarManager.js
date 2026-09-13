@@ -355,6 +355,35 @@ export class CalendarManager {
         this._onEventsChanged(this._events);
     }
 
+    // The system's local timezone as an ICalGLib.Timezone usable with
+    // convert_to_zone(). Re-resolved per call rather than cached on `this`
+    // — it's a cheap in-process libical lookup, and caching would risk a
+    // stale zone if the system timezone changes while litsycal keeps
+    // running.
+    _resolveLocalTimezone() {
+        const localId = GLib.TimeZone.new_local().get_identifier();
+        return ICalGLib.Timezone.get_builtin_timezone(localId);
+    }
+
+    // Converts a non-floating ICalGLib.Time to the system's local
+    // wall-clock time. Returns null (caller keeps the original,
+    // unconverted value) when the TZID can't be resolved to a real zone
+    // (e.g. a non-IANA Windows/Exchange zone name) or the local zone
+    // itself can't be resolved — same "leave it as-is" behavior this data
+    // already got everywhere before timezone conversion existed, rather
+    // than guessing.
+    _convertToLocal(tObj, tzid, localTz) {
+        if (!localTz)
+            return null;
+        if (tObj.is_utc())
+            return tObj.convert_to_zone(localTz);
+        const srcTz = ICalGLib.Timezone.get_builtin_timezone(tzid);
+        if (!srcTz)
+            return null;
+        tObj.set_timezone(srcTz);
+        return tObj.convert_to_zone(localTz);
+    }
+
     // Shared by _ingestComps (month cache) and searchEvents (a separate,
     // one-off query — see below) so both build the exact same event shape
     // from a raw ECal component. Returns null (logging) rather than
@@ -363,22 +392,48 @@ export class CalendarManager {
     _parseComp(comp, color, clientUid) {
         try {
             const title = comp.get_summary()?.get_value() ?? '';
-            const tObj  = comp.get_dtstart()?.get_value();
+            const dtstart = comp.get_dtstart();
+            let tObj = dtstart?.get_value();
             if (!tObj)
                 return null;
+
+            const isAllDay = tObj.is_date();
+
+            // DTSTART/DTEND from EDS carry the event's original TZID (or
+            // are UTC/floating); convert to local wall-clock time here so
+            // every consumer of the returned `date`/`time` fields gets a
+            // correct time for free, instead of the organizer's raw digits
+            // silently mislabeled as the viewer's local time.
+            let originalTzid = null;
+            let localTz = null;
+            if (!isAllDay) {
+                const tzid = dtstart.get_tzid();
+                if (tzid || tObj.is_utc()) {
+                    originalTzid = tObj.is_utc() ? 'UTC' : tzid;
+                    localTz = this._resolveLocalTimezone();
+                    tObj = this._convertToLocal(tObj, tzid, localTz) ?? tObj;
+                }
+            }
 
             const y = tObj.get_year();
             const m = tObj.get_month();
             const d = tObj.get_day();
             const date = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
-            const isAllDay = tObj.is_date();
             let time = null;
             let endDate = null;
             if (!isAllDay) {
                 const pad = n => String(n).padStart(2, '0');
                 const startStr = `${pad(tObj.get_hour())}:${pad(tObj.get_minute())}`;
-                const eObj = comp.get_dtend()?.get_value();
+                const dtend = comp.get_dtend();
+                let eObj = dtend?.get_value();
+                if (eObj && !eObj.is_date()) {
+                    const eTzid = dtend.get_tzid();
+                    if (eTzid || eObj.is_utc()) {
+                        localTz ??= this._resolveLocalTimezone();
+                        eObj = this._convertToLocal(eObj, eTzid, localTz) ?? eObj;
+                    }
+                }
                 const endStr = eObj && !eObj.is_date()
                     ? `${pad(eObj.get_hour())}:${pad(eObj.get_minute())}`
                     : null;
@@ -421,7 +476,7 @@ export class CalendarManager {
 
             return {
                 date, title, time, color, allDay: isAllDay, endDate,
-                uid: comp.get_uid(), clientUid, notes, url,
+                uid: comp.get_uid(), clientUid, notes, url, originalTzid,
                 location, recurrence, alarm, recurrenceId, attendees,
             };
         } catch (e) {

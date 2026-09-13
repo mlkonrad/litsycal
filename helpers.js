@@ -314,3 +314,19 @@ export function attendeeStatusInfo(partstat) {
         return {cssClass: 'litsycal-attendee-dot-needs-action', label: _('No response')};
     }
 }
+
+// Formats a signed relative offset (e.g. "-6h", "+5h30") for how far a
+// zone's clock currently reads from a reference zone's, at some instant —
+// positive means ahead of the reference, negative behind. diffSeconds is
+// (target UTC offset - reference UTC offset) at that instant.
+/**
+ * @param {number} diffSeconds
+ */
+export function formatRelativeOffset(diffSeconds) {
+    const totalMinutes = Math.round(diffSeconds / 60);
+    const sign  = totalMinutes < 0 ? '-' : '+';
+    const abs   = Math.abs(totalMinutes);
+    const hours = Math.floor(abs / 60);
+    const mins  = abs % 60;
+    return mins === 0 ? `${sign}${hours}h` : `${sign}${hours}h${String(mins).padStart(2, '0')}`;
+}

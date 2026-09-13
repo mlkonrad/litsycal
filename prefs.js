@@ -5,6 +5,8 @@ import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import EDataServer from 'gi://EDataServer';
+import Geoclue from 'gi://Geoclue';
+import GWeather from 'gi://GWeather';
 
 // Every IANA time zone id available on this system, read from the same
 // tzdata tables GLib.TimeZone itself needs to resolve a zone id — so this
@@ -398,6 +400,91 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             if (!current.includes(id))
                 settings.set_strv('timezones', [...current, id]);
         });
+
+        // ── Home timezone ─────────────────────────────────────────────────
+        // Reference point for the relative "-6h"-style labels shown next to
+        // each zone above (see calendarWidget.js's _updateTimeZones and
+        // eventDialog.js's _updateTzPreview) — deliberately a separate,
+        // explicitly-set value rather than the system's own local zone,
+        // since a traveling user's system clock may already be showing
+        // wherever they physically are right now, not their permanent home
+        // base. "Not set" (index 0) disables the labels entirely.
+        const homeGroup = new Adw.PreferencesGroup({
+            title:       _('Home Timezone'),
+            description: _('Reference point for the relative offset shown next to each time zone above'),
+        });
+        general.add(homeGroup);
+
+        const homeIds    = ['', ...tzIds];
+        const homeLabels = [_('Not set'), ...tzLabels];
+
+        const homeRow = new Adw.ComboRow({
+            title:             _('Home timezone'),
+            model:             Gtk.StringList.new(homeLabels),
+            expression:        Gtk.PropertyExpression.new(Gtk.StringObject, null, 'string'),
+            enable_search:     true,
+            search_match_mode: Gtk.StringFilterMatchMode.SUBSTRING,
+            visible:           tzIds.length > 0,
+        });
+
+        const updateHomeSubtitle = () => {
+            const id = homeIds[homeRow.get_selected()];
+            if (!id) {
+                homeRow.set_subtitle('');
+                return;
+            }
+            const tz = GLib.TimeZone.new_identifier(id);
+            const now = GLib.DateTime.new_now_utc();
+            homeRow.set_subtitle(
+                tz ? formatUtcOffset(tz.get_offset(tz.find_interval(GLib.TimeType.UNIVERSAL, now.to_unix()))) : ''
+            );
+        };
+
+        const initialIdx = homeIds.indexOf(settings.get_string('home-timezone'));
+        homeRow.set_selected(initialIdx >= 0 ? initialIdx : 0);
+        updateHomeSubtitle();
+
+        homeRow.connect('notify::selected', () => {
+            settings.set_string('home-timezone', homeIds[homeRow.get_selected()] ?? '');
+            updateHomeSubtitle();
+        });
+
+        const detectBtn = new Gtk.Button({
+            icon_name:    'find-location-symbolic',
+            valign:       Gtk.Align.CENTER,
+            css_classes:  ['flat'],
+            tooltip_text: _('Detect my location'),
+        });
+        // Sets home to wherever the user physically is *right now* — only
+        // correct if that's actually their home base; someone traveling
+        // should pick their real home city from the list above instead.
+        detectBtn.connect('clicked', () => {
+            detectBtn.set_sensitive(false);
+            homeRow.set_subtitle(_('Detecting…'));
+
+            try {
+                Geoclue.Simple.new('org.gnome.Shell', Geoclue.AccuracyLevel.CITY, null, (_obj, res) => {
+                    detectBtn.set_sensitive(true);
+                    try {
+                        const simple = Geoclue.Simple.new_finish(res);
+                        const {latitude, longitude} = simple.get_location();
+                        const city = GWeather.Location.get_world().find_nearest_city(latitude, longitude);
+                        const tzid = city.get_timezone_str();
+                        const idx  = homeIds.indexOf(tzid);
+                        if (idx < 0)
+                            throw new Error(`detected id ${tzid} not in local zoneinfo tables`);
+                        homeRow.set_selected(idx); // triggers notify::selected above
+                    } catch {
+                        homeRow.set_subtitle(_('Could not detect your location — check Settings ▸ Privacy ▸ Location Services is on'));
+                    }
+                });
+            } catch {
+                detectBtn.set_sensitive(true);
+                homeRow.set_subtitle(_('Could not detect your location — check Settings ▸ Privacy ▸ Location Services is on'));
+            }
+        });
+        homeRow.add_suffix(detectBtn);
+        homeGroup.add(homeRow);
 
         // ════════════════════════════════════════════════════════════════════
         // APPEARANCE PAGE  (options that were previously in "General")

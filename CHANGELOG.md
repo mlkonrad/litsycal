@@ -19,8 +19,36 @@ longer carries a `version` key — see that file's history for why).
   time, instead of always defaulting to the first calendar in the list
   (often "Birthdays & Anniversaries"). No new setting — it's just
   remembered automatically each time you save a new event.
+- The New Event form now shows what the selected start time converts to in
+  each zone from your Time Zones list (Preferences), so scheduling with
+  someone elsewhere doesn't require doing the math yourself. Hidden when
+  that list is empty or the event is all-day.
+- The event info popover now shows "Originally scheduled in `<zone>`" for
+  an event whose own timezone differs from your system's — e.g. an invite
+  synced in from someone in another region. Known limitation: this compares
+  timezone names directly, so a differently-named alias for the same zone
+  (e.g. `US/Eastern` vs `America/New_York`) can still show the note even
+  though it's the same real-world zone.
+- Each zone in the Time Zones list (both the calendar's own clocks and the
+  New Event form's preview) now shows how far ahead/behind it is from a new
+  "Home Timezone" setting (Preferences), e.g. "São Paulo 04:30 -6h" — no
+  more doing the math yourself when scheduling across zones. Home timezone
+  can be picked manually or detected automatically via GNOME's location
+  service (a new "Detect my location" button in Preferences). Note that
+  detecting sets home to wherever you physically are *right now* — correct
+  only if you're actually at home when you click it; if you're traveling,
+  pick your real home city from the list instead. Offset labels are hidden
+  entirely until a home timezone is set.
 
 ### Fixed
+
+- Events synced in with an explicit timezone (e.g. a calendar invite from
+  someone in a different region) displayed the wrong local time — the
+  organizer's clock time was shown as-is, mislabeled as your own local
+  time, instead of being converted. Event times are now converted to your
+  system's timezone when read. Known limitation: a non-IANA timezone name
+  (as some Windows/Exchange sources use) still isn't converted, same as
+  before this fix.
 
 - The event info popover's delete button deleted a non-recurring event
   immediately, with no confirmation prompt — a mis-click right next to the

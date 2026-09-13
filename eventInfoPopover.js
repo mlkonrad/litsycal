@@ -243,6 +243,15 @@ export class EventInfoPopover {
         if (recurrence)
             addIconRow('media-playlist-repeat-symbolic', recurrence);
 
+        // Only shown when the event's own TZID differs from where we are —
+        // calendarManager.js already converts date/time to local wall-clock,
+        // this just adds context for where the event was actually scheduled.
+        if (ev.originalTzid && ev.originalTzid !== GLib.TimeZone.new_local().get_identifier()) {
+            const city = ev.originalTzid.split('/').pop().replace(/_/g, ' ');
+            addIconRow('preferences-system-time-symbolic',
+                _('Originally scheduled in %s').replace('%s', city));
+        }
+
         // ── Attendees ──────────────────────────────────────────────────────
         // Capped so one meeting with a huge invite list can't blow out the
         // popover's height — same idea as the agenda's own per-day cap. Only

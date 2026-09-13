@@ -8,7 +8,7 @@ import Pango   from 'gi://Pango';
 
 import {parseQuickAdd}    from './quickAddParser.js';
 import {FloatingModalPanel} from './floatingPanel.js';
-import {isLikelyUrl}      from './helpers.js';
+import {isLikelyUrl, formatRelativeOffset} from './helpers.js';
 
 const _ = str => GLib.dgettext('litsycal@mlkonrad.github.com', str);
 
@@ -234,8 +234,9 @@ export class EventPanel {
     // draft (title/date/time/location, all optional) prefills a NEW event
     // from quick-add (see QuickAddPanel/quickAddParser.js) — ignored when
     // editing an existing one, which already has its own values.
-    constructor(calManager, event, selectedDate, anchorActor, onClose, calendarSystem = 'gregorian', draft = null) {
+    constructor(calManager, settings, event, selectedDate, anchorActor, onClose, calendarSystem = 'gregorian', draft = null) {
         this._calManager     = calManager;
+        this._settings       = settings;
         this._event          = event ?? null;
         this._draft          = event ? null : draft;
         this._onClose        = onClose;
@@ -563,8 +564,8 @@ export class EventPanel {
             : this._draft?.time ?? this._nowHour();
         this._startsRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
         this._startsRow.add_child(new St.Label({text: _('Starts'), style_class: 'litsycal-panel-lbl'}));
-        this._startDatePicker = this._makeDateField(this._selDate);
-        this._startTimePicker = this._makeTimeField(defStartTime);
+        this._startDatePicker = this._makeDateField(this._selDate, () => this._updateTzPreview());
+        this._startTimePicker = this._makeTimeField(defStartTime, () => this._updateTzPreview());
         this._startsRow.add_child(this._startDatePicker.actor);
         this._startsRow.add_child(this._startTimePicker.actor);
         box.add_child(this._startsRow);
@@ -584,6 +585,9 @@ export class EventPanel {
         this._endsRow.add_child(this._endDatePicker.actor);
         this._endsRow.add_child(this._endTimePicker.actor);
         box.add_child(this._endsRow);
+
+        this._buildTzPreview();
+        box.add_child(this._tzPreviewBox);
 
         this._updateTimeVisibility();
 
@@ -770,6 +774,95 @@ export class EventPanel {
     _updateTimeVisibility() {
         this._startTimePicker.actor.visible = !this._allDay;
         this._endTimePicker.actor.visible   = !this._allDay;
+        this._updateTzPreview();
+    }
+
+    // Live preview of the selected start time converted into each zone from
+    // the 'timezones' setting (the same list the main calendar's own
+    // world-clock section reads) — lets you see what time a remote
+    // invitee would see without doing the math yourself.
+    _buildTzPreview() {
+        this._tzPreviewBox = new St.BoxLayout({vertical: true, visible: false});
+        this._tzPreviewBox.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
+        this._tzPreviewRows = new St.BoxLayout({vertical: true, style_class: 'litsycal-tz-box'});
+        this._tzPreviewBox.add_child(this._tzPreviewRows);
+    }
+
+    // Mirrors calendarWidget.js's _updateTimeZones() conversion approach,
+    // applied to the dialog's currently-selected start date/time instead of
+    // "now". Hidden entirely when the zones list is empty or the event is
+    // all-day (no time-of-day to convert).
+    _updateTzPreview() {
+        this._tzPreviewRows.destroy_all_children();
+
+        const zones = this._allDay ? [] : this._settings.get_strv('timezones');
+        this._tzPreviewBox.visible = zones.length > 0;
+        if (!zones.length)
+            return;
+
+        const [y, m, d] = this._startDatePicker.getValue().split('-').map(Number);
+        const [h, min]  = this._startTimePicker.getValue().split(':').map(Number);
+        const timeFormat = this._settings.get_string('time-format');
+
+        // The picked y/m/d/h/min are wall-clock digits in *your* local zone
+        // — build the actual instant they represent first, then re-express
+        // that same instant in each configured zone. (GLib.DateTime.new(tz,
+        // ...) would instead stamp the raw digits directly onto tz, which is
+        // wrong here — it's only correct for "now", where the digits are
+        // already tz-agnostic since they're derived from the current UTC
+        // instant.)
+        const localInstant = GLib.DateTime.new_local(y, m, d, h, min, 0);
+        const instantUnix  = localInstant.to_unix();
+
+        // Same reference-point idea as calendarWidget.js's world clock —
+        // resolved fresh each call rather than cached, since the dialog is
+        // short-lived and this setting isn't read anywhere else here.
+        const homeId = this._settings.get_string('home-timezone');
+        const homeTz = homeId && GLib.TimeZone.new_identifier(homeId);
+        const homeOffset = homeTz
+            ? homeTz.get_offset(homeTz.find_interval(GLib.TimeType.UNIVERSAL, instantUnix))
+            : null;
+
+        this._tzPreviewRows.add_child(new St.Label({
+            text: _('Time Zones'), style_class: 'litsycal-tz-title litsycal-agenda-day-name',
+        }));
+
+        for (const id of zones) {
+            const tz = GLib.TimeZone.new_identifier(id);
+            if (!tz)
+                continue;
+            const dt     = localInstant.to_timezone(tz);
+            const time   = timeFormat === '12h' ? dt.format('%-I:%M%P') : dt.format('%H:%M');
+            const city   = id.split('/').pop().replace(/_/g, ' ');
+            const offset = tz.get_offset(tz.find_interval(GLib.TimeType.UNIVERSAL, instantUnix));
+            const relOffset = homeOffset !== null && offset !== homeOffset
+                ? formatRelativeOffset(offset - homeOffset) : null;
+
+            const leader = new St.Label({
+                text: '.'.repeat(200), x_expand: true, y_align: Clutter.ActorAlign.END,
+                style_class: 'litsycal-tz-leader',
+            });
+            leader.clutter_text.set_line_wrap(false);
+            leader.clip_to_allocation = true;
+
+            // Grouped in their own box so the row's own (wider) spacing
+            // between city/leader/time doesn't also apply between the time
+            // and its offset — those two read as one unit, so they sit
+            // tight together instead.
+            const timeBox = new St.BoxLayout({style_class: 'litsycal-tz-time-box'});
+            timeBox.add_child(new St.Label({text: time, style_class: 'litsycal-tz-time litsycal-agenda-title'}));
+            if (relOffset) {
+                timeBox.add_child(new St.Label({
+                    text: `(${relOffset})`, style_class: 'litsycal-tz-offset',
+                }));
+            }
+
+            const row = new St.BoxLayout({style_class: 'litsycal-tz-row'});
+            row.add_child(new St.Label({text: city, style_class: 'litsycal-tz-city litsycal-agenda-title'}));
+            row.add_child(leader);
+            row.add_child(timeBox);
+            this._tzPreviewRows.add_child(row);
+        }
     }
 
     _alertPresetOptions(allDay) {
@@ -1087,7 +1180,7 @@ export class EventPanel {
         };
     }
 
-    _makeDateField(initialStr) {
+    _makeDateField(initialStr, onChange) {
         const [iy, im, id] = initialStr.split('-').map(Number);
         let cur  = {y: iy, m: im, d: id};
         let view = {y: iy, m: im};
@@ -1142,6 +1235,7 @@ export class EventPanel {
             cur = {y, m, d};
             btnLbl.set_text(labelFor(cur));
             this._closeDropdown();
+            onChange?.(`${y}-${pad(m)}-${pad(d)}`);
         };
 
         const rebuild = () => {
@@ -1244,7 +1338,7 @@ export class EventPanel {
         };
     }
 
-    _makeTimeField(initialStr) {
+    _makeTimeField(initialStr, onChange) {
         const wrap = new St.BoxLayout({vertical: true});
         const btnLbl = new St.Label({text: initialStr});
         const btn = new St.Button({style_class: 'litsycal-panel-time-btn', child: btnLbl});
@@ -1266,6 +1360,7 @@ export class EventPanel {
             cur = value;
             btnLbl.set_text(value);
             this._closeDropdown();
+            onChange?.(cur);
         };
         const optBtns = [];
         for (let h = 0; h < 24; h++) {
