@@ -31,7 +31,7 @@ longer carries a `version` key — see that file's history for why).
   though it's the same real-world zone.
 - Each zone in the Time Zones list (both the calendar's own clocks and the
   New Event form's preview) now shows how far ahead/behind it is from a new
-  "Home Timezone" setting (Preferences), e.g. "São Paulo 04:30 -6h" — no
+  "Home Timezone" setting (Preferences), e.g. "São Paulo 04:30 (-6h)" — no
   more doing the math yourself when scheduling across zones. Home timezone
   can be picked manually or detected automatically via GNOME's location
   service (a new "Detect my location" button in Preferences). Note that
