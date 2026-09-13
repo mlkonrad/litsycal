@@ -103,8 +103,8 @@ class LitsycalIndicator extends PanelMenu.Button {
             // the time zone clocks fresh while the calendar is actually
             // visible.
             if (this._menuIsOpen || this._pinned) {
-                this._calWidget?._buildAgenda();
-                this._calWidget?._updateTimeZones();
+                this._calWidget._buildAgenda();
+                this._calWidget._updateTimeZones();
             }
             return GLib.SOURCE_CONTINUE;
         });
@@ -207,9 +207,7 @@ class LitsycalIndicator extends PanelMenu.Button {
 
         this.menu.actor.style = 'border: none; background-color: transparent; box-shadow: none; padding: 0;';
         this.menu.box.style   = 'padding: 0; background-color: transparent; border: none;';
-        try {
-            this.menu.actor.bin.style = 'padding: 0; border: none; background-color: transparent;';
-        } catch {}
+        this.menu.actor.bin.style = 'padding: 0; border: none; background-color: transparent;';
     }
 
     // Opens the Preferences window on a specific tab. LitsycalPrefs

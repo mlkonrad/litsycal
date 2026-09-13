@@ -183,7 +183,7 @@ export class SettingsMenuPanel {
             this._actionIdleId = null;
         }
         if (this._eventId) {
-            this._box?.disconnect(this._eventId);
+            this._box.disconnect(this._eventId);
             this._eventId = null;
         }
         if (this._grab)    {

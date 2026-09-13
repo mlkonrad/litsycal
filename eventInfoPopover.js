@@ -426,11 +426,11 @@ export class EventInfoPopover {
         if (this._closeConfirmOverlay)
             this._closeConfirmOverlay();
         if (this._btnKeyId)  {
-            this._deleteBtn?.disconnect(this._btnKeyId);
+            this._deleteBtn.disconnect(this._btnKeyId);
             this._btnKeyId  = null;
         }
         if (this._backdropId) {
-            this._backdrop?.disconnect(this._backdropId);
+            this._backdrop.disconnect(this._backdropId);
             this._backdropId = null;
         }
         if (this._grab)    {
@@ -442,6 +442,6 @@ export class EventInfoPopover {
             this._root.destroy();
             this._root = null;
         }
-        this._onClose?.();
+        this._onClose();
     }
 }

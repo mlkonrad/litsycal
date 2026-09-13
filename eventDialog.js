@@ -926,7 +926,7 @@ export class EventPanel {
                 out.push(actor);
             return out;
         }
-        for (const child of actor.get_children?.() ?? [])
+        for (const child of actor.get_children())
             this._collectFocusable(child, out);
         return out;
     }
@@ -1581,7 +1581,7 @@ export class EventPanel {
             this._clickId = null;
         }
         if (this._keyId)   {
-            this._box?.disconnect(this._keyId);
+            this._box.disconnect(this._keyId);
             this._keyId   = null;
         }
         if (this._grab)    {
@@ -1604,7 +1604,7 @@ export class EventPanel {
             // Fire only on the transition that actually tears the box down,
             // so a redundant close() call (harmless everywhere else here)
             // can't invoke the caller's callback twice.
-            this._onClose?.();
+            this._onClose();
         }
         if (this._root) {
             Main.layoutManager.uiGroup.remove_child(this._root);

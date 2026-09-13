@@ -1,5 +1,4 @@
 import GLib    from 'gi://GLib';
-import Gio     from 'gi://Gio';
 import St      from 'gi://St';
 import Clutter from 'gi://Clutter';
 
@@ -73,15 +72,11 @@ export const ACCENT_MAP = {
 };
 
 /**
+ * @param {Gio.Settings} interfaceSettings org.gnome.desktop.interface
  * @returns {string}
  */
-export function readAccent() {
-    try {
-        const s = new Gio.Settings({schema: 'org.gnome.desktop.interface'});
-        return ACCENT_MAP[s.get_string('accent-color')] ?? ACCENT_MAP.blue;
-    } catch {
-        return ACCENT_MAP.blue;
-    }
+export function readAccent(interfaceSettings) {
+    return ACCENT_MAP[interfaceSettings.get_string('accent-color')] ?? ACCENT_MAP.blue;
 }
 
 /**

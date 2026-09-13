@@ -966,7 +966,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                 for (const src of sources) {
                     const uid    = src.get_uid();
                     const calExt = src.get_extension(EDataServer.SOURCE_EXTENSION_CALENDAR);
-                    const color  = calExt.get_color?.() ?? null;
+                    const color  = calExt.get_color();
                     const name   = src.get_display_name();
 
                     const row = new Adw.SwitchRow({

@@ -38,7 +38,8 @@ class LitsycalCalendar extends St.BoxLayout {
         this._onPinToggle      = onPinToggle;
         this._openGoToDate     = openGoToDate;
         this._quit             = quit;
-        this._accent           = readAccent();
+        this._iface            = new Gio.Settings({schema: 'org.gnome.desktop.interface'});
+        this._accent           = readAccent(this._iface);
 
         const now      = GLib.DateTime.new_now_local();
         this._year     = now.get_year();
@@ -166,9 +167,8 @@ class LitsycalCalendar extends St.BoxLayout {
             }),
         ];
 
-        this._iface    = new Gio.Settings({schema: 'org.gnome.desktop.interface'});
         this._accentId = this._iface.connect('changed::accent-color', () => {
-            this._accent = readAccent();
+            this._accent = readAccent(this._iface);
             this._updateHeaderColors();
             this._buildGrid();
         });
@@ -182,7 +182,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._calManager = new CalendarManager(settings, () => {
             this._buildGrid();
             this._buildAgenda();
-            onDataChanged?.();
+            onDataChanged();
         });
 
         this._isDark  = this._computeIsDark();
@@ -256,7 +256,7 @@ class LitsycalCalendar extends St.BoxLayout {
             this._settings.disconnect(id);
         this._iface.disconnect(this._accentId);
         this._iface.disconnect(this._schemeId);
-        this._calManager?.destroy();
+        this._calManager.destroy();
         super.destroy();
     }
 
@@ -314,13 +314,12 @@ class LitsycalCalendar extends St.BoxLayout {
         this.remove_style_class_name('litsycal-theme-dark');
         this.add_style_class_name(this._isDark ? 'litsycal-theme-dark' : 'litsycal-theme-light');
         this._painter.configure(this._isDark, this._highlightCols, OUTLINE_TOP_INSET[this._calSize]);
-        if (this._prevBtn)
-            this._updateHeaderColors();
+        this._updateHeaderColors();
         this._buildDayNameRow(true);
         this._buildGrid();
         if (this._agendaBox)
             this._buildAgenda();
-        this._outline?.queue_repaint();
+        this._outline.queue_repaint();
     }
 
     // ── Header ────────────────────────────────────────────────────────────────
@@ -565,7 +564,7 @@ class LitsycalCalendar extends St.BoxLayout {
         }
 
         this._buildWeekGutter();
-        this._outline?.queue_repaint();
+        this._outline.queue_repaint();
         this._updateAgendaMaxHeight();
     }
 
@@ -1152,22 +1151,18 @@ class LitsycalCalendar extends St.BoxLayout {
         pinBtn.connect('notify::checked', () => {
             if (this._suppressPinNotify)
                 return;
-            if (this._onPinToggle)
-                this._onPinToggle(pinBtn.get_checked());
+            this._onPinToggle(pinBtn.get_checked());
         });
         this._pinBtn = pinBtn;
 
         const syncBtn = makeIconBtn('view-refresh-symbolic', _('Sync calendars'));
         syncBtn.connect('clicked', () => {
-            this._calManager?.refreshFromServer();
-            this._calManager?.fetchMonth(this._year, this._month);
+            this._calManager.refreshFromServer();
+            this._calManager.fetchMonth(this._year, this._month);
         });
 
         const calBtn = makeIconBtn('x-office-calendar-symbolic', _('Open Calendar app'));
-        calBtn.connect('clicked', () => {
-            if (this._openCalendar)
-                this._openCalendar();
-        });
+        calBtn.connect('clicked', () => this._openCalendar());
 
         const gear = makeIconBtn('preferences-system-symbolic', _('Settings menu'));
         gear.connect('clicked', () => this._openSettingsMenu(gear));
@@ -1263,7 +1258,7 @@ class LitsycalCalendar extends St.BoxLayout {
     // ── Event panels ──────────────────────────────────────────────────────────
 
     _openCreateDialog() {
-        if (!this._calManager?.isAvailable())
+        if (!this._calManager.isAvailable())
             return;
         this._eventPanel?.close();
         this._eventInfoPopover?.close();
@@ -1279,7 +1274,7 @@ class LitsycalCalendar extends St.BoxLayout {
     // EventPanel _openCreateDialog does, pre-filled with it — never saves
     // directly from the one-liner. See QuickAddPanel/quickAddParser.js.
     _openQuickAdd() {
-        if (!this._calManager?.isAvailable())
+        if (!this._calManager.isAvailable())
             return;
         this._quickAddPanel?.close();
         this._quickAddPanel = new QuickAddPanel(this, draft => {
@@ -1302,7 +1297,7 @@ class LitsycalCalendar extends St.BoxLayout {
     // result navigates the grid to its date and opens the same read-only
     // info popover a normal agenda-row click does.
     _openSearch() {
-        if (!this._calManager?.isAvailable())
+        if (!this._calManager.isAvailable())
             return;
         this._searchPanel?.close();
         this._searchPanel = new SearchPanel(this, this._calManager, ev => {
@@ -1333,7 +1328,7 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     _openEventDialog(ev) {
-        if (!this._calManager?.isAvailable())
+        if (!this._calManager.isAvailable())
             return;
         this._eventPanel?.close();
         this._eventInfoPopover?.close();
@@ -1496,7 +1491,7 @@ class LitsycalCalendar extends St.BoxLayout {
         }
         this._updateMonthLabel();
         this._buildGrid();
-        this._calManager?.fetchMonth(this._year, this._month);
+        this._calManager.fetchMonth(this._year, this._month);
     }
 
     _goToday() {
@@ -1508,7 +1503,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._updateMonthLabel();
         this._buildGrid();
         this._buildAgenda();
-        this._calManager?.fetchMonth(this._year, this._month);
+        this._calManager.fetchMonth(this._year, this._month);
     }
 
     // Used by the settings menu's "Go to date" dialog.
@@ -1523,10 +1518,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._updateMonthLabel();
         this._buildGrid();
         this._buildAgenda();
-        if (this._calManager)
-            this._calManager.fetchMonth(this._year, this._month, onDone);
-        else
-            onDone?.();
+        this._calManager.fetchMonth(this._year, this._month, onDone);
     }
 
     _updateMonthLabel() {
@@ -1584,7 +1576,7 @@ class LitsycalCalendar extends St.BoxLayout {
             this._year  = sel.get_year();
             this._month = sel.get_month();
             this._updateMonthLabel();
-            this._calManager?.fetchMonth(this._year, this._month);
+            this._calManager.fetchMonth(this._year, this._month);
         }
         this._buildGrid();
         this._buildAgenda();
@@ -1612,7 +1604,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._updateMonthLabel();
         this._buildGrid();
         this._buildAgenda();
-        this._calManager?.fetchMonth(this._year, this._month);
+        this._calManager.fetchMonth(this._year, this._month);
     }
 
     _moveSelectionByYears(delta) {
@@ -1681,7 +1673,7 @@ class LitsycalCalendar extends St.BoxLayout {
             return true;
         case Clutter.KEY_p:
         case Clutter.KEY_P:
-            this._onPinToggle?.(!this._pinBtn.get_checked());
+            this._onPinToggle(!this._pinBtn.get_checked());
             return true;
         case Clutter.KEY_w:
         case Clutter.KEY_W:
@@ -1692,14 +1684,14 @@ class LitsycalCalendar extends St.BoxLayout {
             return true;
         case Clutter.KEY_comma: // Ctrl+, (Itsycal's ⌘,): open Settings
             if (ctrl) {
-                this._openSettingsMenu?.(this._gearBtn);
+                this._openSettingsMenu(this._gearBtn);
                 return true;
             }
             return false;
         case Clutter.KEY_o:
         case Clutter.KEY_O: // Ctrl+O (Itsycal's ⌘O): open the default calendar app
             if (ctrl) {
-                this._openCalendar?.();
+                this._openCalendar();
                 return true;
             }
             return false;
@@ -1728,21 +1720,21 @@ class LitsycalCalendar extends St.BoxLayout {
             return false;
         case Clutter.KEY_T: // Ctrl+Shift+T (Itsycal's ⇧⌘T): go to date
             if (ctrl && shift) {
-                this._openGoToDate?.(this._gearBtn);
+                this._openGoToDate(this._gearBtn);
                 return true;
             }
             return false;
         case Clutter.KEY_r: // Ctrl+Alt+R (Itsycal's ⌥⌘R): refresh events
             if (ctrl && alt) {
-                this._calManager?.refreshFromServer();
-                this._calManager?.fetchMonth(this._year, this._month);
+                this._calManager.refreshFromServer();
+                this._calManager.fetchMonth(this._year, this._month);
                 return true;
             }
             return false;
         case Clutter.KEY_q:
         case Clutter.KEY_Q: // Ctrl+Q (Itsycal's ⌘Q): quit Litsycal
             if (ctrl) {
-                this._quit?.();
+                this._quit();
                 return true;
             }
             return false;
@@ -1764,7 +1756,7 @@ class LitsycalCalendar extends St.BoxLayout {
     // display order (mirrors Itsycal's clickFirstActiveZoomButton). Does
     // nothing if no event in the agenda has an active join button right now.
     _joinFirstMeeting() {
-        this._joinButtons?.[0]?.emit('clicked');
+        this._joinButtons[0]?.emit('clicked');
     }
 
     // Mirrors Itsycal's showDateInfo: briefly swaps the month label for the

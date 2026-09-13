@@ -201,11 +201,6 @@ new code should keep meeting these — checked clean as of 2026-09-07:
     and registry `.disconnect(id)` — an already-torn-down EDS/D-Bus-backed
     client can genuinely throw on disconnect, unlike a plain
     GObject.disconnect().
-  - `calendarManager.js` optional-chaining on ICalGLib getters
-    (`get_description?.()`, `get_first_property?.(...)`, etc.) — these read
-    optional iCal fields (VALARM, RRULE, URL, RECURRENCE-ID) that legitimately
-    may be absent depending on the calendar data and evolution-data-server
-    version, not guaranteed-present built-ins.
   - `Gio.Subprocess`/`Gio.AppInfo.launch_default_for_uri` calls in
     eventDialog.js/eventInfoPopover.js/calendarWidget.js/prefs.js wrapped in
     try/catch — launching an external app/URI handler can fail for real

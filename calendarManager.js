@@ -101,7 +101,7 @@ export class CalendarManager {
 
         const uid    = source.get_uid();
         const calExt = source.get_extension(EDataServer.SOURCE_EXTENSION_CALENDAR);
-        const color  = normalizeColor(calExt.get_color?.());
+        const color  = normalizeColor(calExt.get_color());
         const name   = source.get_display_name();
 
         ECal.Client.connect(source, ECal.ClientSourceType.EVENTS, 10, this._cancellable, (_obj, res) => {
@@ -489,12 +489,12 @@ export class CalendarManager {
             let notes = null, url = null, location = null, recurrence = null, alarm = null,
                 recurrenceId = null, attendees = [];
             try {
-                const ic = comp.get_icalcomponent?.();
+                const ic = comp.get_icalcomponent();
                 if (ic) {
-                    notes = ic.get_description?.() || null;
-                    const up = ic.get_first_property?.(ICalGLib.PropertyKind.URL_PROPERTY);
-                    url = up ? up.get_value_as_string?.() || null : null;
-                    location = ic.get_location?.() || null;
+                    notes = ic.get_description() || null;
+                    const up = ic.get_first_property(ICalGLib.PropertyKind.URL_PROPERTY);
+                    url = up ? up.get_value_as_string() || null : null;
+                    location = ic.get_location() || null;
                     if (notes    === '')
                         notes    = null;
                     if (url      === '')
@@ -509,8 +509,8 @@ export class CalendarManager {
                     // Present only on one occurrence of a recurring series (never
                     // on the master) — identifies which occurrence this is, so a
                     // "delete this event only" can target it specifically.
-                    const ridProp = ic.get_first_property?.(ICalGLib.PropertyKind.RECURRENCEID_PROPERTY);
-                    recurrenceId = ridProp ? ridProp.get_value_as_string?.() || null : null;
+                    const ridProp = ic.get_first_property(ICalGLib.PropertyKind.RECURRENCEID_PROPERTY);
+                    recurrenceId = ridProp ? ridProp.get_value_as_string() || null : null;
                 }
             } catch {} // notes/url/location/etc are optional extras; missing data is expected
 
@@ -520,7 +520,7 @@ export class CalendarManager {
                 location, recurrence, alarm, recurrenceId, attendees,
             };
         } catch (e) {
-            logError(e, `CalendarManager: failed to parse calendar component ${comp.get_uid?.() ?? '?'}`);
+            logError(e, `CalendarManager: failed to parse calendar component ${comp.get_uid() ?? '?'}`);
             return null;
         }
     }
@@ -529,7 +529,7 @@ export class CalendarManager {
     // Anything else (BYDAY, COUNT, multiple rules, ...) is kept as raw text so
     // editing an unrelated field never silently discards it.
     _parseRecurrence(ic) {
-        const prop = ic.get_first_property?.(ICalGLib.PropertyKind.RRULE_PROPERTY);
+        const prop = ic.get_first_property(ICalGLib.PropertyKind.RRULE_PROPERTY);
         if (!prop)
             return null;
         try {
@@ -545,7 +545,7 @@ export class CalendarManager {
                 : null;
             return {freq: parts.FREQ, interval: parts.INTERVAL ? parseInt(parts.INTERVAL) : 1, until};
         } catch {
-            return {raw: prop.get_value_as_string?.() ?? ''};
+            return {raw: prop.get_value_as_string() ?? ''};
         }
     }
 
@@ -554,7 +554,7 @@ export class CalendarManager {
     // alarms, absolute triggers, EMAIL/AUDIO actions, ...) is kept as raw
     // VALARM blocks so editing an unrelated field never silently discards it.
     _parseAlarm(ic) {
-        const n = ic.count_components?.(ICalGLib.ComponentKind.VALARM_COMPONENT) ?? 0;
+        const n = ic.count_components(ICalGLib.ComponentKind.VALARM_COMPONENT);
         if (n === 0)
             return null;
         if (n > 1)
@@ -562,16 +562,16 @@ export class CalendarManager {
 
         const valarm = ic.get_first_component(ICalGLib.ComponentKind.VALARM_COMPONENT);
         try {
-            const actionProp = valarm.get_first_property?.(ICalGLib.PropertyKind.ACTION_PROPERTY);
-            const action     = actionProp?.get_value_as_string?.() ?? '';
-            const trigProp = valarm.get_first_property?.(ICalGLib.PropertyKind.TRIGGER_PROPERTY);
+            const actionProp = valarm.get_first_property(ICalGLib.PropertyKind.ACTION_PROPERTY);
+            const action     = actionProp?.get_value_as_string() ?? '';
+            const trigProp = valarm.get_first_property(ICalGLib.PropertyKind.TRIGGER_PROPERTY);
             if (!trigProp || action !== 'DISPLAY')
                 return {raw: this._allValarmBlocks(ic)};
 
             // A relative trigger's raw form is a DURATION ("-PT10M", "PT0S", ...);
             // an absolute one is a DATE-TIME. dur.is_null_duration() can't tell
             // "explicitly zero" from "unset", so classify by raw form instead.
-            const raw = trigProp.get_value_as_string?.() ?? '';
+            const raw = trigProp.get_value_as_string() ?? '';
             if (!/^[+-]?P/i.test(raw))
                 return {raw: this._allValarmBlocks(ic)};
 
@@ -599,13 +599,13 @@ export class CalendarManager {
     // whatever the server last sent, untouched by us.
     _parseAttendees(ic) {
         const attendees = [];
-        let prop = ic.get_first_property?.(ICalGLib.PropertyKind.ATTENDEE_PROPERTY);
+        let prop = ic.get_first_property(ICalGLib.PropertyKind.ATTENDEE_PROPERTY);
         while (prop) {
-            const email = (prop.get_value_as_string?.() ?? '').replace(/^mailto:/i, '');
-            const cn        = prop.get_parameter_as_string?.('CN') || null;
-            const partstat  = (prop.get_parameter_as_string?.('PARTSTAT') || '').toUpperCase();
+            const email = (prop.get_value_as_string() ?? '').replace(/^mailto:/i, '');
+            const cn        = prop.get_parameter_as_string('CN') || null;
+            const partstat  = (prop.get_parameter_as_string('PARTSTAT') || '').toUpperCase();
             attendees.push({name: cn || email.split('@')[0], email, partstat});
-            prop = ic.get_next_property?.(ICalGLib.PropertyKind.ATTENDEE_PROPERTY);
+            prop = ic.get_next_property(ICalGLib.PropertyKind.ATTENDEE_PROPERTY);
         }
         return attendees;
     }
