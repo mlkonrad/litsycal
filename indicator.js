@@ -506,17 +506,23 @@ class LitsycalIndicator extends PanelMenu.Button {
             this.menu.disconnect(this._menuOpenId);
             this._menuOpenId = null;
         }
+        for (const id of this._sids)
+            this._settings.disconnect(id);
+        this._goToDatePanel?.close();
+        this._goToDatePanel = null;
+        this._settingsMenuPanel?.close();
+        this._settingsMenuPanel = null;
+        // Destroyed explicitly: as a child actor it would otherwise go down
+        // with the menu (or the floating box) from C code, which skips its
+        // JS destroy() and leaves its settings handlers and calendar
+        // connections running after disable.
+        this._calWidget.destroy();
+        this._calWidget = null;
         if (this._floatingBox) {
             Main.layoutManager.uiGroup.remove_child(this._floatingBox);
             this._floatingBox.destroy();
             this._floatingBox = null;
         }
-        this._goToDatePanel?.close();
-        this._goToDatePanel = null;
-        this._settingsMenuPanel?.close();
-        this._settingsMenuPanel = null;
-        for (const id of this._sids)
-            this._settings.disconnect(id);
         super.destroy();
     }
 });

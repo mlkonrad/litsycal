@@ -63,7 +63,6 @@ export class CalendarManager {
                 try {
                     this._registry  = EDataServer.SourceRegistry.new_finish(res);
                     this._available = true;
-                    this._loadSources();
 
                     this._addedId    = this._registry.connect('source-added',
                         (_r, src) => this._connectSource(src));
@@ -73,6 +72,7 @@ export class CalendarManager {
                         (_r, src) => this._connectSource(src));
                     this._disabledId = this._registry.connect('source-disabled',
                         (_r, src) => this._dropSource(src.get_uid()));
+                    this._loadSources();
                 } catch (e) {
                     if (!isCancelled(e))
                         logError(e, 'CalendarManager: registry init failed');
@@ -121,13 +121,8 @@ export class CalendarManager {
 
     _dropSource(uid) {
         this._stopView(uid);
-        const entry = this._clients.get(uid);
-        if (!entry)
+        if (!this._clients.delete(uid))
             return;
-        try {
-            entry.client.disconnect(null);
-        } catch {} // already gone; nothing actionable
-        this._clients.delete(uid);
         this._events = this._events.filter(e => e.clientUid !== uid);
         this._reindex();
         this._onEventsChanged(this._events);
@@ -950,18 +945,10 @@ export class CalendarManager {
         for (const uid of [...this._views.keys()])
             this._stopView(uid);
         if (this._registry) {
-            for (const id of [this._addedId, this._removedId, this._enabledId, this._disabledId]) {
-                try {
-                    this._registry.disconnect(id);
-                } catch {}
-            }
-        }
-        for (const {client} of this._clients.values()) {
-            try {
-                client.disconnect(null);
-            } catch {}
+            for (const id of [this._addedId, this._removedId, this._enabledId, this._disabledId])
+                this._registry.disconnect(id);
+            this._registry = null;
         }
         this._clients.clear();
-        this._registry = null;
     }
 }

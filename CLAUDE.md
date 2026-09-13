@@ -197,23 +197,34 @@ new code should keep meeting these — checked clean as of 2026-09-07:
   read as defensive padding to reviewers. Already audited in this repo
   (commit b4321e9, 2026-09-11) and found NOT to be violations — don't
   re-flag these without new evidence:
-  - `calendarManager.js` try/catches around EDS client `.disconnect(null)`
-    and registry `.disconnect(id)` — an already-torn-down EDS/D-Bus-backed
-    client can genuinely throw on disconnect, unlike a plain
-    GObject.disconnect().
   - `Gio.Subprocess`/`Gio.AppInfo.launch_default_for_uri` calls in
     eventDialog.js/eventInfoPopover.js/calendarWidget.js/prefs.js wrapped in
     try/catch — launching an external app/URI handler can fail for real
     reasons (app not installed, invalid URI), unlike a GObject method call.
   A try/catch around a call that can genuinely throw is fine either way —
   keep the short comment explaining why, as these already do.
+  Two earlier "not a violation" entries were reversed on 2026-09-13 and
+  removed from the code — don't reintroduce them: `?.()` on ICalGLib
+  getters (the methods always exist; a missing iCal field makes the getter
+  return `null`), and try/catch-wrapped `client.disconnect(null)` on ECal
+  clients (ECal.Client has no disconnect of its own — that's GObject's
+  signal disconnect with handler id 0, which logs a GLib critical per
+  calendar instead of throwing).
 - **No lifecycle guard flags**: don't add booleans like `this._destroyed` to
   prevent post-destroy races — null out the instance var on cleanup instead
   and let that be the guard (already the pattern everywhere in this repo).
 - **`destroy()` order**: remove timeouts/GLib sources first, then disconnect
   signals, then release other resources, then call `super.destroy()` last.
   Override `destroy()` directly on GObject-derived widgets rather than
-  connecting to the `destroy` signal (already true everywhere in this repo).
+  connecting to the `destroy` signal — but a JS `destroy()` override only
+  runs when JS calls it. A child actor destroyed from C along with its
+  parent (a menu item, a container) skips it entirely, so the owner must
+  call `destroy()` on such children explicitly, as
+  `LitsycalIndicator.destroy()` does for the calendar widget. Hit for real
+  2026-09-13: on every disable (each screen lock) `LitsycalCalendar.destroy()`
+  never ran, leaking its settings handlers and CalendarManager. Verify
+  teardown by changing a setting after disable and watching the log for
+  "has been already disposed" criticals, not by reading destroy().
 - **Icons and progress**: use `Gtk.Image`/`St.Icon` for icons (never emoji
   glyphs), and shell widgets (`St.Bin`, GNOME's bar-level widget) for
   progress, not ASCII bars.

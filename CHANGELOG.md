@@ -101,6 +101,15 @@ longer carries a `version` key — see that file's history for why).
   close/disable. The delete-confirmation prompt opened from an agenda row's
   right-click menu is now also closed on disable instead of being left
   holding its input grab.
+- Disabling the extension — which GNOME does on every screen lock — never
+  actually ran the calendar's own cleanup: the calendar widget went down
+  with its menu from C code, which skips its JavaScript `destroy()`. Each
+  lock left a detached copy of the calendar still connected to your
+  settings and calendars, logging "has been already disposed" errors
+  whenever a setting or an event changed, and piling up with every lock.
+  The indicator now destroys the calendar explicitly on disable, and that
+  cleanup no longer calls a non-existent disconnect on calendar clients
+  (which logged a GLib critical per calendar).
 
 ## [6] - 2026-09-12
 
