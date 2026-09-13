@@ -1,7 +1,7 @@
 {
     "uuid": "litsycal@mlkonrad.github.com",
     "name": "Litsycal",
-    "description": "A compact calendar indicator for the GNOME panel, inspired by Itsycal.\n\nAn agenda entry's right-click menu includes a \"Copy\" action that copies its details to the clipboard.",
+    "description": "A compact calendar for the GNOME panel, inspired by Itsycal for macOS.\n\nClick the panel badge for a small month calendar with an agenda of your upcoming events, using the calendars GNOME already knows about (GNOME Calendar and Online Accounts such as Google).\n\n- Create, edit, search and delete events right from the panel, including quick-add from a one-liner like \"Lunch tomorrow 12pm at Cafe Nero\"\n- One-click join buttons and an optional countdown for video meetings\n- Live world clocks with the offset from your home time zone\n- Week numbers, pinning, Itsycal-style keyboard shortcuts and plenty of appearance options\n\nClipboard: an agenda event's right-click menu has a \"Copy\" action that copies the event's details to the clipboard.",
     "shell-version": ["48", "49", "50"],
     "settings-schema": "org.gnome.shell.extensions.litsycal",
     "gettext-domain": "litsycal@mlkonrad.github.com",
