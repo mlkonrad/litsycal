@@ -1066,7 +1066,7 @@ class LitsycalCalendar extends St.BoxLayout {
                         btn.connect('clicked', () => {
                             try {
                                 Gio.AppInfo.launch_default_for_uri(uri, null);
-                            } catch {}
+                            } catch {} // no app handles this URI scheme; nothing to fall back to
                         });
                         row2.add_child(btn);
                         return btn;

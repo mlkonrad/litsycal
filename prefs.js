@@ -467,38 +467,32 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             homeRow.set_subtitle(_('Detecting…'));
             detectCancellable = new Gio.Cancellable();
 
-            try {
-                Geoclue.Simple.new('org.gnome.Shell', Geoclue.AccuracyLevel.CITY, detectCancellable, (_obj, res) => {
-                    const cancelled = detectCancellable.is_cancelled();
-                    detectCancellable = null;
-                    // The window (and these widgets) may already be gone if
-                    // detection was still in flight when Preferences closed
-                    // — close-request cancels it, so bail out here without
-                    // touching anything rather than risk a use-after-close.
-                    if (cancelled)
-                        return;
-                    detectBtn.set_sensitive(true);
-                    try {
-                        const simple = Geoclue.Simple.new_finish(res);
-                        const {latitude, longitude} = simple.get_location();
-                        const city = GWeather.Location.get_world().find_nearest_city(latitude, longitude);
-                        const tzid = city.get_timezone_str();
-                        const idx  = homeIds.indexOf(tzid);
-                        if (idx < 0)
-                            throw new Error(`detected id ${tzid} not in local zoneinfo tables`);
-                        if (idx === homeRow.get_selected())
-                            updateHomeSubtitle(); // notify::selected won't fire on a no-op selection
-                        else
-                            homeRow.set_selected(idx); // triggers notify::selected above
-                    } catch {
-                        homeRow.set_subtitle(_('Could not detect your location — check Settings ▸ Privacy ▸ Location Services is on'));
-                    }
-                });
-            } catch {
+            Geoclue.Simple.new('org.gnome.Shell', Geoclue.AccuracyLevel.CITY, detectCancellable, (_obj, res) => {
+                const cancelled = detectCancellable.is_cancelled();
                 detectCancellable = null;
+                // The window (and these widgets) may already be gone if
+                // detection was still in flight when Preferences closed
+                // — close-request cancels it, so bail out here without
+                // touching anything rather than risk a use-after-close.
+                if (cancelled)
+                    return;
                 detectBtn.set_sensitive(true);
-                homeRow.set_subtitle(_('Could not detect your location — check Settings ▸ Privacy ▸ Location Services is on'));
-            }
+                try {
+                    const simple = Geoclue.Simple.new_finish(res);
+                    const {latitude, longitude} = simple.get_location();
+                    const city = GWeather.Location.get_world().find_nearest_city(latitude, longitude);
+                    const tzid = city.get_timezone_str();
+                    const idx  = homeIds.indexOf(tzid);
+                    if (idx < 0)
+                        throw new Error(`detected id ${tzid} not in local zoneinfo tables`);
+                    if (idx === homeRow.get_selected())
+                        updateHomeSubtitle(); // notify::selected won't fire on a no-op selection
+                    else
+                        homeRow.set_selected(idx); // triggers notify::selected above
+                } catch {
+                    homeRow.set_subtitle(_('Could not detect your location — check Settings ▸ Privacy ▸ Location Services is on'));
+                }
+            });
         });
         homeRow.add_suffix(detectBtn);
         homeGroup.add(homeRow);
@@ -932,67 +926,63 @@ export default class LitsycalPrefs extends ExtensionPreferences {
 
         const disabled = new Set(settings.get_strv('disabled-calendars'));
 
-        try {
-            EDataServer.SourceRegistry.new(null, (_obj, res) => {
-                let registry;
-                try {
-                    registry = EDataServer.SourceRegistry.new_finish(res);
-                } catch {
-                    loadingRow.set_title(_('Could not load calendars'));
-                    return;
-                }
+        EDataServer.SourceRegistry.new(null, (_obj, res) => {
+            let registry;
+            try {
+                registry = EDataServer.SourceRegistry.new_finish(res);
+            } catch {
+                loadingRow.set_title(_('Could not load calendars'));
+                return;
+            }
 
-                const sources = registry.list_sources(EDataServer.SOURCE_EXTENSION_CALENDAR)
-                    .filter(src => src.get_enabled());
+            const sources = registry.list_sources(EDataServer.SOURCE_EXTENSION_CALENDAR)
+                .filter(src => src.get_enabled());
 
-                group.remove(loadingRow);
+            group.remove(loadingRow);
 
-                if (sources.length === 0) {
-                    group.add(this._buildNoCalendarsRow());
-                    return;
-                }
+            if (sources.length === 0) {
+                group.add(this._buildNoCalendarsRow());
+                return;
+            }
 
-                for (const src of sources) {
-                    const uid    = src.get_uid();
-                    const calExt = src.get_extension(EDataServer.SOURCE_EXTENSION_CALENDAR);
-                    const color  = calExt.get_color();
-                    const name   = src.get_display_name();
+            for (const src of sources) {
+                const uid    = src.get_uid();
+                const calExt = src.get_extension(EDataServer.SOURCE_EXTENSION_CALENDAR);
+                const color  = calExt.get_color();
+                const name   = src.get_display_name();
 
-                    const row = new Adw.SwitchRow({
-                        title:  GLib.markup_escape_text(name, -1),
-                        active: !disabled.has(uid),
+                const row = new Adw.SwitchRow({
+                    title:  GLib.markup_escape_text(name, -1),
+                    active: !disabled.has(uid),
+                });
+
+                // Backends report colour in whatever format they like (hex,
+                // "rgb(...)", named, ...); Gdk.RGBA.parse() accepts all of them.
+                const rgba = new Gdk.RGBA();
+                if (color && rgba.parse(color)) {
+                    const dot = new Gtk.DrawingArea({
+                        content_width: 10, content_height: 10,
+                        valign: Gtk.Align.CENTER,
                     });
-
-                    // Backends report colour in whatever format they like (hex,
-                    // "rgb(...)", named, ...); Gdk.RGBA.parse() accepts all of them.
-                    const rgba = new Gdk.RGBA();
-                    if (color && rgba.parse(color)) {
-                        const dot = new Gtk.DrawingArea({
-                            content_width: 10, content_height: 10,
-                            valign: Gtk.Align.CENTER,
-                        });
-                        dot.set_draw_func((_area, cr, width, height) => {
-                            cr.setSourceRGBA(rgba.red, rgba.green, rgba.blue, rgba.alpha);
-                            cr.arc(width / 2, height / 2, Math.min(width, height) / 2, 0, 2 * Math.PI);
-                            cr.fill();
-                            cr.$dispose();
-                        });
-                        row.add_prefix(dot);
-                    }
-
-                    row.connect('notify::active', () => {
-                        if (row.get_active())
-                            disabled.delete(uid);
-                        else
-                            disabled.add(uid);
-                        settings.set_strv('disabled-calendars', [...disabled]);
+                    dot.set_draw_func((_area, cr, width, height) => {
+                        cr.setSourceRGBA(rgba.red, rgba.green, rgba.blue, rgba.alpha);
+                        cr.arc(width / 2, height / 2, Math.min(width, height) / 2, 0, 2 * Math.PI);
+                        cr.fill();
+                        cr.$dispose();
                     });
-                    group.add(row);
+                    row.add_prefix(dot);
                 }
-            });
-        } catch {
-            loadingRow.set_title(_('Could not load calendars'));
-        }
+
+                row.connect('notify::active', () => {
+                    if (row.get_active())
+                        disabled.delete(uid);
+                    else
+                        disabled.add(uid);
+                    settings.set_strv('disabled-calendars', [...disabled]);
+                });
+                group.add(row);
+            }
+        });
     }
 
     // Evolution Data Server (which Litsycal reads directly) doesn't come

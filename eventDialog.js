@@ -1392,7 +1392,7 @@ export class EventPanel {
             return;
         try {
             Gio.AppInfo.launch_default_for_uri(url, null);
-        } catch {}
+        } catch {} // no app handles this URI scheme; nothing to fall back to
     }
 
     _parseDate(str) {

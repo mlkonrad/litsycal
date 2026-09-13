@@ -58,29 +58,25 @@ export class CalendarManager {
     // ── Init ──────────────────────────────────────────────────────────────────
 
     _initRegistry() {
-        try {
-            EDataServer.SourceRegistry.new(this._cancellable, (_obj, res) => {
-                try {
-                    this._registry  = EDataServer.SourceRegistry.new_finish(res);
-                    this._available = true;
+        EDataServer.SourceRegistry.new(this._cancellable, (_obj, res) => {
+            try {
+                this._registry  = EDataServer.SourceRegistry.new_finish(res);
+                this._available = true;
 
-                    this._addedId    = this._registry.connect('source-added',
-                        (_r, src) => this._connectSource(src));
-                    this._removedId  = this._registry.connect('source-removed',
-                        (_r, src) => this._dropSource(src.get_uid()));
-                    this._enabledId  = this._registry.connect('source-enabled',
-                        (_r, src) => this._connectSource(src));
-                    this._disabledId = this._registry.connect('source-disabled',
-                        (_r, src) => this._dropSource(src.get_uid()));
-                    this._loadSources();
-                } catch (e) {
-                    if (!isCancelled(e))
-                        logError(e, 'CalendarManager: registry init failed');
-                }
-            });
-        } catch (e) {
-            logError(e, 'CalendarManager: failed to start registry lookup');
-        }
+                this._addedId    = this._registry.connect('source-added',
+                    (_r, src) => this._connectSource(src));
+                this._removedId  = this._registry.connect('source-removed',
+                    (_r, src) => this._dropSource(src.get_uid()));
+                this._enabledId  = this._registry.connect('source-enabled',
+                    (_r, src) => this._connectSource(src));
+                this._disabledId = this._registry.connect('source-disabled',
+                    (_r, src) => this._dropSource(src.get_uid()));
+                this._loadSources();
+            } catch (e) {
+                if (!isCancelled(e))
+                    logError(e, 'CalendarManager: registry init failed');
+            }
+        });
     }
 
     _loadSources() {
@@ -481,31 +477,29 @@ export class CalendarManager {
 
             let notes = null, url = null, location = null, recurrence = null, alarm = null,
                 recurrenceId = null, attendees = [];
-            try {
-                const ic = comp.get_icalcomponent();
-                if (ic) {
-                    notes = ic.get_description() || null;
-                    const up = ic.get_first_property(ICalGLib.PropertyKind.URL_PROPERTY);
-                    url = up ? up.get_value_as_string() || null : null;
-                    location = ic.get_location() || null;
-                    if (notes    === '')
-                        notes    = null;
-                    if (url      === '')
-                        url      = null;
-                    if (location === '')
-                        location = null;
+            const ic = comp.get_icalcomponent();
+            if (ic) {
+                notes = ic.get_description() || null;
+                const up = ic.get_first_property(ICalGLib.PropertyKind.URL_PROPERTY);
+                url = up ? up.get_value_as_string() || null : null;
+                location = ic.get_location() || null;
+                if (notes    === '')
+                    notes    = null;
+                if (url      === '')
+                    url      = null;
+                if (location === '')
+                    location = null;
 
-                    recurrence = this._parseRecurrence(ic);
-                    alarm      = this._parseAlarm(ic);
-                    attendees  = this._parseAttendees(ic);
+                recurrence = this._parseRecurrence(ic);
+                alarm      = this._parseAlarm(ic);
+                attendees  = this._parseAttendees(ic);
 
-                    // Present only on one occurrence of a recurring series (never
-                    // on the master) — identifies which occurrence this is, so a
-                    // "delete this event only" can target it specifically.
-                    const ridProp = ic.get_first_property(ICalGLib.PropertyKind.RECURRENCEID_PROPERTY);
-                    recurrenceId = ridProp ? ridProp.get_value_as_string() || null : null;
-                }
-            } catch {} // notes/url/location/etc are optional extras; missing data is expected
+                // Present only on one occurrence of a recurring series (never
+                // on the master) — identifies which occurrence this is, so a
+                // "delete this event only" can target it specifically.
+                const ridProp = ic.get_first_property(ICalGLib.PropertyKind.RECURRENCEID_PROPERTY);
+                recurrenceId = ridProp ? ridProp.get_value_as_string() || null : null;
+            }
 
             return {
                 date, title, time, color, allDay: isAllDay, endDate,
