@@ -887,6 +887,8 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             'https://github.com/mlkonrad/litsycal');
         makeLinkRow(_('Report an Issue'), _('Bug reports and feature requests'),
             'https://github.com/mlkonrad/litsycal/issues');
+        makeLinkRow('Buy Me a Coffee', _('Support Litsycal’s development'),
+            'https://buymeacoffee.com/mlkonrad');
 
         window.connect('close-request', () => {
             detectCancellable?.cancel();

@@ -8,6 +8,15 @@ release instead, numbered sequentially ([1], [2], [3], …). This counter is
 maintained by hand here and is independent of `metadata.json` (which no
 longer carries a `version` key — see that file's history for why).
 
+## [Unreleased]
+
+### Added
+
+- A "Buy Me a Coffee" link on the Preferences About page, for anyone who
+  wants to support Litsycal's development. The same link is declared in
+  `metadata.json`'s `donations` key, so extensions.gnome.org can show its
+  own donate button.
+
 ## [7] - 2026-09-13
 
 ### Added

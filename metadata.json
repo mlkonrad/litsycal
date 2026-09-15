@@ -5,5 +5,8 @@
     "shell-version": ["48", "49", "50"],
     "settings-schema": "org.gnome.shell.extensions.litsycal",
     "gettext-domain": "litsycal@mlkonrad.github.com",
-    "url": "https://github.com/mlkonrad/litsycal"
+    "url": "https://github.com/mlkonrad/litsycal",
+    "donations": {
+        "buymeacoffee": "mlkonrad"
+    }
 }
