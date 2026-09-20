@@ -647,6 +647,19 @@
     border-radius: 10px;
 }
 
+/* Footer icon-button tooltip — same popup-menu-content chrome as the day-cell
+   tooltip above, but sized to one short line of text rather than a day
+   preview, so it has no min-width of its own. */
+.litsycal-btn-tooltip {
+    padding: 6px 10px;
+    max-width: 240px;
+    border-radius: 8px;
+}
+
+.litsycal-btn-tooltip-label {
+    font-size: 0.9em;
+}
+
 /* Event info popover — a read-only sibling of litsycal-event-panel above
    (same popup-menu-content background/text), itsycal's AgendaPopoverVC. */
 .litsycal-info-popover {

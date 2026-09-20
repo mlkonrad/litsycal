@@ -16,6 +16,18 @@ longer carries a `version` key — see that file's history for why).
   wants to support Litsycal's development. The same link is declared in
   `metadata.json`'s `donations` key, so extensions.gnome.org can show its
   own donate button.
+- Hover tooltips on the footer buttons (new event, pin, sync, calendar app,
+  settings). They were icon-only, with their label reachable by screen
+  reader alone; the tooltip now shows that same string, reusing the day-cell
+  tooltip's hover delay.
+
+### Changed
+
+- The pin button's label now reads "Pin calendar open (P); click to unpin",
+  and the README's shortcut table no longer claims `P` unpins. A pinned
+  calendar deliberately holds no keyboard focus — that's what keeps the rest
+  of the desktop usable while it stays visible — so no shortcut reaches it
+  once pinned, and unpinning is click-only.
 
 ## [7] - 2026-09-13
 

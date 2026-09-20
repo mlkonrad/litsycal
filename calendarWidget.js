@@ -233,7 +233,7 @@ class LitsycalCalendar extends St.BoxLayout {
     // ── Cleanup ───────────────────────────────────────────────────────────────
 
     destroy() {
-        this._cancelCellTooltip();
+        this._cancelTooltip();
         if (this._dayInfoTimeoutId) {
             GLib.source_remove(this._dayInfoTimeoutId);
             this._dayInfoTimeoutId = null;
@@ -484,7 +484,7 @@ class LitsycalCalendar extends St.BoxLayout {
     // ── Calendar grid ─────────────────────────────────────────────────────────
 
     _buildGrid() {
-        this._cancelCellTooltip(); // cells about to be destroyed would leave a dangling anchor
+        this._cancelTooltip(); // cells about to be destroyed would leave a dangling anchor
         this._gridBox.destroy_all_children();
         this._cellsByDate = new Map();
         this._rangeHighlightedCells = []; // stale refs to now-destroyed buttons — drop them
@@ -752,7 +752,7 @@ class LitsycalCalendar extends St.BoxLayout {
             if (btn.hover)
                 this._scheduleCellTooltip(ds, btn);
             else
-                this._cancelCellTooltip();
+                this._cancelTooltip();
         });
 
         // Tracked alongside real cells so a multi-day agenda event's hover
@@ -813,7 +813,7 @@ class LitsycalCalendar extends St.BoxLayout {
             if (btn.hover)
                 this._scheduleCellTooltip(ds, btn);
             else
-                this._cancelCellTooltip();
+                this._cancelTooltip();
         });
         this._cellsByDate.set(ds, btn);
         return btn;
@@ -864,7 +864,7 @@ class LitsycalCalendar extends St.BoxLayout {
     // agenda panel below).
 
     _scheduleCellTooltip(ds, anchorBtn) {
-        this._cancelCellTooltip();
+        this._cancelTooltip();
         this._tooltipTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 600, () => {
             this._tooltipTimeoutId = null;
             this._showCellTooltip(ds, anchorBtn);
@@ -872,15 +872,15 @@ class LitsycalCalendar extends St.BoxLayout {
         });
     }
 
-    _cancelCellTooltip() {
+    _cancelTooltip() {
         if (this._tooltipTimeoutId) {
             GLib.source_remove(this._tooltipTimeoutId);
             this._tooltipTimeoutId = null;
         }
-        this._hideCellTooltip();
+        this._hideTooltip();
     }
 
-    _hideCellTooltip() {
+    _hideTooltip() {
         if (this._tooltipIdleId) {
             GLib.source_remove(this._tooltipIdleId);
             this._tooltipIdleId = null;
@@ -969,6 +969,64 @@ class LitsycalCalendar extends St.BoxLayout {
             posY = Math.max(monitor.y + panelH + 4, Math.min(posY, monitor.y + monitor.height - boxH - 4));
 
             box.set_position(x, posY);
+            box.opacity = 255;
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    // ── Footer button tooltip ────────────────────────────────────────────────
+    // The footer icons carry no visible label — only an accessible_name, which
+    // reaches a screen reader and nothing else. This shows that same string on
+    // hover, reusing the day-cell tooltip's delay and its _tooltipBox/
+    // _tooltipTimeoutId slots above, so the two can never be up at once.
+
+    _scheduleBtnTooltip(text, anchorBtn) {
+        this._cancelTooltip();
+        this._tooltipTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 600, () => {
+            this._tooltipTimeoutId = null;
+            this._showBtnTooltip(text, anchorBtn);
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _showBtnTooltip(text, anchorBtn) {
+        if (!anchorBtn.hover)
+            return; // pointer left before the delay elapsed
+
+        const box = new St.BoxLayout({
+            orientation: Clutter.Orientation.VERTICAL,
+            style_class: 'popup-menu-content litsycal-btn-tooltip',
+            opacity: 0, // see _showCellTooltip: invisible until positioned a frame later
+        });
+        const label = new St.Label({text, style_class: 'litsycal-btn-tooltip-label'});
+        label.clutter_text.set_line_wrap(true);
+        box.add_child(label);
+
+        Main.layoutManager.uiGroup.add_child(box);
+        this._tooltipBox = box;
+
+        if (this._tooltipIdleId)
+            GLib.source_remove(this._tooltipIdleId);
+        this._tooltipIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            this._tooltipIdleId = null;
+            const monitor = Main.layoutManager.monitors[
+                Main.layoutManager.findIndexForActor(this)
+            ] ?? Main.layoutManager.primaryMonitor;
+            const [ax, ay] = anchorBtn.get_transformed_position();
+            const aw = anchorBtn.get_width();
+            const boxW = box.get_width()  || 160;
+            const boxH = box.get_height() || 32;
+
+            let x = Math.round(ax + aw / 2 - boxW / 2);
+            x = Math.max(monitor.x + 4, Math.min(x, monitor.x + monitor.width - boxW - 4));
+
+            // Above the footer, which sits at the bottom of the popup; flipped
+            // below the button only if that would run off the top of the monitor.
+            let y = ay - boxH - 6;
+            if (y < monitor.y + Main.panel.get_height() + 4)
+                y = ay + anchorBtn.get_height() + 6;
+
+            box.set_position(x, y);
             box.opacity = 255;
             return GLib.SOURCE_REMOVE;
         });
@@ -1134,20 +1192,35 @@ class LitsycalCalendar extends St.BoxLayout {
         this.add_child(new St.Widget({style_class: 'litsycal-sep'}));
         const footer = new St.BoxLayout({style_class: 'litsycal-footer'});
 
-        const makeIconBtn = (iconName, accessibleName, toggle = false) => new St.Button({
+        // Shows the button's accessible_name on hover — these icons have no
+        // other label. Cancelled on click too: a button that opens a panel of
+        // its own (gear, +) takes a pointer grab, so the leave event that
+        // would otherwise dismiss the tooltip never arrives.
+        const withTooltip = btn => {
+            btn.connect('notify::hover', () => {
+                if (btn.hover)
+                    this._scheduleBtnTooltip(btn.accessible_name, btn);
+                else
+                    this._cancelTooltip();
+            });
+            btn.connect('clicked', () => this._cancelTooltip());
+            return btn;
+        };
+
+        const makeIconBtn = (iconName, accessibleName, toggle = false) => withTooltip(new St.Button({
             style_class: 'litsycal-footer-btn',
             child: new St.Icon({icon_name: iconName, style_class: 'litsycal-gear-icon'}),
             x_expand: false, toggle_mode: toggle,
             accessible_name: accessibleName,
-        });
+        }));
 
-        this._addBtn = new St.Button({
+        this._addBtn = withTooltip(new St.Button({
             label: '+', style_class: 'litsycal-footer-btn litsycal-add-btn',
             accessible_name: _('New event'),
-        });
+        }));
         this._addBtn.connect('clicked', () => this._openCreateDialog());
 
-        const pinBtn = makeIconBtn('view-pin-symbolic', _('Pin calendar open'), true);
+        const pinBtn = makeIconBtn('view-pin-symbolic', _('Pin calendar open (P); click to unpin'), true);
         pinBtn.connect('notify::checked', () => {
             if (this._suppressPinNotify)
                 return;

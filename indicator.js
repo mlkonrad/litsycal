@@ -148,9 +148,15 @@ class LitsycalIndicator extends PanelMenu.Button {
                     return this._calWidget.handleKeyPress(keyval, shift, ctrl, alt)
                         ? Clutter.EVENT_STOP : Clutter.EVENT_PROPAGATE;
                 });
-            } else if (this._keyPressId) {
-                this.menu.actor.disconnect(this._keyPressId);
-                this._keyPressId = null;
+            } else {
+                // A hover tooltip is parented to uiGroup, not to the menu, so
+                // it would outlive a close that never delivers a leave event
+                // (Escape, or pinning) and sit alone on the desktop.
+                this._calWidget._cancelTooltip();
+                if (this._keyPressId) {
+                    this.menu.actor.disconnect(this._keyPressId);
+                    this._keyPressId = null;
+                }
             }
         });
 

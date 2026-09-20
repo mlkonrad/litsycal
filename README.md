@@ -32,7 +32,7 @@ Linux):
 | `Space` | Jump to today |
 | `#` | Show selected day's offset from today and day of year |
 | `Ctrl + J` / `Ctrl + K` | Add/remove a week row in the calendar |
-| `P` | Pin/unpin the calendar |
+| `P` | Pin the calendar open (unpinning is click-only — see below) |
 | `W` | Show/hide calendar week numbers |
 | `.` | Show/hide event locations in the agenda |
 | `Ctrl + ,` | Open Settings |
@@ -44,6 +44,12 @@ Linux):
 | `Ctrl + Shift + T` | Go to date |
 | `Ctrl + Alt + R` | Refresh events |
 | `Ctrl + Q` | Quit Litsycal |
+
+Pinning is the one shortcut that only works in one direction. A pinned
+calendar deliberately doesn't hold keyboard focus — that's the whole point,
+so the rest of your desktop stays usable while it stays visible — which means
+no shortcut reaches it once it's pinned. Unpin by clicking the pin button
+again (or by clicking the panel button, which unpins and reopens the popup).
 
 Quick-add recognizes weekday names in your system's own locale automatically
 (no translation needed for those), but the fixed keywords — "today",

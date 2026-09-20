@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Litsycal\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-15 22:31+0300\n"
+"POT-Creation-Date: 2026-09-20 16:39+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -34,7 +34,7 @@ msgstr ""
 msgid "Drag to show more weeks"
 msgstr ""
 
-#: calendarWidget.js:851 calendarWidget.js:1010
+#: calendarWidget.js:851 calendarWidget.js:1068
 msgid "Today"
 msgstr ""
 
@@ -45,68 +45,68 @@ msgid_plural "%d events"
 msgstr[0] ""
 msgstr[1] ""
 
-#: calendarWidget.js:924 calendarWidget.js:1029
+#: calendarWidget.js:924 calendarWidget.js:1087
 msgid "No events"
 msgstr ""
 
-#: calendarWidget.js:941 calendarWidget.js:1056 calendarWidget.js:1102
+#: calendarWidget.js:941 calendarWidget.js:1114 calendarWidget.js:1160
 #: helpers.js:260
 msgid "All day"
 msgstr ""
 
-#: calendarWidget.js:1012
+#: calendarWidget.js:1070
 msgid "Tomorrow"
 msgstr ""
 
-#: calendarWidget.js:1078 eventInfoPopover.js:295
+#: calendarWidget.js:1136 eventInfoPopover.js:295
 msgid "Join meeting"
 msgstr ""
 
-#: calendarWidget.js:1082 eventInfoPopover.js:319 eventInfoPopover.js:333
+#: calendarWidget.js:1140 eventInfoPopover.js:319 eventInfoPopover.js:333
 msgid "Open link"
 msgstr ""
 
-#: calendarWidget.js:1146
+#: calendarWidget.js:1219
 msgid "New event"
 msgstr ""
 
-#: calendarWidget.js:1150
-msgid "Pin calendar open"
+#: calendarWidget.js:1223
+msgid "Pin calendar open (P); click to unpin"
 msgstr ""
 
-#: calendarWidget.js:1158
+#: calendarWidget.js:1231
 msgid "Sync calendars"
 msgstr ""
 
-#: calendarWidget.js:1164
+#: calendarWidget.js:1237
 msgid "Open Calendar app"
 msgstr ""
 
-#: calendarWidget.js:1167
+#: calendarWidget.js:1240
 msgid "Settings menu"
 msgstr ""
 
-#: calendarWidget.js:1223 eventDialog.js:814 prefs.js:300
+#: calendarWidget.js:1296 eventDialog.js:814 prefs.js:300
 msgid "Time Zones"
 msgstr ""
 
-#: calendarWidget.js:1412
+#: calendarWidget.js:1485
 msgid "Edit…"
 msgstr ""
 
-#: calendarWidget.js:1417 prefs.js:1005
+#: calendarWidget.js:1490 prefs.js:1005
 msgid "Open Calendar"
 msgstr ""
 
-#: calendarWidget.js:1421
+#: calendarWidget.js:1494
 msgid "Copy"
 msgstr ""
 
-#: calendarWidget.js:1425
+#: calendarWidget.js:1498
 msgid "Delete…"
 msgstr ""
 
-#: calendarWidget.js:1474 eventInfoPopover.js:346
+#: calendarWidget.js:1547 eventInfoPopover.js:346
 msgid "Litsycal"
 msgstr ""
 
