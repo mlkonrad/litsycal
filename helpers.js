@@ -1,6 +1,7 @@
 import GLib    from 'gi://GLib';
 import St      from 'gi://St';
 import Clutter from 'gi://Clutter';
+import Pango   from 'gi://Pango';
 
 import {gettext as _, ngettext} from 'resource:///org/gnome/shell/extensions/extension.js';
 
@@ -339,9 +340,13 @@ export function formatRelativeOffset(diffSeconds) {
  * @param {string|null} relOffset
  */
 export function makeTzRow(city, time, relOffset) {
+    // Zero min/natural width: the leader only ever gets the space left over
+    // once city and time are sized. Otherwise its 200-dot natural width makes
+    // BoxLayout split any shortfall evenly between it and the time label,
+    // ellipsizing the time ("4:3…") on narrow calendars with large fonts.
     const leader = new St.Label({
         text: '.'.repeat(200), x_expand: true, y_align: Clutter.ActorAlign.END,
-        style_class: 'litsycal-tz-leader',
+        style_class: 'litsycal-tz-leader', min_width: 0, natural_width: 0,
     });
     leader.clutter_text.set_line_wrap(false);
     leader.clip_to_allocation = true;
@@ -349,12 +354,18 @@ export function makeTzRow(city, time, relOffset) {
     // Grouped in their own box so the row's own (wider) spacing between
     // city/leader/time doesn't also apply between the time and its offset —
     // those two read as one unit, so they sit tight together instead.
+    // Neither ever ellipsizes, so their minimum width is their full text and
+    // only the city name gives way when the row is short on space.
     const timeBox = new St.BoxLayout({style_class: 'litsycal-tz-time-box'});
-    timeBox.add_child(new St.Label({text: time, style_class: 'litsycal-tz-time litsycal-agenda-title'}));
+    const timeLbl = new St.Label({text: time, style_class: 'litsycal-tz-time litsycal-agenda-title'});
+    timeLbl.clutter_text.set_ellipsize(Pango.EllipsizeMode.NONE);
+    timeBox.add_child(timeLbl);
     if (relOffset) {
-        timeBox.add_child(new St.Label({
+        const offsetLbl = new St.Label({
             text: `(${relOffset})`, style_class: 'litsycal-tz-offset',
-        }));
+        });
+        offsetLbl.clutter_text.set_ellipsize(Pango.EllipsizeMode.NONE);
+        timeBox.add_child(offsetLbl);
     }
 
     const row = new St.BoxLayout({style_class: 'litsycal-tz-row'});

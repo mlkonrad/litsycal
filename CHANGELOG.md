@@ -31,6 +31,13 @@ longer carries a `version` key — see that file's history for why).
 
 ### Fixed
 
+- Time zone clocks no longer cut the time short (e.g. "4:3…" instead of
+  "4:36pm") on a small calendar with a large font, most visibly with the
+  12h format. The dotted leader between city and time now only fills the
+  space left over, and the time and its offset never shrink — a long city
+  name is what shortens instead. Also applies to the event dialog's time
+  zone preview, which shares the same row.
+
 - The Time Zones clocks no longer show a stale time when the calendar is
   opened. They only refreshed on a timer that runs while the calendar is
   visible, and opening the menu didn't trigger one. That timer also ran
