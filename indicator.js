@@ -113,11 +113,15 @@ class LitsycalIndicator extends PanelMenu.Button {
                         this._unpinCalendar(false);
                     this._calWidget._updateAgendaMaxHeight();
                     this._calWidget._buildAgenda();
+                    this._calWidget._updateTimeZones();
                     return GLib.SOURCE_REMOVE;
                 });
             } else if (open) {
                 this._calWidget._updateAgendaMaxHeight();
                 this._calWidget._buildAgenda();
+                // Only ticked while visible (see _scheduleMinuteTick), so
+                // otherwise still showing whatever time it was last open.
+                this._calWidget._updateTimeZones();
             }
             if (open) {
                 // Capture phase on the menu's own actor, not the stage: PopupMenu's
@@ -188,18 +192,7 @@ class LitsycalIndicator extends PanelMenu.Button {
         this.menu.addMenuItem(section);
 
         this._lastHour = GLib.DateTime.new_now_local().get_hour();
-        this._timer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 60, () => {
-            this._updateBadge();
-            this._checkHourlyBeep();
-            // Keep the meeting join-button window (15 min before → end) and
-            // the time zone clocks fresh while the calendar is actually
-            // visible.
-            if (this._menuIsOpen || this._pinned) {
-                this._calWidget._buildAgenda();
-                this._calWidget._updateTimeZones();
-            }
-            return GLib.SOURCE_CONTINUE;
-        });
+        this._scheduleMinuteTick();
 
         this.menu.actor.style = 'border: none; background-color: transparent; box-shadow: none; padding: 0;';
         this.menu.box.style   = 'padding: 0; background-color: transparent; border: none;';
@@ -411,6 +404,31 @@ class LitsycalIndicator extends PanelMenu.Button {
         return m > 0
             ? _('%Hh %Mm').replace('%H', h).replace('%M', m)
             : _('%Hh').replace('%H', h);
+    }
+
+    // Fires just after each wall-clock minute boundary rather than every
+    // 60s from whenever enable() happened to run — a free-running 60s
+    // interval leaves the badge time and time zone clocks up to 59s behind
+    // GNOME's own clock. Re-armed each tick, so suspend/resume or clock
+    // adjustments can't let it drift either.
+    _scheduleMinuteTick() {
+        const msToNextMinute = 60000 - Math.floor(GLib.get_real_time() / 1000) % 60000 + 50;
+        if (this._timer)
+            GLib.source_remove(this._timer);
+        this._timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, msToNextMinute, () => {
+            this._timer = null;
+            this._updateBadge();
+            this._checkHourlyBeep();
+            // Keep the meeting join-button window (15 min before → end) and
+            // the time zone clocks fresh while the calendar is actually
+            // visible.
+            if (this._menuIsOpen || this._pinned) {
+                this._calWidget._buildAgenda();
+                this._calWidget._updateTimeZones();
+            }
+            this._scheduleMinuteTick();
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     _checkHourlyBeep() {

@@ -29,6 +29,15 @@ longer carries a `version` key — see that file's history for why).
   of the desktop usable while it stays visible — so no shortcut reaches it
   once pinned, and unpinning is click-only.
 
+### Fixed
+
+- The Time Zones clocks no longer show a stale time when the calendar is
+  opened. They only refreshed on a timer that runs while the calendar is
+  visible, and opening the menu didn't trigger one. That timer also ran
+  every 60s from whenever the extension was enabled, so the clocks and the
+  panel badge's time could lag GNOME's own clock by up to 59s. It now fires
+  on each minute boundary.
+
 ## [7] - 2026-09-13
 
 ### Added
