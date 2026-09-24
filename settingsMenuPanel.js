@@ -68,7 +68,7 @@ export class SettingsMenuPanel {
             if (!item.action) {
                 btn.add_style_pseudo_class('insensitive');
             } else {
-                btn.connect('clicked', () => {
+                btn.connectObject('clicked', () => {
                     // Tearing this._box down from inside its own child's
                     // still-live 'clicked' handler is asking for trouble -
                     // finish the event first (same reasoning as the quit
@@ -81,14 +81,14 @@ export class SettingsMenuPanel {
                         item.action();
                         return GLib.SOURCE_REMOVE;
                     });
-                });
+                }, this);
                 // Keep the keyboard-navigated row in sync with whatever the
                 // mouse is over, so the two selection mechanisms never show
                 // two different rows highlighted at once.
-                btn.connect('notify::hover', () => {
+                btn.connectObject('notify::hover', () => {
                     if (btn.hover)
                         this._setFocusIndex(this._focusable.indexOf(btn));
-                });
+                }, this);
                 this._focusable.push(btn);
             }
             this._box.add_child(btn);
@@ -109,7 +109,7 @@ export class SettingsMenuPanel {
             return GLib.SOURCE_REMOVE;
         });
 
-        this._eventId = this._box.connect('captured-event', (_actor, ev) => {
+        this._box.connectObject('captured-event', (_actor, ev) => {
             if (ev.type() === Clutter.EventType.BUTTON_PRESS) {
                 const [x, y] = ev.get_coords();
                 const actor  = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
@@ -136,7 +136,7 @@ export class SettingsMenuPanel {
                 }
             }
             return Clutter.EVENT_PROPAGATE;
-        });
+        }, this);
     }
 
     // Moves the keyboard selection to index `i` (wrapping around), updating
@@ -182,15 +182,10 @@ export class SettingsMenuPanel {
             GLib.source_remove(this._actionIdleId);
             this._actionIdleId = null;
         }
-        if (this._eventId) {
-            this._box.disconnect(this._eventId);
-            this._eventId = null;
-        }
-        if (this._grab)    {
+        if (this._box) {
+            this._box.disconnectObject(this);
             Main.popModal(this._grab);
             this._grab = null;
-        }
-        if (this._box) {
             Main.layoutManager.uiGroup.remove_child(this._box);
             this._box.destroy();
             this._box = null;

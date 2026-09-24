@@ -107,7 +107,7 @@ export class EventInfoPopover {
 
         // Escape/Backspace/Delete: a plain 'key-press-event' on this._deleteBtn
         // itself, which holds real key focus (grabbed above).
-        this._btnKeyId = this._deleteBtn.connect('key-press-event', (_actor, event) => {
+        this._deleteBtn.connectObject('key-press-event', (_actor, event) => {
             if (this._closeConfirmOverlay)
                 return Clutter.EVENT_PROPAGATE; // let it handle its own keys
             const sym = event.get_key_symbol();
@@ -122,7 +122,7 @@ export class EventInfoPopover {
                 return Clutter.EVENT_STOP;
             }
             return Clutter.EVENT_PROPAGATE;
-        });
+        }, this);
 
         // Click-outside: a full-stage, invisible, reactive backdrop - a real
         // actor inside our own grabbed subtree, added to this._root BEFORE
@@ -138,7 +138,7 @@ export class EventInfoPopover {
         this._backdrop.set_position(0, 0);
         this._backdrop.set_size(global.stage.width, global.stage.height);
         this._root.insert_child_at_index(this._backdrop, 0);
-        this._backdropId = this._backdrop.connect('button-press-event', (_actor, event) => {
+        this._backdrop.connectObject('button-press-event', (_actor, event) => {
             if (this._closeConfirmOverlay)
                 return Clutter.EVENT_PROPAGATE; // let it handle its own clicks
             // Resolve what's actually under the click before tearing
@@ -147,7 +147,8 @@ export class EventInfoPopover {
             // row, or nothing) - this is a synchronous geometry query, not
             // event delivery, so it works fine even though nothing besides a
             // plain signal on the exact clicked actor is ever *delivered* an
-            // event under this grab (see the comment above this._btnKeyId).
+            // event under this grab (see the comment above the _deleteBtn
+            // key-press handler).
             const [x, y] = event.get_coords();
             this._backdrop.reactive = false;
             const under = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
@@ -157,7 +158,7 @@ export class EventInfoPopover {
             this.close();
             onOutsideClickCb?.(under, closingEvent);
             return Clutter.EVENT_STOP;
-        });
+        }, this);
     }
 
     _build() {
@@ -187,7 +188,7 @@ export class EventInfoPopover {
             y_align: Clutter.ActorAlign.START,
             can_focus: true,
         });
-        this._deleteBtn.connect('clicked', () => this._confirmDelete());
+        this._deleteBtn.connectObject('clicked', () => this._confirmDelete(), this);
         header.add_child(this._deleteBtn);
         box.add_child(header);
 
@@ -281,11 +282,11 @@ export class EventInfoPopover {
             lbl.clutter_text.set_ellipsize(Pango.EllipsizeMode.MIDDLE);
             row.add_child(lbl);
             btn.set_child(row);
-            btn.connect('clicked', () => {
+            btn.connectObject('clicked', () => {
                 try {
                     Gio.AppInfo.launch_default_for_uri(uri, null);
                 } catch {} // no app handles this URI scheme; nothing to fall back to
-            });
+            }, this);
             box.add_child(btn);
         };
 
@@ -400,19 +401,11 @@ export class EventInfoPopover {
         }
         if (this._closeConfirmOverlay)
             this._closeConfirmOverlay();
-        if (this._btnKeyId)  {
-            this._deleteBtn.disconnect(this._btnKeyId);
-            this._btnKeyId  = null;
-        }
-        if (this._backdropId) {
-            this._backdrop.disconnect(this._backdropId);
-            this._backdropId = null;
-        }
-        if (this._grab)    {
+        if (this._root) {
+            this._deleteBtn.disconnectObject(this);
+            this._backdrop.disconnectObject(this);
             Main.popModal(this._grab);
             this._grab = null;
-        }
-        if (this._root) {
             Main.layoutManager.uiGroup.remove_child(this._root);
             this._root.destroy();
             this._root = null;
