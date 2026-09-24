@@ -111,8 +111,6 @@ export class FloatingModalPanel {
     }
 
     _finish(result) {
-        if (!this._box)
-            return;
         if (this._positionIdleId) {
             GLib.source_remove(this._positionIdleId);
             this._positionIdleId = null;
