@@ -865,17 +865,21 @@ class LitsycalCalendar extends St.BoxLayout {
 
     _scheduleCellTooltip(ds, anchorBtn) {
         this._cancelTooltip();
-        this._tooltipTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 600, () => {
-            this._tooltipTimeoutId = null;
+        this._cellTooltipTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 600, () => {
+            this._cellTooltipTimeoutId = null;
             this._showCellTooltip(ds, anchorBtn);
             return GLib.SOURCE_REMOVE;
         });
     }
 
     _cancelTooltip() {
-        if (this._tooltipTimeoutId) {
-            GLib.source_remove(this._tooltipTimeoutId);
-            this._tooltipTimeoutId = null;
+        if (this._cellTooltipTimeoutId) {
+            GLib.source_remove(this._cellTooltipTimeoutId);
+            this._cellTooltipTimeoutId = null;
+        }
+        if (this._btnTooltipTimeoutId) {
+            GLib.source_remove(this._btnTooltipTimeoutId);
+            this._btnTooltipTimeoutId = null;
         }
         this._hideTooltip();
     }
@@ -977,13 +981,14 @@ class LitsycalCalendar extends St.BoxLayout {
     // ── Footer button tooltip ────────────────────────────────────────────────
     // The footer icons carry no visible label — only an accessible_name, which
     // reaches a screen reader and nothing else. This shows that same string on
-    // hover, reusing the day-cell tooltip's delay and its _tooltipBox/
-    // _tooltipTimeoutId slots above, so the two can never be up at once.
+    // hover, reusing the day-cell tooltip's delay and its _tooltipBox slot
+    // above. _cancelTooltip() clears both pending timeouts, so the two can
+    // never be up at once.
 
     _scheduleBtnTooltip(text, anchorBtn) {
         this._cancelTooltip();
-        this._tooltipTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 600, () => {
-            this._tooltipTimeoutId = null;
+        this._btnTooltipTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 600, () => {
+            this._btnTooltipTimeoutId = null;
             this._showBtnTooltip(text, anchorBtn);
             return GLib.SOURCE_REMOVE;
         });
