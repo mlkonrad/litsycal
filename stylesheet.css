@@ -23,10 +23,8 @@
 }
 
 .litsycal-nav-btn {
-    padding: 2px 8px;
+    padding: 4px 6px;
     border-radius: 6px;
-    font-size: 1.40em;
-    font-weight: bold;
     border: none;
     background: none;
 }
@@ -36,10 +34,9 @@
     background-color: rgba(128, 128, 128, 0.15);
 }
 
-/* ● dot button — navigates to today, accent-coloured via inline style */
+/* Dot button: navigates to today, accent-coloured via inline style */
 .litsycal-dot-btn {
-    font-size: 0.75em;
-    padding: 2px 6px;
+    padding: 4px 6px;
 }
 
 /* ── Day-name row ────────────────────────────────────────────────────────── */
@@ -383,7 +380,6 @@
 /* Shown instead of the badge when the icon is hidden but a meeting is
    starting soon or in progress — see LitsycalIndicator._hasUpcomingMeeting */
 .litsycal-meeting-glyph {
-    font-size: 0.65em;
     color: #e06060;
     padding: 0 4px;
 }
@@ -743,7 +739,7 @@
 }
 
 .litsycal-panel-cal-name  { font-size: 0.97em; }
-.litsycal-panel-cal-arrow { font-size: 0.81em; opacity: 0.55; }
+.litsycal-panel-cal-arrow { opacity: 0.55; }
 
 .litsycal-panel-cal-dropdown {
     spacing: 1px;
@@ -872,7 +868,6 @@
     padding: 3px 8px;
     border: none;
     background-color: rgba(128,128,128,0.12);
-    font-size: 0.95em;
 }
 .litsycal-panel-open-btn:hover,
 .litsycal-panel-open-btn:focus { background-color: rgba(128,128,128,0.22); }

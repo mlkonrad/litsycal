@@ -517,7 +517,7 @@ export class EventPanel {
         this._focusOnClick(this._urlEntry);
 
         this._openUrlBtn = new St.Button({
-            label: '↗',
+            child: new St.Icon({icon_name: 'web-browser-symbolic', icon_size: 14}),
             style_class: 'litsycal-panel-open-btn',
             visible: !!ev?.url,
         });
@@ -734,7 +734,7 @@ export class EventPanel {
             row.add_child(new St.Label({text: _('No calendar'), x_expand: true}));
         }
         if (!this._event)
-            row.add_child(new St.Label({text: '▾', style_class: 'litsycal-panel-cal-arrow'}));
+            row.add_child(new St.Icon({icon_name: 'pan-down-symbolic', icon_size: 12, style_class: 'litsycal-panel-cal-arrow'}));
         this._calPickerBtn.set_child(row);
     }
 
@@ -1178,12 +1178,14 @@ export class EventPanel {
 
         const header    = new St.BoxLayout({style_class: 'litsycal-panel-date-header'});
         const prevBtn   = new St.Button({
-            label: '‹', style_class: 'litsycal-nav-btn',
+            child: new St.Icon({icon_name: 'go-previous-symbolic', icon_size: 16}),
+            style_class: 'litsycal-nav-btn',
             accessible_name: _('Previous month'),
         });
         const monthLbl  = new St.Label({x_expand: true, style_class: 'litsycal-panel-date-month-lbl'});
         const nextBtn   = new St.Button({
-            label: '›', style_class: 'litsycal-nav-btn',
+            child: new St.Icon({icon_name: 'go-next-symbolic', icon_size: 16}),
+            style_class: 'litsycal-nav-btn',
             accessible_name: _('Next month'),
         });
         header.add_child(prevBtn);

@@ -330,15 +330,18 @@ class LitsycalCalendar extends St.BoxLayout {
         this._monthLbl = new St.Label({style_class: 'litsycal-month-lbl', x_expand: true});
 
         this._prevBtn  = new St.Button({
-            label: '‹', style_class: 'litsycal-nav-btn',
+            child: new St.Icon({icon_name: 'go-previous-symbolic', icon_size: 16}),
+            style_class: 'litsycal-nav-btn',
             accessible_name: _('Previous month'),
         });
         this._dotBtn   = new St.Button({
-            label: '●', style_class: 'litsycal-nav-btn litsycal-dot-btn',
+            child: new St.Icon({icon_name: 'media-record-symbolic', icon_size: 10}),
+            style_class: 'litsycal-nav-btn litsycal-dot-btn',
             accessible_name: _('Go to today'),
         });
         this._nextBtn  = new St.Button({
-            label: '›', style_class: 'litsycal-nav-btn',
+            child: new St.Icon({icon_name: 'go-next-symbolic', icon_size: 16}),
+            style_class: 'litsycal-nav-btn',
             accessible_name: _('Next month'),
         });
 

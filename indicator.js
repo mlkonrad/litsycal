@@ -77,8 +77,9 @@ class LitsycalIndicator extends PanelMenu.Button {
         // Shown in place of the (hidden) badge text when there's a meeting
         // starting soon or in progress, so the icon isn't completely blank
         // right when it matters most. See _hasUpcomingMeeting().
-        this._meetingGlyph = new St.Label({
-            text: '●', y_align: Clutter.ActorAlign.CENTER,
+        this._meetingGlyph = new St.Icon({
+            icon_name: 'media-record-symbolic', icon_size: 8,
+            y_align: Clutter.ActorAlign.CENTER,
             style_class: 'litsycal-meeting-glyph', visible: false,
         });
         this._box.add_child(this._meetingGlyph);
