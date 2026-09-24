@@ -74,76 +74,76 @@ class LitsycalCalendar extends St.BoxLayout {
         this._applySizeClass();
         this._applyFontSizeClass();
 
-        this._sids = [
-            settings.connect('changed::first-day-of-week', () => {
+        settings.connectObject(
+            'changed::first-day-of-week', () => {
                 this._firstDayOfWeek = settings.get_int('first-day-of-week');
                 this._highlightCols  = this._readHighlight();
                 this._painter.configure(this._isDark, this._highlightCols, OUTLINE_TOP_INSET[this._calSize]);
                 this._buildDayNameRow(true);
                 this._buildGrid();
-            }),
-            settings.connect('changed::highlight-days', () => {
+            },
+            'changed::highlight-days', () => {
                 this._highlightCols = this._readHighlight();
                 this._painter.configure(this._isDark, this._highlightCols, OUTLINE_TOP_INSET[this._calSize]);
                 this._buildDayNameRow(true);
                 this._buildGrid();
-            }),
-            settings.connect('changed::short-day-names', () => {
+            },
+            'changed::short-day-names', () => {
                 this._shortDayNames = settings.get_boolean('short-day-names');
                 this._buildDayNameRow(true);
-            }),
-            settings.connect('changed::calendar-size', () => {
+            },
+            'changed::calendar-size', () => {
                 this._calSize = settings.get_int('calendar-size');
                 this._applySizeClass();
                 this._painter.configure(this._isDark, this._highlightCols, OUTLINE_TOP_INSET[this._calSize]);
                 this._buildGrid();
-            }),
-            settings.connect('changed::font-size', () => {
+            },
+            'changed::font-size', () => {
                 this._fontSize = settings.get_int('font-size');
                 this._applyFontSizeClass();
-            }),
-            settings.connect('changed::theme', () => {
+            },
+            'changed::theme', () => {
                 this._theme = settings.get_string('theme');
                 this._applyTheme();
-            }),
-            settings.connect('changed::weekend-color-mode', () => {
+            },
+            'changed::weekend-color-mode', () => {
                 this._weekendColorMode = settings.get_string('weekend-color-mode');
                 this._buildGrid();
-            }),
-            settings.connect('changed::weekend-color', () => {
+            },
+            'changed::weekend-color', () => {
                 this._weekendColor = settings.get_string('weekend-color');
                 if (this._weekendColorMode === 'custom')
                     this._buildGrid();
-            }),
-            settings.connect('changed::agenda-days', () => {
+            },
+            'changed::agenda-days', () => {
                 this._agendaDays = settings.get_int('agenda-days');
                 this._buildAgenda();
-            }),
-            settings.connect('changed::show-week-numbers', () => {
+            },
+            'changed::show-week-numbers', () => {
                 this._showWeekNumbers = settings.get_boolean('show-week-numbers');
                 this._buildWeekGutter();
-            }),
-            settings.connect('changed::extra-week-rows', () => {
+            },
+            'changed::extra-week-rows', () => {
                 this._extraWeekRows = settings.get_int('extra-week-rows');
                 this._buildGrid();
-            }),
-            settings.connect('changed::show-event-dots', () => {
+            },
+            'changed::show-event-dots', () => {
                 this._showEventDots = settings.get_boolean('show-event-dots');
                 this._buildGrid();
-            }),
-            settings.connect('changed::dot-color-mode', () => {
+            },
+            'changed::dot-color-mode', () => {
                 this._dotColorMode = settings.get_string('dot-color-mode');
                 this._buildGrid();
-            }),
-            settings.connect('changed::show-event-location', () => {
+            },
+            'changed::show-event-location', () => {
                 this._showEventLocation = settings.get_boolean('show-event-location');
                 this._buildAgenda();
-            }),
-            settings.connect('changed::show-empty-agenda-days', () => {
+            },
+            'changed::show-empty-agenda-days', () => {
                 this._showEmptyAgendaDays = settings.get_boolean('show-empty-agenda-days');
                 this._buildAgenda();
-            }),
-            settings.connect('changed::calendar-system', () => {
+            },
+            'changed::calendar-system', () => {
                 this._calendarSystem = settings.get_string('calendar-system');
                 // Only the header year needs an immediate refresh. Day cells'
                 // accessible names embed the year too, but rebuilding all of
@@ -152,30 +152,32 @@ class LitsycalCalendar extends St.BoxLayout {
                 // will pick up the new year on its next natural rebuild
                 // (month navigation, day selection, ...) anyway.
                 this._updateMonthLabel();
-            }),
-            settings.connect('changed::timezones', () => {
+            },
+            'changed::timezones', () => {
                 this._timezones = settings.get_strv('timezones');
                 this._updateTimeZones();
-            }),
-            settings.connect('changed::home-timezone', () => {
+            },
+            'changed::home-timezone', () => {
                 this._homeTimezone = settings.get_string('home-timezone');
                 this._updateTimeZones();
-            }),
-            settings.connect('changed::time-format', () => {
+            },
+            'changed::time-format', () => {
                 this._timeFormat = settings.get_string('time-format');
                 this._updateTimeZones();
-            }),
-        ];
+            },
+            this);
 
-        this._accentId = this._iface.connect('changed::accent-color', () => {
-            this._accent = readAccent(this._iface);
-            this._updateHeaderColors();
-            this._buildGrid();
-        });
-        this._schemeId = this._iface.connect('changed::color-scheme', () => {
-            if (this._theme === 'system')
-                this._applyTheme();
-        });
+        this._iface.connectObject(
+            'changed::accent-color', () => {
+                this._accent = readAccent(this._iface);
+                this._updateHeaderColors();
+                this._buildGrid();
+            },
+            'changed::color-scheme', () => {
+                if (this._theme === 'system')
+                    this._applyTheme();
+            },
+            this);
 
         // Constructed before any _buildGrid()/_buildAgenda() call below, since
         // both read events via this._calManager.getEventsForDate().
@@ -251,11 +253,9 @@ class LitsycalCalendar extends St.BoxLayout {
         if (this._closeDeleteConfirm)
             this._closeDeleteConfirm();
         if (this._dragStartY !== undefined)
-            this._endHandleDrag(this._resizeHandle);
-        for (const id of this._sids)
-            this._settings.disconnect(id);
-        this._iface.disconnect(this._accentId);
-        this._iface.disconnect(this._schemeId);
+            this._endHandleDrag();
+        this._settings.disconnectObject(this);
+        this._iface.disconnectObject(this);
         this._calManager.destroy();
         super.destroy();
     }
@@ -345,9 +345,9 @@ class LitsycalCalendar extends St.BoxLayout {
             accessible_name: _('Next month'),
         });
 
-        this._prevBtn.connect('clicked', () => this._shiftMonth(-1));
-        this._dotBtn.connect('clicked',  () => this._goToday());
-        this._nextBtn.connect('clicked', () => this._shiftMonth(+1));
+        this._prevBtn.connectObject('clicked', () => this._shiftMonth(-1), this);
+        this._dotBtn.connectObject('clicked',  () => this._goToday(), this);
+        this._nextBtn.connectObject('clicked', () => this._shiftMonth(+1), this);
 
         row.add_child(this._monthLbl);
         row.add_child(this._prevBtn);
@@ -405,18 +405,18 @@ class LitsycalCalendar extends St.BoxLayout {
         });
 
         this._outline = new St.DrawingArea({x_expand: true, y_expand: true, reactive: false});
-        this._outline.connect('repaint', area => {
+        this._outline.connectObject('repaint', area => {
             const [w, h] = area.get_surface_size();
             if (w > 0 && h > 0 && this._numRows > 0) {
                 this._painter.paint(area.get_context(), w, h,
                     this._numRows, this._firstCol, this._lastCol, this._lastRow);
             }
-        });
+        }, this);
 
         overlay.add_child(this._gridBox);
         overlay.add_child(this._outline);
         this._calRight.add_child(overlay);
-        overlay.connect('notify::allocation', () => this._outline.queue_repaint());
+        overlay.connectObject('notify::allocation', () => this._outline.queue_repaint(), this);
     }
 
     // Resize handle
@@ -441,19 +441,23 @@ class LitsycalCalendar extends St.BoxLayout {
             x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.CENTER,
         }));
 
-        handle.connect('button-press-event', (actor, event) => {
-            if (event.get_button() !== Clutter.BUTTON_PRIMARY)
-                return Clutter.EVENT_PROPAGATE;
-            this._dragStartY     = event.get_coords()[1];
-            this._dragStartExtra = this._extraWeekRows;
-            this._dragRowHeight  = this._gridBox.get_height() / Math.max(1, this._numRows);
-            this._resizeGrab     = global.stage.grab(actor);
-            this._dragMotionId   = actor.connect('motion-event', (a, ev) => this._onHandleDrag(ev));
-            this._dragReleaseId  = actor.connect('button-release-event', () => this._endHandleDrag(actor));
-            return Clutter.EVENT_STOP;
-        });
+        handle.connectObject(
+            'button-press-event', (actor, event) => {
+                if (event.get_button() !== Clutter.BUTTON_PRIMARY)
+                    return Clutter.EVENT_PROPAGATE;
+                this._dragStartY     = event.get_coords()[1];
+                this._dragStartExtra = this._extraWeekRows;
+                this._dragRowHeight  = this._gridBox.get_height() / Math.max(1, this._numRows);
+                this._resizeGrab     = global.stage.grab(actor);
+                return Clutter.EVENT_STOP;
+            },
+            'motion-event', (_actor, event) => this._onHandleDrag(event),
+            'button-release-event', () => {
+                if (this._dragStartY !== undefined)
+                    this._endHandleDrag();
+            },
+            this);
 
-        this._resizeHandle = handle;
         return handle;
     }
 
@@ -470,15 +474,7 @@ class LitsycalCalendar extends St.BoxLayout {
         return Clutter.EVENT_STOP;
     }
 
-    _endHandleDrag(actor) {
-        if (this._dragMotionId)  {
-            actor.disconnect(this._dragMotionId);
-            this._dragMotionId  = null;
-        }
-        if (this._dragReleaseId) {
-            actor.disconnect(this._dragReleaseId);
-            this._dragReleaseId = null;
-        }
+    _endHandleDrag() {
         this._resizeGrab?.dismiss();
         this._resizeGrab  = null;
         this._dragStartY  = undefined;
@@ -746,17 +742,17 @@ class LitsycalCalendar extends St.BoxLayout {
         // selectedDate:clickedCell.date - the displayed month is passed
         // through unchanged, so clicking a visible overflow day just moves
         // the selection onto it in place rather than navigating there.
-        btn.connect('clicked', () => {
+        btn.connectObject('clicked', () => {
             this._selected = GLib.DateTime.new_local(y, m, d, 0, 0, 0);
             this._buildGrid();
             this._buildAgenda();
-        });
-        btn.connect('notify::hover', () => {
+        }, this);
+        btn.connectObject('notify::hover', () => {
             if (btn.hover)
                 this._scheduleCellTooltip(ds, btn);
             else
                 this._cancelTooltip();
-        });
+        }, this);
 
         // Tracked alongside real cells so a multi-day agenda event's hover
         // highlight (_highlightDateRange) still reaches days it spans into
@@ -806,18 +802,18 @@ class LitsycalCalendar extends St.BoxLayout {
 
         btn.accessible_name = this._cellAccessibleName(ds, day, isToday);
 
-        btn.connect('clicked', () => {
+        btn.connectObject('clicked', () => {
             const [y, m, d] = ds.split('-').map(Number);
             this._selected  = GLib.DateTime.new_local(y, m, d, 0, 0, 0);
             this._buildGrid();
             this._buildAgenda();
-        });
-        btn.connect('notify::hover', () => {
+        }, this);
+        btn.connectObject('notify::hover', () => {
             if (btn.hover)
                 this._scheduleCellTooltip(ds, btn);
             else
                 this._cancelTooltip();
-        });
+        }, this);
         this._cellsByDate.set(ds, btn);
         return btn;
     }
@@ -1129,11 +1125,11 @@ class LitsycalCalendar extends St.BoxLayout {
                         const btn = new St.Button({
                             style_class: 'litsycal-agenda-join-btn', accessible_name: accessibleName, child: icon,
                         });
-                        btn.connect('clicked', () => {
+                        btn.connectObject('clicked', () => {
                             try {
                                 Gio.AppInfo.launch_default_for_uri(uri, null);
                             } catch {} // no app handles this URI scheme; nothing to fall back to
-                        });
+                        }, this);
                         row2.add_child(btn);
                         return btn;
                     };
@@ -1167,22 +1163,22 @@ class LitsycalCalendar extends St.BoxLayout {
                     evtBtn.set_child(evtBox);
                     evtBtn.accessible_name = `${ev.title}, ${ev.time ?? _('All day')}${
                         ev.location ? `, ${ev.location}` : ''}`;
-                    evtBtn.connect('clicked', () => this._openEventInfoPopover(evtBtn, ev));
-                    evtBtn.connect('notify::hover', () => {
+                    evtBtn.connectObject('clicked', () => this._openEventInfoPopover(evtBtn, ev), this);
+                    evtBtn.connectObject('notify::hover', () => {
                         if (evtBtn.hover)
                             this._highlightDateRange(ev);
                         else
                             this._clearDateRangeHighlight();
-                    });
+                    }, this);
                     // Right-click: same {label, icon, action} SettingsMenuPanel
                     // used for the panel icon/gear menu, offering the itsycal-
                     // style Open Calendar / Copy / Delete... trio for this event.
-                    evtBtn.connect('button-press-event', (actor, event) => {
+                    evtBtn.connectObject('button-press-event', (actor, event) => {
                         if (event.get_button() !== Clutter.BUTTON_SECONDARY)
                             return Clutter.EVENT_PROPAGATE;
                         this._openEventContextMenu(evtBtn, ev);
                         return Clutter.EVENT_STOP;
-                    });
+                    }, this);
 
                     this._agendaBox.add_child(evtBtn);
                 }
@@ -1205,13 +1201,13 @@ class LitsycalCalendar extends St.BoxLayout {
         // its own (gear, +) takes a pointer grab, so the leave event that
         // would otherwise dismiss the tooltip never arrives.
         const withTooltip = btn => {
-            btn.connect('notify::hover', () => {
+            btn.connectObject('notify::hover', () => {
                 if (btn.hover)
                     this._scheduleBtnTooltip(btn.accessible_name, btn);
                 else
                     this._cancelTooltip();
-            });
-            btn.connect('clicked', () => this._cancelTooltip());
+            }, this);
+            btn.connectObject('clicked', () => this._cancelTooltip(), this);
             return btn;
         };
 
@@ -1226,27 +1222,27 @@ class LitsycalCalendar extends St.BoxLayout {
             label: '+', style_class: 'litsycal-footer-btn litsycal-add-btn',
             accessible_name: _('New event'),
         }));
-        this._addBtn.connect('clicked', () => this._openCreateDialog());
+        this._addBtn.connectObject('clicked', () => this._openCreateDialog(), this);
 
         const pinBtn = makeIconBtn('view-pin-symbolic', _('Pin calendar open (P); click to unpin'), true);
-        pinBtn.connect('notify::checked', () => {
+        pinBtn.connectObject('notify::checked', () => {
             if (this._suppressPinNotify)
                 return;
             this._onPinToggle(pinBtn.get_checked());
-        });
+        }, this);
         this._pinBtn = pinBtn;
 
         const syncBtn = makeIconBtn('view-refresh-symbolic', _('Sync calendars'));
-        syncBtn.connect('clicked', () => {
+        syncBtn.connectObject('clicked', () => {
             this._calManager.refreshFromServer();
             this._calManager.fetchMonth(this._year, this._month);
-        });
+        }, this);
 
         const calBtn = makeIconBtn('x-office-calendar-symbolic', _('Open Calendar app'));
-        calBtn.connect('clicked', () => this._openCalendar());
+        calBtn.connectObject('clicked', () => this._openCalendar(), this);
 
         const gear = makeIconBtn('preferences-system-symbolic', _('Settings menu'));
-        gear.connect('clicked', () => this._openSettingsMenu(gear));
+        gear.connectObject('clicked', () => this._openSettingsMenu(gear), this);
         this._gearBtn = gear; // anchor for keyboard-triggered settings/go-to-date panels
 
         footer.add_child(this._addBtn);
