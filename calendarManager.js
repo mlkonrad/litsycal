@@ -35,7 +35,7 @@ export class CalendarManager {
         this._settings  = settings;
         this._onEventsChanged = onEventsChanged;
         this._clients   = new Map();   // uid -> {client, color, name}
-        this._views     = new Map();   // uid -> {view, signalIds} (live change listener)
+        this._views     = new Map();   // uid -> {view} (live change listener)
         this._viewTokens = new Map();  // uid -> latest view request; see _startView()
         this._cancellable = new Gio.Cancellable();
         this._events    = [];
@@ -47,11 +47,11 @@ export class CalendarManager {
         this._searchToken = 0; // see searchEvents() - discards stale/out-of-order results
         this._fetchToken  = 0; // see fetchMonth() - discards a superseded batch's stale onDone
         this._disabled  = new Set(settings.get_strv('disabled-calendars'));
-        this._disabledCalsSettingsId = settings.connect('changed::disabled-calendars', () => {
+        settings.connectObject('changed::disabled-calendars', () => {
             this._disabled = new Set(settings.get_strv('disabled-calendars'));
             this._reindex();
             this._onEventsChanged(this._events);
-        });
+        }, this);
         this._initRegistry();
     }
 
@@ -63,14 +63,12 @@ export class CalendarManager {
                 this._registry  = EDataServer.SourceRegistry.new_finish(res);
                 this._available = true;
 
-                this._addedId    = this._registry.connect('source-added',
-                    (_r, src) => this._connectSource(src));
-                this._removedId  = this._registry.connect('source-removed',
-                    (_r, src) => this._dropSource(src.get_uid()));
-                this._enabledId  = this._registry.connect('source-enabled',
-                    (_r, src) => this._connectSource(src));
-                this._disabledId = this._registry.connect('source-disabled',
-                    (_r, src) => this._dropSource(src.get_uid()));
+                this._registry.connectObject(
+                    'source-added', (_r, src) => this._connectSource(src),
+                    'source-removed', (_r, src) => this._dropSource(src.get_uid()),
+                    'source-enabled', (_r, src) => this._connectSource(src),
+                    'source-disabled', (_r, src) => this._dropSource(src.get_uid()),
+                    this);
                 this._loadSources();
             } catch (e) {
                 if (!isCancelled(e))
@@ -141,9 +139,12 @@ export class CalendarManager {
                     if (this._year !== null)
                         this._fetchFromClient(uid, this._year, this._month);
                 };
-                const signalIds = ['objects-added', 'objects-modified', 'objects-removed']
-                    .map(signal => view.connect(signal, refresh));
-                this._views.set(uid, {view, signalIds});
+                view.connectObject(
+                    'objects-added', refresh,
+                    'objects-modified', refresh,
+                    'objects-removed', refresh,
+                    this);
+                this._views.set(uid, {view});
                 view.start();
             } catch (e) {
                 if (!isCancelled(e))
@@ -157,8 +158,7 @@ export class CalendarManager {
         const entry = this._views.get(uid);
         if (!entry)
             return;
-        for (const id of entry.signalIds)
-            entry.view.disconnect(id);
+        entry.view.disconnectObject(this);
         try {
             entry.view.stop();
         } catch {} // stop() can throw if the view is already stopped
@@ -932,15 +932,11 @@ export class CalendarManager {
         // Keeps every in-flight EDS call from calling back into this manager
         // (and the calendar widget behind it) after teardown.
         this._cancellable.cancel();
-        if (this._disabledCalsSettingsId) {
-            this._settings.disconnect(this._disabledCalsSettingsId);
-            this._disabledCalsSettingsId = null;
-        }
+        this._settings.disconnectObject(this);
         for (const uid of [...this._views.keys()])
             this._stopView(uid);
         if (this._registry) {
-            for (const id of [this._addedId, this._removedId, this._enabledId, this._disabledId])
-                this._registry.disconnect(id);
+            this._registry.disconnectObject(this);
             this._registry = null;
         }
         this._clients.clear();
