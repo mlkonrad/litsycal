@@ -234,6 +234,12 @@ new code should keep meeting these — checked clean as of 2026-09-07:
 - **No lifecycle guard flags**: don't add booleans like `this._destroyed` to
   prevent post-destroy races — null out the instance var on cleanup instead
   and let that be the guard (already the pattern everywhere in this repo).
+  Also no early return at the top of a teardown method (`_finish()`,
+  `close()`, `destroy()`): `if (!this._box) return;` as the first line of
+  `FloatingModalPanel._finish()` was rejected as "selective disable"
+  (2026-09-24). Cleanup must run unconditionally; make it run once by having
+  the owner null its reference in the `onClose` callback and only call
+  `?.close()` on a live reference (see `_openSearch()` in calendarWidget.js).
 - **`destroy()` order**: remove timeouts/GLib sources first, then disconnect
   signals, then release other resources, then call `super.destroy()` last.
   Override `destroy()` directly on GObject-derived widgets rather than
@@ -248,7 +254,14 @@ new code should keep meeting these — checked clean as of 2026-09-07:
   "has been already disposed" criticals, not by reading destroy().
 - **Icons and progress**: use `Gtk.Image`/`St.Icon` for icons (never emoji
   glyphs), and shell widgets (`St.Bin`, GNOME's bar-level widget) for
-  progress, not ASCII bars.
+  progress, not ASCII bars. "Emoji" includes any Unicode symbol used as a
+  button or indicator graphic: `‹ › ● ▾ ↗ ✓ ✕` etc. in an `St.Button`
+  `label:` or an `St.Label` `text:` were all flagged by the EGO reviewer
+  (2026-09-24) and replaced with Adwaita symbolic icons (`go-previous`/
+  `go-next`, `media-record`, `pan-down`, `web-browser`), in the repo's
+  `child: new St.Icon({icon_name, icon_size})` form. Check with
+  `grep -nP "(label|text):\s*['\"][^'\"]*[^\x00-\x7F]" *.js` - only
+  typography inside real text (`…`, `—` in translatable strings) may remain.
 - **Comments**: no trivial comments that just restate what the next line of
   JS does — matches this project's existing no-comments-unless-non-obvious
   rule above the fold in this file. Keep comments (JS and CSS) plain ASCII:
@@ -266,6 +279,17 @@ new code should keep meeting these — checked clean as of 2026-09-07:
   unjustified method aliases, and co-locate a timeout's removal check
   immediately before the line that creates its replacement (see the
   `_dayInfoTimeoutId` pattern in calendarWidget.js).
+  - **One property per timeout.** Never store two different timeouts in the
+    same id property, even when they're mutually exclusive: the cell and
+    footer tooltips sharing `_tooltipTimeoutId` was flagged (2026-09-24) and
+    split into `_cellTooltipTimeoutId`/`_btnTooltipTimeoutId`, both removed
+    in `_cancelTooltip()`.
+  - **Keep cleanup visible where it's defined.** Reviewers read each file on
+    its own: an empty base-class hook that a subclass overrides
+    (`_onFinish()`, called from `FloatingModalPanel._finish()`) was flagged
+    as "defined but never called, so not cleaning up on disable". Override
+    the real method and call `super` instead (`SearchPanel._finish()`), so
+    the call path is visible in the subclass's own file.
 - **AI-generated code notices**: this checklist asks AI assistants to flag
   AI-authored code with a comment unless the human author understands the
   JavaScript, and for an author who does understand it to strip such
