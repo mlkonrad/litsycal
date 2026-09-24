@@ -62,11 +62,11 @@ export class SearchPanel extends FloatingModalPanel {
             x_expand: true,
             can_focus: true,
         });
-        this._entry.clutter_text.connect('text-changed', () => this._onTextChanged());
-        this._entry.clutter_text.connect('activate', () => {
+        this._entry.clutter_text.connectObject('text-changed', () => this._onTextChanged(), this);
+        this._entry.clutter_text.connectObject('activate', () => {
             if (this._lastResults.length > 0)
                 this._finish(this._lastResults[0]);
-        });
+        }, this);
         box.add_child(this._entry);
 
         this._resultsBox = new St.BoxLayout({
@@ -138,7 +138,7 @@ export class SearchPanel extends FloatingModalPanel {
             row.add_child(new St.Label({text: shortWhen(ev), style_class: 'litsycal-search-result-date'}));
 
             btn.set_child(row);
-            btn.connect('clicked', () => this._finish(ev));
+            btn.connectObject('clicked', () => this._finish(ev), this);
             this._resultsBox.add_child(btn);
         }
     }

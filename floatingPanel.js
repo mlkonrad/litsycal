@@ -58,7 +58,7 @@ export class FloatingModalPanel {
             return GLib.SOURCE_REMOVE;
         });
 
-        this._eventId = this._box.connect('captured-event', (_actor, ev) => {
+        this._box.connectObject('captured-event', (_actor, ev) => {
             if (ev.type() === Clutter.EventType.BUTTON_PRESS) {
                 const [x, y] = ev.get_coords();
                 const actor  = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
@@ -72,7 +72,7 @@ export class FloatingModalPanel {
                 return Clutter.EVENT_STOP;
             }
             return Clutter.EVENT_PROPAGATE;
-        });
+        }, this);
     }
 
     // Subclasses must override to build their own content into this._box -
@@ -110,10 +110,7 @@ export class FloatingModalPanel {
             GLib.source_remove(this._positionIdleId);
             this._positionIdleId = null;
         }
-        if (this._eventId) {
-            this._box.disconnect(this._eventId);
-            this._eventId = null;
-        }
+        this._box.disconnectObject(this);
         if (this._grab) {
             Main.popModal(this._grab);
             this._grab = null;
