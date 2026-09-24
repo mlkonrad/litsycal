@@ -9,7 +9,7 @@ import Pango   from 'gi://Pango';
 import {gettext as _, ngettext} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {parseQuickAdd}    from './quickAddParser.js';
-import {formatTime, fromHHMM, parseTimeInput, toHHMM} from './timeInput.js';
+import {formatTime, formatTimeRange, fromHHMM, parseTimeInput, toHHMM} from './timeInput.js';
 import {FloatingModalPanel} from './floatingPanel.js';
 import {
     capitalize, dateStr, daysInMonth, displayYear, formatRelativeOffset, isLikelyUrl, makeTzRow,
@@ -62,6 +62,12 @@ function minutesLabel(min, allDay) {
     }
     return ngettext('%d minute before', '%d minutes before', min).replace('%d', min);
 }
+
+// The time zone preview dims a zone's row, and marks it with a moon, when
+// any part of the meeting falls outside these hours there (minutes since
+// midnight).
+const WORK_DAY_START = 8 * 60;
+const WORK_DAY_END   = 18 * 60;
 
 // "45 min", "1 h", "2 h 30 min" - an end-time option's length.
 function durationLabel(min) {
@@ -627,7 +633,10 @@ export class EventPanel {
         }
         this._endsRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
         this._endsRow.add_child(new St.Label({text: _('Ends'), style_class: 'litsycal-panel-lbl'}));
-        this._endDatePicker = this._makeDateField(defEndDate, () => this._rememberSpan());
+        this._endDatePicker = this._makeDateField(defEndDate, () => {
+            this._rememberSpan();
+            this._updateTzPreview();
+        });
         this._endTimePicker = this._makeTimeField(defEndTime,
             cur => this._endTimeOptions(cur), minutes => this._onEndTimeChanged(minutes));
         this._endsRow.add_child(this._endDatePicker.actor);
@@ -807,6 +816,7 @@ export class EventPanel {
             this._endDatePicker.setValue(dateStr(minutes > startMin ? start : start.add_days(1)));
         }
         this._rememberSpan();
+        this._updateTzPreview();
     }
 
     _startTimeOptions(cur) {
@@ -878,9 +888,9 @@ export class EventPanel {
         this._updateTzPreview();
     }
 
-    // Live preview of the selected start time converted into each zone from
-    // the 'timezones' setting (the same list the main calendar's own
-    // world-clock section reads) - lets you see what time a remote
+    // Live preview of the selected start-to-end span converted into each
+    // zone from the 'timezones' setting (the same list the main calendar's
+    // own world-clock section reads) - lets you see what time a remote
     // invitee would see without doing the math yourself.
     _buildTzPreview() {
         this._tzPreviewBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, visible: false});
@@ -890,7 +900,7 @@ export class EventPanel {
     }
 
     // Mirrors calendarWidget.js's _updateTimeZones() conversion approach,
-    // applied to the dialog's currently-selected start date/time instead of
+    // applied to the dialog's currently-selected start and end instead of
     // "now". Hidden entirely when the zones list is empty or the event is
     // all-day (no time-of-day to convert).
     _updateTzPreview() {
@@ -901,19 +911,24 @@ export class EventPanel {
         if (!zones.length)
             return;
 
-        const [y, m, d] = this._startDatePicker.getValue().split('-').map(Number);
-        const [h, min]  = this._startTimePicker.getValue().split(':').map(Number);
         const timeFormat = this._settings.get_string('time-format');
 
-        // The picked y/m/d/h/min are wall-clock digits in *your* local zone
-        // - build the actual instant they represent first, then re-express
-        // that same instant in each configured zone. (GLib.DateTime.new(tz,
+        // The picked dates/times are wall-clock digits in *your* local zone
+        // - build the actual instants they represent first, then re-express
+        // those same instants in each configured zone. (GLib.DateTime.new(tz,
         // ...) would instead stamp the raw digits directly onto tz, which is
         // wrong here - it's only correct for "now", where the digits are
         // already tz-agnostic since they're derived from the current UTC
-        // instant.)
-        const localInstant = GLib.DateTime.new_local(y, m, d, h, min, 0);
+        // instant.) An end before the start (not yet corrected, and refused
+        // by _save()) previews as just the start.
+        const localInstant = this._startDateTime();
+        let localEnd = this._endDateTime();
+        if (localEnd.compare(localInstant) < 0)
+            localEnd = localInstant;
         const instantUnix  = localInstant.to_unix();
+        const localDate    = dateStr(localInstant);
+        const weekday      = dt => capitalize(dt.format('%a'));
+        const minutesOf    = dt => dt.get_hour() * 60 + dt.get_minute();
 
         // Same reference-point idea as calendarWidget.js's world clock -
         // resolved fresh each call rather than cached, since the dialog is
@@ -932,14 +947,34 @@ export class EventPanel {
             const tz = GLib.TimeZone.new_identifier(id);
             if (!tz)
                 continue;
-            const dt     = localInstant.to_timezone(tz);
-            const time   = timeFormat === '12h' ? dt.format('%-I:%M%P') : dt.format('%H:%M');
+            const start  = localInstant.to_timezone(tz);
+            const end    = localEnd.to_timezone(tz);
+            // The weekday shows only when it tells you something: the
+            // meeting lands on a different day there than here, or crosses
+            // midnight there (then both ends get one).
+            const crossesMidnight = dateStr(end) !== dateStr(start);
+            const time   = formatTimeRange({
+                startMin: minutesOf(start),
+                endMin:   minutesOf(end),
+                startDay: crossesMidnight || dateStr(start) !== localDate ? weekday(start) : null,
+                endDay:   crossesMidnight ? weekday(end) : null,
+            }, timeFormat);
             const city   = id.split('/').pop().replace(/_/g, ' ');
             const offset = tz.get_offset(tz.find_interval(GLib.TimeType.UNIVERSAL, instantUnix));
             const relOffset = homeOffset !== null && offset !== homeOffset
                 ? formatRelativeOffset(offset - homeOffset) : null;
 
-            this._tzPreviewRows.add_child(makeTzRow(city, time, relOffset));
+            const row = makeTzRow(city, time, relOffset);
+            // Any part of the meeting outside that zone's working day.
+            if (crossesMidnight || minutesOf(start) < WORK_DAY_START || minutesOf(end) > WORK_DAY_END) {
+                row.opacity = 150;
+                row.add_child(new St.Icon({
+                    icon_name: 'weather-clear-night-symbolic', icon_size: 12,
+                    style_class: 'litsycal-tz-off-hours-icon',
+                    accessible_name: _('Outside working hours'),
+                }));
+            }
+            this._tzPreviewRows.add_child(row);
         }
     }
 

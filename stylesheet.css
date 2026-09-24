@@ -316,6 +316,7 @@
  * wider and shouldn't apply here too. */
 .litsycal-tz-time-box { spacing: 3px; }
 .litsycal-tz-offset   { font-size: 0.85em; }
+.litsycal-tz-off-hours-icon { margin-left: 4px; }
 
 /* Panel badge */
 .litsycal-badge {

@@ -35,6 +35,12 @@ longer carries a `version` key — see that file's history for why).
   keeping the length. An end time earlier than the start rolls over to the
   next day, so a 23:00 start can end at 00:30. Saving an event that ends
   before it starts is refused with an error instead of being written.
+- The event dialog's time zone preview shows the whole meeting in each
+  zone, start to end (`3:00–4:30pm`), and updates when the end changes too,
+  not only the start. When the meeting lands on a different day in a zone,
+  that row shows the weekday (`Tue 3:00–4:30am`), on both ends if it
+  crosses midnight there. Rows where any part of the meeting falls outside
+  8:00–18:00 in that zone are dimmed and marked with a moon icon.
 - New events that start late in the evening default to ending an hour
   later on the next day, instead of at an earlier time on the same day.
 - Clicking elsewhere in the event dialog closes whichever list (calendar,

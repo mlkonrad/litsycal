@@ -80,3 +80,30 @@ export function parseTimeInput(text) {
     }
     return h * 60 + min;
 }
+
+// A meeting's time span as one compact string: "3:00-4:30pm" (am/pm written
+// once when both ends share it), "11:30am-1:00pm", "15:00-16:30". startDay/
+// endDay are weekday labels for when the day matters; an endDay means the
+// span crosses midnight, so both ends get written in full:
+// "Mon 11:00pm - Tue 12:30am".
+/**
+ * @param {object} span
+ * @param {number} span.startMin minutes since midnight
+ * @param {number} span.endMin minutes since midnight
+ * @param {string|null} [span.startDay] weekday label, or null to omit
+ * @param {string|null} [span.endDay] weekday label when the end falls on a later day
+ * @param {string} timeFormat the 'time-format' setting, '24h' or '12h'
+ * @returns {string}
+ */
+export function formatTimeRange({startMin, endMin, startDay = null, endDay = null}, timeFormat) {
+    const withDay = (day, text) => day ? `${day} ${text}` : text;
+    let start = formatTime(startMin, timeFormat);
+    const end = formatTime(endMin, timeFormat);
+    if (endDay)
+        return `${withDay(startDay, start)} – ${withDay(endDay, end)}`;
+    if (startMin === endMin)
+        return withDay(startDay, start);
+    if (timeFormat === '12h' && (startMin < 720) === (endMin < 720))
+        start = start.slice(0, -2);
+    return withDay(startDay, `${start}–${end}`);
+}
