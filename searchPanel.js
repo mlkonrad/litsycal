@@ -143,11 +143,12 @@ export class SearchPanel extends FloatingModalPanel {
         }
     }
 
-    _onFinish() {
+    _finish(result) {
         if (this._debounceId) {
             GLib.source_remove(this._debounceId);
             this._debounceId = null;
         }
         this._searchGen++; // invalidate any in-flight search
+        super._finish(result);
     }
 }

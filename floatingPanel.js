@@ -19,9 +19,9 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 // anchorActor, onClose)`, override `_build()` to add content to `this._box`
 // (name the main input `this._entry` — the base focuses it automatically
 // once positioned), and call `this._finish(result)` to close with a result
-// or `this._finish(null)` to cancel. Override `_onFinish()` for any of your
-// own cleanup (timers, generation counters, ...) that needs to happen
-// before teardown.
+// or `this._finish(null)` to cancel. A subclass with its own cleanup
+// (timers, generation counters, ...) overrides `_finish(result)`, does that
+// cleanup, then calls `super._finish(result)`.
 export class FloatingModalPanel {
     constructor(styleClass, defaultWidth, defaultHeight, anchorActor, onClose) {
         this._onClose       = onClose;
@@ -79,11 +79,6 @@ export class FloatingModalPanel {
     // called from within this base constructor, before uiGroup.add_child.
     _build() {}
 
-    // Subclasses may override for their own pre-teardown cleanup (debounce
-    // timers, generation counters, ...) — called from _finish() while
-    // this._box is still alive.
-    _onFinish() {}
-
     _position(anchor) {
         const monitor = Main.layoutManager.primaryMonitor;
         const panelH  = Main.panel.get_height();
@@ -115,7 +110,6 @@ export class FloatingModalPanel {
             GLib.source_remove(this._positionIdleId);
             this._positionIdleId = null;
         }
-        this._onFinish();
         if (this._eventId) {
             this._box.disconnect(this._eventId);
             this._eventId = null;
