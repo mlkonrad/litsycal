@@ -86,17 +86,18 @@ class LitsycalIndicator extends PanelMenu.Button {
 
         this._updateBadge();
 
-        this._sids = [
+        for (const k of [
             'badge-style', 'show-month-in-badge', 'show-dow-in-badge',
             'hide-icon', 'datetime-pattern', 'show-time', 'time-format',
             'show-countdown-in-badge', 'countdown-badge-mode',
-        ].map(k => settings.connect(`changed::${k}`, () => this._updateBadge()));
+        ])
+            settings.connectObject(`changed::${k}`, () => this._updateBadge(), this);
 
         this._pinned      = false;
         this._floatingBox = null;
 
         this._menuIsOpen = false;
-        this._menuOpenId = this.menu.connect('open-state-changed', (_menu, open) => {
+        this.menu.connectObject('open-state-changed', (_menu, open) => {
             this._menuIsOpen = open;
             if (open && this._pinned) {
                 // The calendar widget currently lives in the floating pinned
@@ -138,7 +139,7 @@ class LitsycalIndicator extends PanelMenu.Button {
                 // the Down keysym for its own accessibility keynav whenever the popup
                 // drops down from the top panel. See LitsycalCalendar.handleKeyPress
                 // for the h/j/k/l fallback this forces.
-                this._keyPressId = this.menu.actor.connect('captured-event', (_actor, ev) => {
+                this.menu.actor.connectObject('captured-event', (_actor, ev) => {
                     if (ev.type() !== Clutter.EventType.KEY_PRESS)
                         return Clutter.EVENT_PROPAGATE;
                     // The event panel owns text entries (title, notes, ...); never
@@ -152,18 +153,15 @@ class LitsycalIndicator extends PanelMenu.Button {
                     const alt    = (state & Clutter.ModifierType.MOD1_MASK)    !== 0;
                     return this._calWidget.handleKeyPress(keyval, shift, ctrl, alt)
                         ? Clutter.EVENT_STOP : Clutter.EVENT_PROPAGATE;
-                });
+                }, this);
             } else {
                 // A hover tooltip is parented to uiGroup, not to the menu, so
                 // it would outlive a close that never delivers a leave event
                 // (Escape, or pinning) and sit alone on the desktop.
                 this._calWidget._cancelTooltip();
-                if (this._keyPressId) {
-                    this.menu.actor.disconnect(this._keyPressId);
-                    this._keyPressId = null;
-                }
+                this.menu.actor.disconnectObject(this);
             }
-        });
+        }, this);
 
         const section = new PopupMenu.PopupMenuSection();
         const item    = new PopupMenu.PopupBaseMenuItem({
@@ -523,16 +521,9 @@ class LitsycalIndicator extends PanelMenu.Button {
             GLib.source_remove(this._quitIdleId);
             this._quitIdleId = null;
         }
-        if (this._keyPressId) {
-            this.menu.actor.disconnect(this._keyPressId);
-            this._keyPressId = null;
-        }
-        if (this._menuOpenId) {
-            this.menu.disconnect(this._menuOpenId);
-            this._menuOpenId = null;
-        }
-        for (const id of this._sids)
-            this._settings.disconnect(id);
+        this.menu.actor.disconnectObject(this);
+        this.menu.disconnectObject(this);
+        this._settings.disconnectObject(this);
         this._goToDatePanel?.close();
         this._goToDatePanel = null;
         this._settingsMenuPanel?.close();
