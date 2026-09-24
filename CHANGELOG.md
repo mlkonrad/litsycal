@@ -23,6 +23,23 @@ longer carries a `version` key — see that file's history for why).
 
 ### Changed
 
+- The event dialog's start and end times are typed rather than picked from
+  a fixed half-hour list, so any minute works. Most everyday shapes are
+  understood — `9`, `930`, `9:30`, `9.30`, `9h30`, `9:30pm`, `9 pm` — and
+  anything unreadable reverts to the previous time. Clicking a time still
+  opens a list, now in quarter-hour steps, that follows what you type; the
+  end time's list shows each option's length (`11:00 (1 h)`). With the list
+  closed, Up/Down step the time by a quarter hour. Times follow the 12h/24h
+  setting.
+- Moving an event's start (date or time) now moves its end along with it,
+  keeping the length. An end time earlier than the start rolls over to the
+  next day, so a 23:00 start can end at 00:30. Saving an event that ends
+  before it starts is refused with an error instead of being written.
+- New events that start late in the evening default to ending an hour
+  later on the next day, instead of at an earlier time on the same day.
+- Clicking elsewhere in the event dialog closes whichever list (calendar,
+  date, time, repeat, alert) is open, instead of leaving it up until Escape
+  or another pick.
 - The pin button's label now reads "Pin calendar open (P); click to unpin",
   and the README's shortcut table no longer claims `P` unpins. A pinned
   calendar deliberately holds no keyboard focus — that's what keeps the rest

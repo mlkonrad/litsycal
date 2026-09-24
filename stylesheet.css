@@ -784,8 +784,7 @@
     min-width: 54px;
 }
 
-.litsycal-panel-date-btn,
-.litsycal-panel-time-btn {
+.litsycal-panel-date-btn {
     border-radius: 6px;
     padding: 3px 8px;
     border: none;
@@ -794,11 +793,14 @@
     text-align: left;
 }
 .litsycal-panel-date-btn:hover,
-.litsycal-panel-date-btn:focus,
-.litsycal-panel-time-btn:hover,
-.litsycal-panel-time-btn:focus { background-color: rgba(128,128,128,0.22); }
+.litsycal-panel-date-btn:focus { background-color: rgba(128,128,128,0.22); }
 
-.litsycal-panel-time-btn { min-width: 54px; max-width: 62px; text-align: center; }
+.litsycal-panel-time-entry {
+    border-radius: 6px;
+    padding: 3px 6px;
+    font-size: 0.95em;
+    width: 64px;
+}
 
 .litsycal-panel-date-dropdown {
     spacing: 2px;

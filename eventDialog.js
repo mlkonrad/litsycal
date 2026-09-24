@@ -9,6 +9,7 @@ import Pango   from 'gi://Pango';
 import {gettext as _, ngettext} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {parseQuickAdd}    from './quickAddParser.js';
+import {formatTime, fromHHMM, parseTimeInput, toHHMM} from './timeInput.js';
 import {FloatingModalPanel} from './floatingPanel.js';
 import {
     capitalize, dateStr, daysInMonth, displayYear, formatRelativeOffset, isLikelyUrl, makeTzRow,
@@ -60,6 +61,27 @@ function minutesLabel(min, allDay) {
         return ngettext('%d hour before', '%d hours before', hours).replace('%d', hours);
     }
     return ngettext('%d minute before', '%d minutes before', min).replace('%d', min);
+}
+
+// "45 min", "1 h", "2 h 30 min" - an end-time option's length.
+function durationLabel(min) {
+    const h = Math.floor(min / 60), m = min % 60;
+    const parts = [];
+    if (h)
+        parts.push(_('%d h').replace('%d', h));
+    if (m || !h)
+        parts.push(_('%d min').replace('%d', m));
+    return parts.join(' ');
+}
+
+// Every quarter hour of the day, plus `cur` in its sorted place when it's
+// off that grid (10:07 from another app), so the current value is always
+// in the list.
+function quarterHourOptions(cur, timeFormat) {
+    const mins = Array.from({length: 96}, (_unused, i) => i * 15);
+    if (cur % 15)
+        mins.splice(Math.floor(cur / 15) + 1, 0, cur);
+    return mins.map(minutes => ({minutes, label: formatTime(minutes, timeFormat)}));
 }
 
 function alertLabel(value, allDay) {
@@ -308,7 +330,29 @@ export class EventPanel {
         // in _attachFloatingDropdown, to every floating dropdown too -
         // whichever of those actually contains the currently focused actor
         // is the one that will see it.
-        this._box.connectObject('captured-event', (_actor, ev) => this._handleKeyEvent(ev), this);
+        this._box.connectObject('captured-event', (_actor, ev) => {
+            if (ev.type() === Clutter.EventType.BUTTON_PRESS)
+                this._closeDropdownOnClick(ev);
+            return this._handleKeyEvent(ev);
+        }, this);
+    }
+
+    // A click elsewhere in the panel closes an open list, leaving focus to
+    // whatever was clicked (unlike _closeDropdown, which hands it back to
+    // the list's anchor). Runs in this._box's capture phase: buttons and
+    // entries stop their own presses, so they never bubble up to the stage
+    // handler above. A click inside the list itself never gets here, since
+    // floaters are siblings of this._box, not descendants.
+    _closeDropdownOnClick(ev) {
+        if (!this._openDropdown)
+            return;
+        const [x, y] = ev.get_coords();
+        const actor  = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
+        if (actor && this._openDropdownAnchor.contains(actor))
+            return;
+        this._openDropdown.visible = false;
+        this._openDropdown         = null;
+        this._openDropdownAnchor   = null;
     }
 
     _handleKeyEvent(ev) {
@@ -341,6 +385,11 @@ export class EventPanel {
         if (sym === Clutter.KEY_Down || sym === Clutter.KEY_Up ||
             sym === Clutter.KEY_Left || sym === Clutter.KEY_Right) {
             if (this._openDropdown) {
+                const timeNav = this._openDropdown._timeNav;
+                if (timeNav && (sym === Clutter.KEY_Down || sym === Clutter.KEY_Up)) {
+                    timeNav(sym === Clutter.KEY_Down);
+                    return Clutter.EVENT_STOP;
+                }
                 // The date picker's grid wants 2D navigation (Left/Right by
                 // day, Up/Down by week, crossing month boundaries) rather
                 // than the flat-list walk every other dropdown uses -
@@ -375,6 +424,13 @@ export class EventPanel {
             // 'clicked' handler rather than duplicating what it does.
             if (sym === Clutter.KEY_Down || sym === Clutter.KEY_Up) {
                 const focused = global.stage.get_key_focus();
+                // A time field is an St.Entry, whose focus lives on its
+                // clutter_text child; there Up/Down step the time instead.
+                const timeNudge = focused?.get_parent()?._timeNudge;
+                if (timeNudge) {
+                    timeNudge(sym === Clutter.KEY_Up);
+                    return Clutter.EVENT_STOP;
+                }
                 if (this._dropdownTriggers?.has(focused)) {
                     focused.emit('clicked', 1);
                     return Clutter.EVENT_STOP;
@@ -552,27 +608,32 @@ export class EventPanel {
             : this._draft?.time ?? this._nowHour();
         this._startsRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
         this._startsRow.add_child(new St.Label({text: _('Starts'), style_class: 'litsycal-panel-lbl'}));
-        this._startDatePicker = this._makeDateField(this._selDate, () => this._updateTzPreview());
-        this._startTimePicker = this._makeTimeField(defStartTime, () => this._updateTzPreview());
+        this._startDatePicker = this._makeDateField(this._selDate, () => this._onStartChanged());
+        this._startTimePicker = this._makeTimeField(defStartTime,
+            cur => this._startTimeOptions(cur), () => this._onStartChanged());
         this._startsRow.add_child(this._startDatePicker.actor);
         this._startsRow.add_child(this._startTimePicker.actor);
         box.add_child(this._startsRow);
 
-        // Ends
-        let defEndTime;
-        if (ev && !ev.allDay)
-            defEndTime = ev.time?.split(' - ')[1]?.trim() ?? this._nextHour();
-        else if (this._draft?.time)
-            defEndTime = this._hourAfter(this._draft.time);
-        else
-            defEndTime = this._nextHour();
+        // Ends. A new event defaults to one hour long, taken from the start
+        // itself so a late start (23:30) rolls the end onto the next day.
+        let defEndDate = ev?.endDate ?? this._selDate;
+        let defEndTime = ev && !ev.allDay ? ev.time?.split(' - ')[1]?.trim() : null;
+        if (!defEndTime) {
+            const end = this._startDateTime().add_minutes(60);
+            defEndTime = toHHMM(end.get_hour() * 60 + end.get_minute());
+            if (!ev)
+                defEndDate = dateStr(end);
+        }
         this._endsRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
         this._endsRow.add_child(new St.Label({text: _('Ends'), style_class: 'litsycal-panel-lbl'}));
-        this._endDatePicker = this._makeDateField(ev?.endDate ?? this._selDate);
-        this._endTimePicker = this._makeTimeField(defEndTime);
+        this._endDatePicker = this._makeDateField(defEndDate, () => this._rememberSpan());
+        this._endTimePicker = this._makeTimeField(defEndTime,
+            cur => this._endTimeOptions(cur), minutes => this._onEndTimeChanged(minutes));
         this._endsRow.add_child(this._endDatePicker.actor);
         this._endsRow.add_child(this._endTimePicker.actor);
         box.add_child(this._endsRow);
+        this._rememberSpan();
 
         this._buildTzPreview();
         box.add_child(this._tzPreviewBox);
@@ -692,8 +753,8 @@ export class EventPanel {
             this._titleEntry, this._calPickerBtn,
             this._locationEntry, this._urlEntry, this._openUrlBtn,
             this._allDayBtn,
-            this._startDatePicker.btn, this._startTimePicker.btn,
-            this._endDatePicker.btn, this._endTimePicker.btn,
+            this._startDatePicker.btn, this._startTimePicker.entry,
+            this._endDatePicker.btn, this._endTimePicker.entry,
             this._repeatPicker.btn, this._repeatEndPicker.btn, this._repeatUntilPicker.btn,
             this._alertPicker.btn,
             this._notesEntry,
@@ -706,19 +767,71 @@ export class EventPanel {
         return `${pad(n.get_hour())}:00`;
     }
 
-    _nextHour() {
-        const n = GLib.DateTime.new_now_local();
-        return `${pad((n.get_hour() + 1) % 24)}:00`;
+    _startDateTime() {
+        const [y, m, d] = this._startDatePicker.getValue().split('-').map(Number);
+        const t = fromHHMM(this._startTimePicker.getValue());
+        return GLib.DateTime.new_local(y, m, d, Math.floor(t / 60), t % 60, 0);
     }
 
-    // One hour after a given 'HH:MM' time string, minutes reset to :00 -
-    // same rounding _nextHour() above applies to "now". Derives a quick-add
-    // draft's end time from its parsed start time; _nextHour() is relative
-    // to the current wall clock, so quick-adding "3pm" at 10am would
-    // otherwise end at 11:00, before the start.
-    _hourAfter(timeStr) {
-        const [h] = timeStr.split(':').map(Number);
-        return `${pad((h + 1) % 24)}:00`;
+    _endDateTime() {
+        const [y, m, d] = this._endDatePicker.getValue().split('-').map(Number);
+        const t = fromHHMM(this._endTimePicker.getValue());
+        return GLib.DateTime.new_local(y, m, d, Math.floor(t / 60), t % 60, 0);
+    }
+
+    // Event length in minutes, kept up to date on every end change so a
+    // start change can carry the end along with it.
+    _rememberSpan() {
+        this._spanMin = Math.round(this._endDateTime().difference(this._startDateTime()) / 60e6);
+    }
+
+    // Moving the start (date or time) moves the end by the same amount,
+    // keeping the length; an end already before the start gets the
+    // default hour instead.
+    _onStartChanged() {
+        if (this._spanMin <= 0)
+            this._spanMin = 60;
+        const end = this._startDateTime().add_minutes(this._spanMin);
+        this._endDatePicker.setValue(dateStr(end));
+        this._endTimePicker.setValue(toHHMM(end.get_hour() * 60 + end.get_minute()));
+        this._updateTzPreview();
+    }
+
+    // For an event up to a day long, an end time means its first
+    // occurrence after the start: 00:30 for a 23:00 start is the next day.
+    // A longer (multi-day) event keeps its end date as set.
+    _onEndTimeChanged(minutes) {
+        if (this._spanMin <= 1440) {
+            const start = this._startDateTime();
+            const startMin = start.get_hour() * 60 + start.get_minute();
+            this._endDatePicker.setValue(dateStr(minutes > startMin ? start : start.add_days(1)));
+        }
+        this._rememberSpan();
+    }
+
+    _startTimeOptions(cur) {
+        return quarterHourOptions(cur, this._settings.get_string('time-format'));
+    }
+
+    // Offered as durations from the start ("11:00 (1 h)") while the event
+    // fits in a day, as plain times for a multi-day one.
+    _endTimeOptions(cur) {
+        const timeFormat = this._settings.get_string('time-format');
+        if (this._spanMin > 1440)
+            return quarterHourOptions(cur, timeFormat);
+
+        const startMin = fromHHMM(this._startTimePicker.getValue());
+        const option = d => {
+            const minutes = (startMin + d) % 1440;
+            return {minutes, d, label: `${formatTime(minutes, timeFormat)} (${durationLabel(d)})`};
+        };
+        const opts = [];
+        for (let d = 15; d < 1440; d += 15)
+            opts.push(option(d));
+        const curD = (cur - startMin + 1440) % 1440 || 1440;
+        if (!opts.some(o => o.d === curD))
+            opts.push(option(curD));
+        return opts.sort((a, b) => a.d - b.d);
     }
 
     _refreshCalBtn() {
@@ -1039,11 +1152,26 @@ export class EventPanel {
         const aw       = anchorBtn.get_width();
         const ah       = anchorBtn.get_height();
 
-        const [, natW] = dropdown.get_preferred_width(-1);
+        let [, natW] = dropdown.get_preferred_width(-1);
+        // A time field's St.ScrollView can report a couple of pixels less
+        // than its content needs (measured 177 for 171 + an 8px scrollbar),
+        // enough to ellipsize a label. Also size it from the list inside,
+        // plus room for the scrollbar.
+        if (dropdown instanceof St.ScrollView) {
+            const [, listW] = dropdown.get_child().get_preferred_width(-1);
+            const bar = dropdown.get_children().find(c => c instanceof St.ScrollBar);
+            const [, barW] = bar ? bar.get_preferred_width(-1) : [0, 0];
+            natW = Math.max(natW, listW + barW);
+        }
         const w        = Math.max(aw, natW);
         const [, natH] = dropdown.get_preferred_height(w);
 
-        const x = Math.max(monitor.x + 4, Math.min(ax, monitor.x + monitor.width - w - 4));
+        // A time field sits at the right end of its row, so its list (the
+        // end time's is much wider, with durations) lines up with the
+        // field's right edge and grows leftward, over the panel, rather
+        // than spilling past the panel's edge.
+        const left = dropdown._timeNav ? ax + aw - w : ax;
+        const x = Math.max(monitor.x + 4, Math.min(left, monitor.x + monitor.width - w - 4));
 
         let y = ay + ah + 2;
         if (y + natH > monitor.y + monitor.height - 4)
@@ -1059,15 +1187,20 @@ export class EventPanel {
         const willOpen = !dropdown.visible;
         if (this._openDropdown && this._openDropdown !== dropdown)
             this._openDropdown.visible = false;
+        // Shown before it's measured: a hidden list's freshly rebuilt rows
+        // aren't styled yet and report almost no width (a time list
+        // measured 10px hidden, 170px shown), which clipped every label.
+        // Nothing paints between these lines, so it never shows unplaced.
+        dropdown.visible = willOpen;
         if (willOpen) {
             onOpen?.();
             this._positionFloatingDropdown(dropdown, anchorBtn);
         }
-        dropdown.visible = willOpen;
         this._openDropdown       = willOpen ? dropdown : null;
         this._openDropdownAnchor = willOpen ? anchorBtn : null;
 
-        if (willOpen) {
+        // A time field's list is the exception: focus stays in its entry.
+        if (willOpen && !dropdown._timeNav) {
             // Land keyboard focus on the list's current selection (or its
             // first item) as soon as it opens, same as a native combobox -
             // Up/Down then move within it (_moveInDropdown), no extra Tab
@@ -1310,13 +1443,29 @@ export class EventPanel {
             actor: wrap,
             btn,
             getValue: () => `${cur.y}-${pad(cur.m)}-${pad(cur.d)}`,
+            setValue: str => {
+                const [y, m, d] = str.split('-').map(Number);
+                cur = {y, m, d};
+                btnLbl.set_text(labelFor(cur));
+            },
         };
     }
 
-    _makeTimeField(initialStr, onChange) {
+    // A typed time with a list of suggestions under it: any minute can be
+    // typed (see parseTimeInput for the accepted shapes), and the list offers
+    // quarter-hour steps. options(cur) returns the list's [{minutes, label}],
+    // rebuilt on every open since the end field's list depends on the start.
+    // Typed text is committed on Enter or focus-out; unparseable text reverts.
+    _makeTimeField(initialStr, options, onChange) {
+        const timeFormat = this._settings.get_string('time-format');
+        let cur = fromHHMM(initialStr) ?? 0;
+
         const wrap = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL});
-        const btnLbl = new St.Label({text: initialStr});
-        const btn = new St.Button({style_class: 'litsycal-panel-time-btn', child: btnLbl});
+        const entry = new St.Entry({
+            style_class: 'litsycal-panel-time-entry',
+            text: formatTime(cur, timeFormat),
+            can_focus: true,
+        });
 
         const scroll = new St.ScrollView({
             style_class: 'litsycal-panel-time-scroll',
@@ -1328,64 +1477,124 @@ export class EventPanel {
             orientation: Clutter.Orientation.VERTICAL, style_class: 'popup-menu-content litsycal-panel-time-dropdown',
         });
         scroll.set_child(list);
-        this._attachFloatingDropdown(scroll, btn);
+        this._attachFloatingDropdown(scroll, entry);
 
-        let cur = initialStr;
-        const onTimeClicked = value => () => {
-            cur = value;
-            btnLbl.set_text(value);
-            this._closeDropdown();
-            onChange?.(cur);
+        const setCur = (minutes, notify) => {
+            const changed = minutes !== cur;
+            cur = minutes;
+            entry.set_text(formatTime(cur, timeFormat));
+            if (notify && changed)
+                onChange?.(cur);
         };
-        const optBtns = [];
-        for (let h = 0; h < 24; h++) {
-            for (const m of [0, 30]) {
-                const value = `${pad(h)}:${pad(m)}`;
-                const isSel = value === cur;
-                const optBtn = new St.Button({
-                    label: value, x_expand: true,
-                    style_class: `litsycal-panel-time-option${
-                        isSel ? ' litsycal-panel-time-option-selected' : ''}`,
-                });
-                optBtn.connectObject('clicked', onTimeClicked(value), this);
-                list.add_child(optBtn);
-                optBtns.push(optBtn);
-            }
-        }
+        const commitText = () => {
+            const parsed = parseTimeInput(entry.get_text());
+            setCur(parsed ?? cur, parsed !== null);
+        };
 
-        btn.connectObject('clicked', () => {
-            this._toggleDropdown(scroll, btn, () => {
-                const idx = optBtns.findIndex(b => b.get_label() === cur);
-                // Buttons are built once and never rebuilt, so picking a
-                // time only moves `cur` - re-derive the "-selected" mark
-                // (used both visually and by _toggleDropdown's
-                // auto-focus-on-open) every time the list opens.
-                for (const b of optBtns)
-                    b.remove_style_class_name('litsycal-panel-time-option-selected');
-                if (idx >= 0)
-                    optBtns[idx].add_style_class_name('litsycal-panel-time-option-selected');
-
-                if (idx < 0)
-                    return;
-                if (this._timeScrollIdleId)
-                    GLib.source_remove(this._timeScrollIdleId);
-                this._timeScrollIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                    this._timeScrollIdleId = null;
-                    const adjustment = scroll.vadjustment ?? scroll.vscroll.adjustment;
-                    const rowH  = optBtns[0].get_height() || 0;
-                    const viewH = scroll.get_height() || 0;
-                    adjustment.value = Math.max(0, rowH * idx - viewH / 2 + rowH / 2);
-                    return GLib.SOURCE_REMOVE;
-                });
+        let optBtns = [];
+        const scrollTo = btn => {
+            if (this._timeScrollIdleId)
+                GLib.source_remove(this._timeScrollIdleId);
+            this._timeScrollIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                this._timeScrollIdleId = null;
+                const adjustment = scroll.vadjustment ?? scroll.vscroll.adjustment;
+                const rowH  = btn.get_height() || 0;
+                const viewH = scroll.get_height() || 0;
+                adjustment.value = Math.max(0, rowH * optBtns.indexOf(btn) - viewH / 2 + rowH / 2);
+                return GLib.SOURCE_REMOVE;
             });
-        }, this);
+        };
+        // Marks the option closest to `minutes` (on the 24h clock, so 23:50
+        // is next to 00:05) and scrolls it into view.
+        const highlight = minutes => {
+            const dist = b => {
+                const d = Math.abs(b._minutes - minutes);
+                return Math.min(d, 1440 - d);
+            };
+            let best = null;
+            for (const b of optBtns) {
+                b.remove_style_class_name('litsycal-panel-time-option-selected');
+                if (!best || dist(b) < dist(best))
+                    best = b;
+            }
+            if (best) {
+                best.add_style_class_name('litsycal-panel-time-option-selected');
+                scrollTo(best);
+            }
+        };
+        const rebuild = () => {
+            list.destroy_all_children();
+            optBtns = options(cur).map(opt => {
+                const optBtn = new St.Button({
+                    label: opt.label, x_expand: true, style_class: 'litsycal-panel-time-option',
+                });
+                optBtn._minutes = opt.minutes;
+                optBtn.connectObject('clicked', () => {
+                    setCur(opt.minutes, true);
+                    this._closeDropdown();
+                }, this);
+                list.add_child(optBtn);
+                return optBtn;
+            });
+        };
 
-        wrap.add_child(btn);
+        // Capture phase, not 'button-press-event': ClutterText stops the
+        // press itself, so it never bubbles up to the St.Entry. Focus is
+        // grabbed explicitly for the same reason as _focusOnClick.
+        entry.connectObject('captured-event', (_actor, ev) => {
+            if (ev.type() !== Clutter.EventType.BUTTON_PRESS)
+                return Clutter.EVENT_PROPAGATE;
+            entry.grab_key_focus();
+            if (this._openDropdown !== scroll) {
+                this._toggleDropdown(scroll, entry, () => {
+                    rebuild();
+                    highlight(cur);
+                });
+            }
+            return Clutter.EVENT_PROPAGATE;
+        }, this);
+        entry.clutter_text.connectObject(
+            'text-changed', () => {
+                const parsed = parseTimeInput(entry.get_text());
+                if (this._openDropdown === scroll && parsed !== null)
+                    highlight(parsed);
+            },
+            'activate', () => {
+                commitText();
+                if (this._openDropdown === scroll)
+                    this._closeDropdown();
+            },
+            'key-focus-out', () => commitText(),
+            this);
+
+        // Read by _handleKeyEvent. Focus stays in the entry while its list
+        // is open (so typing keeps working), which is why Up/Down go through
+        // these instead of _moveInDropdown's walk of focusable items.
+        scroll._timeNav = forward => {
+            const idx = optBtns.findIndex(b => b.has_style_class_name('litsycal-panel-time-option-selected'));
+            const next = optBtns[Math.max(0, Math.min(optBtns.length - 1, idx + (forward ? 1 : -1)))];
+            if (!next)
+                return;
+            setCur(next._minutes, true);
+            highlight(next._minutes);
+        };
+        // With the list closed, Up/Down step to the previous/next quarter
+        // hour, snapping an off-grid time (10:07) onto the grid first.
+        entry._timeNudge = forward => {
+            const base = parseTimeInput(entry.get_text()) ?? cur;
+            const step = forward
+                ? Math.floor(base / 15) * 15 + 15
+                : Math.ceil(base / 15) * 15 - 15;
+            setCur((step + 1440) % 1440, true);
+        };
+
+        wrap.add_child(entry);
 
         return {
             actor: wrap,
-            btn,
-            getValue: () => cur,
+            entry,
+            getValue: () => toHHMM(cur),
+            setValue: str => setCur(fromHHMM(str), false),
         };
     }
 
@@ -1406,16 +1615,6 @@ export class EventPanel {
         if (mo < 1 || mo > 12 || d < 1 || d > 31)
             return null;
         return `${y}-${pad(mo)}-${pad(d)}`;
-    }
-
-    _parseTime(str) {
-        const m = (str ?? '').trim().match(/^(\d{1,2}):(\d{2})$/);
-        if (!m)
-            return null;
-        const h = parseInt(m[1]), min = parseInt(m[2]);
-        if (h > 23 || min > 59)
-            return null;
-        return {h, min};
     }
 
     _showError(msg) {
@@ -1466,20 +1665,16 @@ export class EventPanel {
         let hour = 0, minute = 0, endHour = 1, endMinute = 0, endDate = startDate;
 
         if (!this._allDay) {
-            const st = this._parseTime(this._startTimePicker.getValue());
-            const et = this._parseTime(this._endTimePicker.getValue());
-            if (!st) {
-                this._showError(_('Invalid start time (HH:MM)'));
+            if (this._endDateTime().compare(this._startDateTime()) < 0) {
+                this._showError(_('The event ends before it starts'));
                 return;
             }
-            if (!et) {
-                this._showError(_('Invalid end time (HH:MM)'));
-                return;
-            }
-            hour = st.h;
-            minute = st.min;
-            endHour = et.h;
-            endMinute = et.min;
+            const st = fromHHMM(this._startTimePicker.getValue());
+            const et = fromHHMM(this._endTimePicker.getValue());
+            hour = Math.floor(st / 60);
+            minute = st % 60;
+            endHour = Math.floor(et / 60);
+            endMinute = et % 60;
             endDate = this._parseDate(this._endDatePicker.getValue()) ?? startDate;
         }
 
@@ -1537,6 +1732,13 @@ export class EventPanel {
     }
 
     close() {
+        // Released first, while everything is still alive: a focused time
+        // field commits its text on focus-out (see _makeTimeField), which
+        // can update other fields and schedule a list scroll. Left to the
+        // teardown below, that focus-out would fire mid-destroy and reach
+        // already-disposed actors, and its scroll idle would outlive close().
+        if (this._box?.contains(global.stage.get_key_focus()))
+            global.stage.set_key_focus(null);
         if (this._positionIdleId) {
             GLib.source_remove(this._positionIdleId);
             this._positionIdleId = null;
