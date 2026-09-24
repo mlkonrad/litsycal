@@ -165,11 +165,32 @@ new code should keep meeting these — checked clean as of 2026-09-07:
 
 - **Lifecycle discipline**: nothing gets created, connected, or scheduled at
   module scope — only in `enable()`. Everything created in `enable()` must be
-  torn down in `disable()` (widgets destroyed, every `connect()` id explicitly
-  disconnected, every `GLib.timeout_add*`/`source_remove`d, instance vars set
-  back to `null`). `LitsycalExtension.enable/disable` in extension.js and the
-  `_settings`/`_iface` id tracking + `destroy()` cleanup in `LitsycalIndicator`
-  already follow this — keep new state on the same pattern.
+  torn down in `disable()` (widgets destroyed, every signal disconnected,
+  every `GLib.timeout_add*`/`source_remove`d, instance vars set back to
+  `null`).
+  - **Signals: always `connectObject()`/`disconnectObject()`, never bare
+    `connect()`** in Shell-process files (EGO reviewer asked for this,
+    2026-09-24; prefs.js is GTK-side and exempt). Pass the owner last —
+    `this` in class methods, or the owning actor in module-level functions
+    (see `confirmDeleteEvent`'s `overlay` in eventDialog.js). Handlers on
+    child actors destroyed with their owner clean themselves up; handlers on
+    anything that outlives the owner (settings, `_iface`, `global.stage`,
+    the registry, `this.menu`) need an explicit `emitter.disconnectObject(this)`
+    in `destroy()`/`close()`, in the usual order (sources first, then
+    signals, then resources, then `super.destroy()`).
+  - `disconnectObject(owner)` removes **every** handler that owner has on
+    that emitter, so don't connect/disconnect temporary handlers on an
+    emitter that also carries permanent ones for the same owner — connect
+    them all once instead (see the resize handle in calendarWidget.js).
+  - `ECal.Client.connect(...)` in calendarManager.js is EDS's async client
+    connect, not a signal — it's the one legitimate `connect(` left.
+  - `Gjs-CRITICAL "Attempting to run a JS callback during garbage
+    collection"` warnings during disable/enable in the nested devkit session
+    are NOT from litsycal: the blocked callbacks are layout vfuncs
+    (`get_preferred_width`, `allocate`, ...) that litsycal doesn't implement,
+    from other enabled extensions, and they occur at commits from before the
+    connectObject migration too (measured 2026-09-24). Check teardown with
+    "already disposed" / litsycal file paths in the log instead.
 - **No deprecated imports**: no `ByteArray`, `Lang`, or `Mainloop`. Use ESM
   `import`, GLib/GObject natively, `imports.byteArray` replacements, etc.
 - **Don't mix process libraries**: no `Gtk`/`Gdk`/`Adw` in extension.js (Shell
