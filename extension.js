@@ -6,7 +6,7 @@ import Shell from 'gi://Shell';
 
 import {LitsycalIndicator} from './indicator.js';
 
-// ── Extension lifecycle ───────────────────────────────────────────────────────
+// Extension lifecycle
 
 export default class LitsycalExtension extends Extension {
     enable() {

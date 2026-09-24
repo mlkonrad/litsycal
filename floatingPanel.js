@@ -5,7 +5,7 @@ import Shell   from 'gi://Shell';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-// Shared base for GoToDatePanel, QuickAddPanel, and SearchPanel — three
+// Shared base for GoToDatePanel, QuickAddPanel, and SearchPanel - three
 // small floating text-entry panels that open the same way: their own
 // Main.pushModal grab, Escape/click-outside via a captured-event listener,
 // the same anchor-relative _position() math, and the same disconnect/
@@ -17,7 +17,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 //
 // Subclasses: call `super(styleClass, defaultWidth, defaultHeight,
 // anchorActor, onClose)`, override `_build()` to add content to `this._box`
-// (name the main input `this._entry` — the base focuses it automatically
+// (name the main input `this._entry` - the base focuses it automatically
 // once positioned), and call `this._finish(result)` to close with a result
 // or `this._finish(null)` to cancel. A subclass with its own cleanup
 // (timers, generation counters, ...) overrides `_finish(result)`, does that
@@ -44,9 +44,9 @@ export class FloatingModalPanel {
         // PopupMenu) still holds its own modal grab: without a competing
         // grab here, input is redelivered starting from that grab's actor
         // rather than the stage, so this panel's own listeners below would
-        // never see it — even a click on its own entry/button would be
+        // never see it - even a click on its own entry/button would be
         // swallowed as a click-outside-of-that-menu instead of reaching it.
-        // See SettingsMenuPanel for the full explanation — same mechanism,
+        // See SettingsMenuPanel for the full explanation - same mechanism,
         // same fix.
         this._grab = Main.pushModal(this._box, {actionMode: Shell.ActionMode.POPUP});
 
@@ -75,7 +75,7 @@ export class FloatingModalPanel {
         });
     }
 
-    // Subclasses must override to build their own content into this._box —
+    // Subclasses must override to build their own content into this._box -
     // called from within this base constructor, before uiGroup.add_child.
     _build() {}
 

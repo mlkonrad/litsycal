@@ -230,7 +230,12 @@ new code should keep meeting these — checked clean as of 2026-09-07:
   progress, not ASCII bars.
 - **Comments**: no trivial comments that just restate what the next line of
   JS does — matches this project's existing no-comments-unless-non-obvious
-  rule above the fold in this file.
+  rule above the fold in this file. Keep comments (JS and CSS) plain ASCII:
+  no box-drawing section headers (`// ── Init ───`), em dashes, arrows,
+  ellipsis characters or Mac key glyphs (`⌘⇧⌥⌃` — write `Cmd+`/`Shift+`/
+  `Opt+`/`Ctrl+`). The EGO reviewer rejected a build for these "wrong
+  characters" (2026-09-24). User-facing strings may still use proper
+  typography (`…`, `—`) — this is only about comments.
 - **Settings pairing**: `settings-schema` in metadata.json is paired with a
   parameterless `this.getSettings()` call — already true in extension.js and
   prefs.js; don't reintroduce the old schema-path-argument form.

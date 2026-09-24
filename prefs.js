@@ -7,7 +7,7 @@ import GLib from 'gi://GLib';
 import EDataServer from 'gi://EDataServer';
 
 // Every IANA time zone id available on this system, read from the same
-// tzdata tables GLib.TimeZone itself needs to resolve a zone id — so this
+// tzdata tables GLib.TimeZone itself needs to resolve a zone id - so this
 // adds no dependency beyond what the "second time zone" feature already
 // requires, and needs no city list of our own to maintain. Returns [] if
 // neither table is present (used to hide that preference row entirely).
@@ -38,26 +38,24 @@ function listTimeZoneIds() {
 export default class LitsycalPrefs extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         // Wide enough to stay above Adw.PreferencesWindow's own adaptive
-        // breakpoint — narrower than this, it drops the General/Appearance/
+        // breakpoint - narrower than this, it drops the General/Appearance/
         // About switcher from the header down to a bottom bar.
         window.set_default_size(600, 660);
         const settings = this.getSettings();
         const settingsHandlerIds = [];
 
-        // ════════════════════════════════════════════════════════════════════
         // GENERAL PAGE
-        // ════════════════════════════════════════════════════════════════════
         const general = new Adw.PreferencesPage({
             title:     _('General'),
             icon_name: 'preferences-system-symbolic',
         });
         window.add(general);
 
-        // ── Calendar group ─────────────────────────────────────────────────
+        // Calendar group
         const calGroup = new Adw.PreferencesGroup({title: _('Calendar')});
         general.add(calGroup);
 
-        // First day of the week — locale-aware names via GLib
+        // First day of the week - locale-aware names via GLib
         const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
         const DOW_NAMES = Array.from({length: 7}, (unused, i) =>
             cap(GLib.DateTime.new_local(2025, 1, 6 + i, 0, 0, 0).format('%A'))
@@ -72,7 +70,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         });
         calGroup.add(fdowRow);
 
-        // Calendar system — swaps the displayed year only (Buddhist = Gregorian + 543);
+        // Calendar system - swaps the displayed year only (Buddhist = Gregorian + 543);
         // month/day grid math is unaffected since both calendars share the same months.
         const CAL_SYSTEM_IDS    = ['gregorian', 'buddhist'];
         const CAL_SYSTEM_LABELS = [_('Gregorian'), _('Buddhist')];
@@ -91,7 +89,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         });
         calGroup.add(calSystemRow);
 
-        // ── Calendars group ───────────────────────────────────────────────
+        // Calendars group
         const calSourcesGroup = new Adw.PreferencesGroup({
             title:       _('Calendars'),
             description: _('Choose which calendars appear in the popup and agenda'),
@@ -99,7 +97,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         general.add(calSourcesGroup);
         this._buildCalendarSourcesGroup(calSourcesGroup, settings);
 
-        // ── Agenda group ─────────────────────────────────────────────────────
+        // Agenda group
         const agendaGroup = new Adw.PreferencesGroup({title: _('Agenda')});
         general.add(agendaGroup);
 
@@ -123,7 +121,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         });
         agendaGroup.add(agendaDaysRow);
 
-        // ── Keyboard shortcut group ────────────────────────────────────────
+        // Keyboard shortcut group
         const kbGroup = new Adw.PreferencesGroup({title: _('Keyboard Shortcut')});
         general.add(kbGroup);
 
@@ -200,11 +198,11 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         kbRow.add_suffix(recordBtn);
         kbGroup.add(kbRow);
 
-        // ── Other group ────────────────────────────────────────────────────
+        // Other group
         const otherGroup = new Adw.PreferencesGroup({title: _('Other')});
         general.add(otherGroup);
 
-        // Beep on the hour row — SwitchRow + speaker preview button
+        // Beep on the hour row - SwitchRow + speaker preview button
         const beepRow = new Adw.ActionRow({
             title:    _('Beep on the hour'),
             subtitle: _('Play a sound at the start of every hour'),
@@ -234,7 +232,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         beepRow.set_activatable_widget(beepSwitch);
         otherGroup.add(beepRow);
 
-        // Sound file row — pick a custom file for the hourly beep, or reset
+        // Sound file row - pick a custom file for the hourly beep, or reset
         // back to the system theme's default bell.
         const soundRow = new Adw.ActionRow({
             title:    _('Sound file'),
@@ -290,9 +288,9 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         soundRow.add_suffix(chooseBtn);
         otherGroup.add(soundRow);
 
-        // ── Time zones ────────────────────────────────────────────────────
+        // Time zones
         // A searchable "add" dropdown (system IANA zone database, see
-        // listTimeZoneIds) plus one removable row per zone already added —
+        // listTimeZoneIds) plus one removable row per zone already added -
         // shown as live clocks between the agenda and footer (see
         // calendarWidget.js's _buildTimeZones/_updateTimeZones). The whole
         // group hides if that database isn't readable on this system.
@@ -312,7 +310,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             enable_search:     true,
             // Default PREFIX mode only matches from the start of "Region /
             // City" labels, so searching "Lisbon" wouldn't match "Europe /
-            // Lisbon" — SUBSTRING matches the city name anywhere.
+            // Lisbon" - SUBSTRING matches the city name anywhere.
             search_match_mode: Gtk.StringFilterMatchMode.SUBSTRING,
             visible:           tzIds.length > 0,
         });
@@ -333,7 +331,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             return `UTC${sign}${h}:${m}`;
         };
 
-        // Rebuilt from scratch on every add/remove — the list is short
+        // Rebuilt from scratch on every add/remove - the list is short
         // enough that this is simpler than diffing rows in place.
         let zoneRows = [];
         const rebuildZoneRows = () => {
@@ -386,10 +384,10 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                 settings.set_strv('timezones', [...current, id]);
         });
 
-        // ── Home timezone ─────────────────────────────────────────────────
+        // Home timezone
         // Reference point for the relative "-6h"-style labels shown next to
         // each zone above (see calendarWidget.js's _updateTimeZones and
-        // eventDialog.js's _updateTzPreview) — deliberately a separate,
+        // eventDialog.js's _updateTzPreview) - deliberately a separate,
         // explicitly-set value rather than the system's own local zone,
         // since a traveling user's system clock may already be showing
         // wherever they physically are right now, not their permanent home
@@ -443,7 +441,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         });
 
         // Geoclue/GWeather aren't guaranteed to be installed (minimal GNOME
-        // setups can lack either typelib) — a static top-level import throws
+        // setups can lack either typelib) - a static top-level import throws
         // ImportError at module load and takes down the whole Preferences
         // window, not just this one feature, so both are loaded lazily and
         // the button stays hidden if either is missing.
@@ -455,11 +453,11 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                 ({default: GWeather} = await import('gi://GWeather'));
                 detectBtn.visible = true;
             } catch {
-                // Feature unavailable — button stays hidden.
+                // Feature unavailable - button stays hidden.
             }
         })();
 
-        // Sets home to wherever the user physically is *right now* — only
+        // Sets home to wherever the user physically is *right now* - only
         // correct if that's actually their home base; someone traveling
         // should pick their real home city from the list above instead.
         detectBtn.connect('clicked', () => {
@@ -472,7 +470,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                 detectCancellable = null;
                 // The window (and these widgets) may already be gone if
                 // detection was still in flight when Preferences closed
-                // — close-request cancels it, so bail out here without
+                // - close-request cancels it, so bail out here without
                 // touching anything rather than risk a use-after-close.
                 if (cancelled)
                     return;
@@ -497,16 +495,14 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         homeRow.add_suffix(detectBtn);
         homeGroup.add(homeRow);
 
-        // ════════════════════════════════════════════════════════════════════
         // APPEARANCE PAGE  (options that were previously in "General")
-        // ════════════════════════════════════════════════════════════════════
         const appearance = new Adw.PreferencesPage({
             title:     _('Appearance'),
             icon_name: 'applications-graphics-symbolic',
         });
         window.add(appearance);
 
-        // ── Panel icon group ───────────────────────────────────────────────
+        // Panel icon group
         const iconGroup = new Adw.PreferencesGroup({title: _('Panel Icon')});
         appearance.add(iconGroup);
 
@@ -626,7 +622,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         settings.bind('hide-icon', hideRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         iconGroup.add(hideRow);
 
-        // ── Calendar size group ────────────────────────────────────────────
+        // Calendar size group
         const sizeGroup = new Adw.PreferencesGroup({title: _('Calendar')});
         appearance.add(sizeGroup);
 
@@ -690,7 +686,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         settings.bind('short-day-names', shortDayNamesRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         sizeGroup.add(shortDayNamesRow);
 
-        // ── Event dots ────────────────────────────────────────────────────
+        // Event dots
         const dotsGroup = new Adw.PreferencesGroup({title: _('Event Dots')});
         appearance.add(dotsGroup);
 
@@ -719,7 +715,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         }));
         dotsGroup.add(dotColorRow);
 
-        // ── Agenda ────────────────────────────────────────────────────────
+        // Agenda
         const agendaAppearanceGroup = new Adw.PreferencesGroup({title: _('Agenda')});
         appearance.add(agendaAppearanceGroup);
 
@@ -737,7 +733,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         settings.bind('show-empty-agenda-days', showEmptyDaysRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         agendaAppearanceGroup.add(showEmptyDaysRow);
 
-        // ── Highlighted days ───────────────────────────────────────────────
+        // Highlighted days
         const hlGroup = new Adw.PreferencesGroup({
             title:       _('Highlighted Days'),
             description: _('Tints the selected day columns across the entire calendar grid'),
@@ -747,7 +743,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         const hlRow  = new Adw.ActionRow({title: _('Highlight columns')});
         const hlBox  = new Gtk.Box({spacing: 2, valign: Gtk.Align.CENTER});
         const DAY_KEYS   = ['mo', 'tu', 'we', 'th', 'fr', 'sa', 'su'];
-        // Locale-aware single-char day labels (Mon=0 … Sun=6)
+        // Locale-aware single-char day labels (Mon=0 ... Sun=6)
         const DAY_LABELS = Array.from({length: 7}, (unused, i) =>
             GLib.DateTime.new_local(2025, 1, 6 + i, 0, 0, 0).format('%a').charAt(0).toUpperCase()
         );
@@ -771,7 +767,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         hlRow.add_suffix(hlBox);
         hlGroup.add(hlRow);
 
-        // ── Theme ──────────────────────────────────────────────────────────────
+        // Theme
         const themeGroup = new Adw.PreferencesGroup({title: _('Theme')});
         appearance.add(themeGroup);
 
@@ -808,7 +804,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         });
         themeGroup.add(themeRow);
 
-        // ── Weekend colour ─────────────────────────────────────────────────────
+        // Weekend colour
         const wkGroup = new Adw.PreferencesGroup({title: _('Weekend Days')});
         appearance.add(wkGroup);
 
@@ -848,9 +844,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         wkGroup.add(wkModeRow);
         wkGroup.add(wkColorRow);
 
-        // ════════════════════════════════════════════════════════════════════
         // ABOUT PAGE
-        // ════════════════════════════════════════════════════════════════════
         const about = new Adw.PreferencesPage({
             title:     _('About'),
             icon_name: 'help-about-symbolic',
@@ -909,7 +903,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
 
         const pagesByName = {general, appearance, about};
         if (pagesByName[requestedPage]) {
-            // set_visible_page() here, mid-construction, doesn't stick — the
+            // set_visible_page() here, mid-construction, doesn't stick - the
             // window's own navigation view isn't ready to switch pages until
             // it's mapped. Defer to the next idle tick, once it is.
             GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
@@ -988,7 +982,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
     }
 
     // Evolution Data Server (which Litsycal reads directly) doesn't come
-    // with a default calendar pre-registered — that's normally created the
+    // with a default calendar pre-registered - that's normally created the
     // first time GNOME Calendar itself runs, or when an account with
     // calendar support is added in Online Accounts. Without either having
     // happened, a plain "No calendars found" row is a dead end, so offer

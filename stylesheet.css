@@ -1,9 +1,9 @@
-/* ── Popup container ─────────────────────────────────────────────────────── */
+/* Popup container */
 .litsycal-popup-item {
     padding: 0;
 }
 
-/* ── Calendar wrapper ────────────────────────────────────────────────────── */
+/* Calendar wrapper */
 .litsycal-calendar {
     padding: 10px 8px 4px 8px;
     min-width: 255px;
@@ -11,7 +11,7 @@
     spacing: 2px;
 }
 
-/* ── Header ──────────────────────────────────────────────────────────────── */
+/* Header */
 .litsycal-header {
     spacing: 2px;
     padding-bottom: 6px;
@@ -39,13 +39,13 @@
     padding: 4px 6px;
 }
 
-/* ── Day-name row ────────────────────────────────────────────────────────── */
+/* Day-name row */
 .litsycal-day-names {
     spacing: 0;
     padding-bottom: 0px;
 }
 
-/* Each day-name cell — zero spacing so highlight columns touch each other */
+/* Each day-name cell - zero spacing so highlight columns touch each other */
 .litsycal-day-name-cell {
     padding: 2px 0 3px 0;
 }
@@ -58,7 +58,7 @@
     text-align: center;
 }
 
-/* ── Grid ────────────────────────────────────────────────────────────────── */
+/* Grid */
 /* spacing must match the SPACING constant in OutlinePainter.paint() (outlinePainter.js) */
 .litsycal-grid {
     spacing: 4px;
@@ -68,7 +68,7 @@
     spacing: 0;
 }
 
-/* ── Day buttons ─────────────────────────────────────────────────────────── */
+/* Day buttons */
 /* Dark theme: white numbers. Light theme: near-black (see @media below). */
 .litsycal-day-btn {
     min-width: 32px;
@@ -89,27 +89,27 @@
 .litsycal-today   { font-weight: bold; }
 .litsycal-weekend  { color: #e06060; }
 
-/* ── Column highlight ────────────────────────────────────────────────────── */
+/* Column highlight */
 /* Applied to day-name cells; the grid stripe is drawn by the DrawingArea. */
 .litsycal-col-hl {
     background-color: rgba(255, 255, 255, 0.07);
 }
 
-/* ── Overflow days (prev / next month) ───────────────────────────────────── */
+/* Overflow days (prev / next month) */
 /* Overflow cells reuse .litsycal-day-btn itself (see _makeOverflow) so their
-   box model — size, padding, layout tree — is identical to a real day cell.
+   box model - size, padding, layout tree - is identical to a real day cell.
    This class only ever needs to override text color (see theme rules below);
    sizing/font-size already come from .litsycal-day-btn's own rules. */
 
-/* ── Separator ───────────────────────────────────────────────────────────── */
+/* Separator */
 .litsycal-sep {
     background-color: rgba(255, 255, 255, 0.12);
     height: 1px;
     margin: 6px 0;
 }
 
-/* ── Resize handle ───────────────────────────────────────────────────────── */
-/* Drag to reveal/hide extra overflow weeks below the current month — see
+/* Resize handle */
+/* Drag to reveal/hide extra overflow weeks below the current month - see
    LitsycalCalendar._buildResizeHandle(). The track spans the full width; the
    grip is the short bar centered on it that signals the drag affordance. */
 .litsycal-resize-handle {
@@ -145,7 +145,7 @@
     background-color: rgba(0, 0, 0, 0.50);
 }
 
-/* ── Agenda ──────────────────────────────────────────────────────────────── */
+/* Agenda */
 .litsycal-agenda-scroll {
     padding: 0;
 }
@@ -188,7 +188,7 @@
 }
 
 /* Event row: pill + title */
-/* Clickable event row — opens the event info popover */
+/* Clickable event row - opens the event info popover */
 .litsycal-agenda-event-btn {
     border: none;
     background: none;
@@ -257,7 +257,7 @@
 .litsycal-theme-dark  .litsycal-agenda-location { color: rgba(255,255,255,0.50); }
 .litsycal-theme-dark  .litsycal-agenda-empty    { color: white; }
 
-/* ── Footer (gear button) ────────────────────────────────────────────────── */
+/* Footer (gear button) */
 .litsycal-gear-icon {
     icon-size: 16px;
 }
@@ -288,7 +288,7 @@
 .litsycal-theme-light .litsycal-footer-btn:hover    { background-color: rgba(0, 0, 0, 0.08); }
 .litsycal-theme-light .litsycal-footer-btn:checked  { background-color: rgba(0, 0, 0, 0.12); opacity: 1.0; }
 
-/* ── Time zone clocks (between the agenda and the footer) ───────────────── */
+/* Time zone clocks (between the agenda and the footer) */
 .litsycal-tz-box {
     padding-top: 4px;
     padding-bottom: 6px;
@@ -297,10 +297,10 @@
 
 /* Sizing/color for title, city and time all come from the reused
  * litsycal-agenda-day-name/litsycal-agenda-title classes (see
- * calendarWidget.js) — these two only add structural spacing. */
+ * calendarWidget.js) - these two only add structural spacing. */
 .litsycal-tz-title { padding-bottom: 2px; }
 
-/* Leader filling the gap between city and time, like a table of contents —
+/* Leader filling the gap between city and time, like a table of contents -
  * a clipped run of dots (see calendarWidget.js), not a CSS border. */
 .litsycal-tz-leader {
     margin: 0 4px;
@@ -312,12 +312,12 @@
 }
 
 /* Time + its relative-offset annotation (e.g. "5:42 (-6h)") grouped so they
- * sit tight together — litsycal-tz-row's own spacing (city/leader/time) is
+ * sit tight together - litsycal-tz-row's own spacing (city/leader/time) is
  * wider and shouldn't apply here too. */
 .litsycal-tz-time-box { spacing: 3px; }
 .litsycal-tz-offset   { font-size: 0.85em; }
 
-/* ── Panel badge ─────────────────────────────────────────────────────────── */
+/* Panel badge */
 .litsycal-badge {
     font-weight: bold;
     font-size: 1.02em;
@@ -329,7 +329,7 @@
     border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
-/* Meeting countdown pill (icon + "now"/"5m") — same base look as
+/* Meeting countdown pill (icon + "now"/"5m") - same base look as
    .litsycal-badge above, since the badge-style modifier classes below
    (litsycal-badge-dark/-calendar/-calendar-dark/-text) get layered onto
    this too (see LitsycalIndicator._updateBadge) so the chosen icon style
@@ -351,7 +351,7 @@
     color: white;
 }
 
-/* Badge style: calendar page look — light */
+/* Badge style: calendar page look - light */
 .litsycal-badge-calendar {
     background-color: rgba(255, 255, 255, 0.14);
     border: 1px solid rgba(255, 255, 255, 0.35);
@@ -360,7 +360,7 @@
     padding: 1px 5px 1px 5px;
 }
 
-/* Badge style: calendar page look — dark */
+/* Badge style: calendar page look - dark */
 .litsycal-badge-calendar-dark {
     background-color: rgba(0, 0, 0, 0.80);
     border: 1px solid rgba(255, 255, 255, 0.35);
@@ -370,7 +370,7 @@
     color: white;
 }
 
-/* Badge style: plain text, no background — inherits the panel's own colour */
+/* Badge style: plain text, no background - inherits the panel's own colour */
 .litsycal-badge-text {
     background-color: transparent;
     border: none;
@@ -378,14 +378,14 @@
 }
 
 /* Shown instead of the badge when the icon is hidden but a meeting is
-   starting soon or in progress — see LitsycalIndicator._hasUpcomingMeeting */
+   starting soon or in progress - see LitsycalIndicator._hasUpcomingMeeting */
 .litsycal-meeting-glyph {
     color: #e06060;
     padding: 0 4px;
 }
 
 /* Added only when it sits next to the still-visible date badge
-   (countdown-badge-mode: append) — see LitsycalIndicator._updateBadge. */
+   (countdown-badge-mode: append) - see LitsycalIndicator._updateBadge. */
 .litsycal-countdown-box-spaced {
     margin-left: 4px;
 }
@@ -394,7 +394,7 @@
     font-size: 1.02em;
 }
 
-/* ── Calendar size variants ──────────────────────────────────────────────── */
+/* Calendar size variants */
 /* Small */
 .litsycal-size-sm                { min-width: 220px; max-width: 220px; }
 .litsycal-size-sm .litsycal-day-btn  { min-width: 26px; min-height: 21px; font-size: 0.84em; }
@@ -455,21 +455,21 @@
 .litsycal-size-lg .litsycal-agenda-pill     { width: 9px; height: 9px; border-radius: 4.5px; }
 .litsycal-size-lg .litsycal-agenda-time-row { padding-left: 18px; }
 
-/* ── Font size variants ──────────────────────────────────────────────────── */
+/* Font size variants */
 /* Independent of calendar-size: scales every inherited em-based font-size in
    the popup by a fixed ratio, without touching any width/height/padding, so
-   the calendar's footprint never changes — only the text. Applied to the
+   the calendar's footprint never changes - only the text. Applied to the
    same element as the calendar-size class (see LitsycalCalendar._init), so
    the two multiply together through normal em inheritance. Medium (index 1)
-   is the base CSS above — no class needed. */
+   is the base CSS above - no class needed. */
 .litsycal-font-sm { font-size: 0.90em; }
 .litsycal-font-lg { font-size: 1.12em; }
 
-/* ── Calendar widget background──────────────── */
+/* Calendar widget background */
 .litsycal-theme-dark  { background-color: #1e1e1e; border-radius: 8px; }
 .litsycal-theme-light { background-color: #f2f0ed; border-radius: 8px; }
 
-/* ── Light theme (JS adds .litsycal-theme-light to the calendar widget) ─────── */
+/* Light theme (JS adds .litsycal-theme-light to the calendar widget) */
 .litsycal-theme-light .litsycal-overflow { color: rgba(0,0,0,0.45); }
 .litsycal-theme-light .litsycal-selected { color: #1a1a1a; }
 .litsycal-theme-light .litsycal-day-btn          { color: #1a1a1a; }
@@ -491,7 +491,7 @@
 .litsycal-theme-light .litsycal-agenda-title     { color: #1a1a1a; }
 .litsycal-theme-light .litsycal-agenda-time      { color: rgba(0,0,0,0.50); }
 
-/* ── Dark theme (JS adds .litsycal-theme-dark — mirrors base defaults) ──────── */
+/* Dark theme (JS adds .litsycal-theme-dark - mirrors base defaults) */
 .litsycal-theme-dark  .litsycal-overflow { color: rgba(255,255,255,0.45); }
 .litsycal-theme-dark  .litsycal-selected { color: white; }
 .litsycal-theme-dark .litsycal-day-btn           { color: white; }
@@ -513,15 +513,15 @@
 .litsycal-theme-dark .litsycal-agenda-title      { color: white; }
 .litsycal-theme-dark .litsycal-agenda-time       { color: rgba(255,255,255,0.50); }
 
-/* ── Cell box (number + dot row inside each day button) ──────────────────── */
+/* Cell box (number + dot row inside each day button) */
 .litsycal-cell-box  { spacing: 1px; }
 .litsycal-cell-num  { text-align: center; font-size: 0.95em; }
 
-/* ── Week-number gutter ──────────────────────────────────────────────────── */
+/* Week-number gutter */
 /* min-width/font-size scale in step with .litsycal-day-name-cell / .litsycal-day-name
    for each size class, so the gutter column stays proportional to the grid at every size. */
 .litsycal-week-gutter { min-width: 22px; }
-/* Wraps just the row cells (not the top spacer) — spacing must match .litsycal-grid's,
+/* Wraps just the row cells (not the top spacer) - spacing must match .litsycal-grid's,
    or misalignment accumulates by one row's worth of drift for every row down the column. */
 .litsycal-week-rows { spacing: 4px; }
 .litsycal-week-num    { text-align: center; font-size: 0.78em; font-weight: bold; opacity: 0.45; }
@@ -536,7 +536,7 @@
 .litsycal-theme-light .litsycal-week-num { color: rgba(0,0,0,0.45); }
 .litsycal-theme-dark  .litsycal-week-num { color: rgba(255,255,255,0.45); }
 
-/* ── Event dots ──────────────────────────────────────────────────────────── */
+/* Event dots */
 .litsycal-dot-row {
     spacing: 2px;
     min-height: 6px;
@@ -557,7 +557,7 @@
    "not the active month" rather than a full-strength dot. */
 .litsycal-event-dot-overflow { opacity: 0.45; }
 
-/* ── Add (+) button ──────────────────────────────────────────────────────── */
+/* Add (+) button */
 .litsycal-add-btn {
     font-size: 1.29em;
     font-weight: bold;
@@ -566,12 +566,12 @@
 }
 .litsycal-add-btn:hover { opacity: 1.0; }
 
-/* ── Event panel (floating, non-modal) ───────────────────────────────────── */
+/* Event panel (floating, non-modal) */
 /* Background/text come from popup-menu-content (shell theme). */
 .litsycal-event-panel {
     padding: 16px;
     spacing: 10px;
-    /* Fixed, not min/max — the dialog must never change width, only grow
+    /* Fixed, not min/max - the dialog must never change width, only grow
        downward (e.g. for a long wrapped Notes value). */
     width: 460px;
     border-radius: 12px;
@@ -584,7 +584,7 @@
     border-radius: 10px;
 }
 
-/* Fixed, not min/max, same reasoning as litsycal-event-panel above — a
+/* Fixed, not min/max, same reasoning as litsycal-event-panel above - a
    free-text one-liner has no natural length limit the way GoToDatePanel's
    yyyy-mm-dd entry does, so without a fixed width here the panel would grow
    to fit however much the entry text needs instead of scrolling within
@@ -643,7 +643,7 @@
     border-radius: 10px;
 }
 
-/* Footer icon-button tooltip — same popup-menu-content chrome as the day-cell
+/* Footer icon-button tooltip - same popup-menu-content chrome as the day-cell
    tooltip above, but sized to one short line of text rather than a day
    preview, so it has no min-width of its own. */
 .litsycal-btn-tooltip {
@@ -656,7 +656,7 @@
     font-size: 0.9em;
 }
 
-/* Event info popover — a read-only sibling of litsycal-event-panel above
+/* Event info popover - a read-only sibling of litsycal-event-panel above
    (same popup-menu-content background/text), itsycal's AgendaPopoverVC. */
 .litsycal-info-popover {
     padding: 14px 16px;
@@ -951,7 +951,7 @@
 .litsycal-panel-delete-btn:hover,
 .litsycal-panel-delete-btn:focus { background-color: rgba(230,45,66,0.28); }
 
-/* ── Delete confirmation overlay ─────────────────────────────────────────── */
+/* Delete confirmation overlay */
 .litsycal-confirm-panel {
     padding: 16px;
     spacing: 10px;
@@ -979,7 +979,7 @@
 .litsycal-confirm-btn-danger:hover,
 .litsycal-confirm-btn-danger:focus { background-color: rgba(230,45,66,0.28); }
 
-/* ── Agenda meeting-join / URL button ───────────────────────────────────── */
+/* Agenda meeting-join / URL button */
 .litsycal-agenda-join-btn {
     border: none;
     background: none;

@@ -5,18 +5,18 @@ import Shell   from 'gi://Shell';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-// ── Settings menu (floating, non-modal PopupMenu-wise, but self-grabbed) ────
+// Settings menu (floating, non-modal PopupMenu-wise, but self-grabbed)
 //
 // Deliberately not a PopupMenu.PopupMenu/menuManager grab: menuManager closes
 // any other menu it owns the instant a new one opens, which would force the
-// calendar dropdown shut the moment this appears — not what we want, since
+// calendar dropdown shut the moment this appears - not what we want, since
 // the calendar should stay open behind it. Built the same way as EventPanel/
-// GoToDatePanel instead — a floating box in uiGroup.
+// GoToDatePanel instead - a floating box in uiGroup.
 //
 // It does still need its own Main.pushModal grab, though: `this.menu`'s own
 // grab (see indicator.js's open-state-changed handler, "Capture phase on the
 // menu's own actor, not the stage") means input while it's active is
-// redelivered starting from ITS grab actor, not the stage — so without a
+// redelivered starting from ITS grab actor, not the stage - so without a
 // competing grab of our own, a click on one of our rows is swallowed as a
 // click-outside-of-this.menu (closing nothing visible, since we're not part
 // of it) rather than ever reaching our button, and only a second click, once
@@ -39,7 +39,7 @@ export class SettingsMenuPanel {
             opacity: 0,
         });
 
-        // Rows with an action, in display order — what arrow-key navigation
+        // Rows with an action, in display order - what arrow-key navigation
         // moves through. Disabled (action-less) rows are skipped since
         // there's nothing to activate on them.
         this._focusable  = [];
@@ -70,7 +70,7 @@ export class SettingsMenuPanel {
             } else {
                 btn.connect('clicked', () => {
                     // Tearing this._box down from inside its own child's
-                    // still-live 'clicked' handler is asking for trouble —
+                    // still-live 'clicked' handler is asking for trouble -
                     // finish the event first (same reasoning as the quit
                     // action's own idle_add deferral).
                     if (this._actionIdleId)
@@ -101,9 +101,9 @@ export class SettingsMenuPanel {
             this._positionIdleId = null;
             this._position(anchorActor);
             this._box.opacity = 255;
-            // No actor here actually holds Clutter key focus — the modal
+            // No actor here actually holds Clutter key focus - the modal
             // grab above delivers key events to this._box regardless (see
-            // the captured-event handler below) — so keyboard selection is
+            // the captured-event handler below) - so keyboard selection is
             // tracked by hand via a pseudo-class rather than real focus.
             this._setFocusIndex(0);
             return GLib.SOURCE_REMOVE;

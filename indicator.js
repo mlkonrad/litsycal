@@ -19,7 +19,7 @@ import {
     SIZE_MIN_WIDTHS,
 } from './helpers.js';
 
-// ── Panel indicator ───────────────────────────────────────────────────────────
+// Panel indicator
 
 export const LitsycalIndicator = GObject.registerClass(
 class LitsycalIndicator extends PanelMenu.Button {
@@ -45,7 +45,7 @@ class LitsycalIndicator extends PanelMenu.Button {
         this._box.add_child(this._badge);
 
         // Meeting countdown ("now"/"5m") next to a meeting icon, shown
-        // alongside or instead of the badge above — see _updateBadge() and
+        // alongside or instead of the badge above - see _updateBadge() and
         // the countdown-badge-mode setting. Icon+label share one pill (the
         // same badge-style modifier classes as _badge get applied to this
         // box, not to the label alone) so the icon reads as part of the
@@ -128,12 +128,12 @@ class LitsycalIndicator extends PanelMenu.Button {
                 // Capture phase on the menu's own actor, not the stage: PopupMenu's
                 // modal grab (Main.pushModal, via GrabHelper) is scoped to
                 // this.menu.actor, and GNOME's Clutter.Grab delivers events starting
-                // from the grab actor while the grab is active — global.stage's own
+                // from the grab actor while the grab is active - global.stage's own
                 // 'captured-event' never sees them.
                 //
                 // Note: bare Down (any modifiers) never reaches this handler at all.
                 // PopupMenu's own _keyController ('key-press', wired in the PopupMenu
-                // constructor — js/ui/popupMenu.js PopupMenu._onKeyPress) sits upstream
+                // constructor - js/ui/popupMenu.js PopupMenu._onKeyPress) sits upstream
                 // of Clutter's normal actor event pipeline and unconditionally consumes
                 // the Down keysym for its own accessibility keynav whenever the popup
                 // drops down from the top panel. See LitsycalCalendar.handleKeyPress
@@ -208,7 +208,7 @@ class LitsycalIndicator extends PanelMenu.Button {
     }
 
     // Reached either by right-clicking the panel icon or by clicking the
-    // gear button in the calendar footer — anchorActor is whichever of those
+    // gear button in the calendar footer - anchorActor is whichever of those
     // triggered it, so the menu appears right next to it. Deliberately
     // doesn't touch `this.menu`: the calendar dropdown stays open behind it,
     // same as any other floating panel (EventPanel, GoToDatePanel, ...).
@@ -258,7 +258,7 @@ class LitsycalIndicator extends PanelMenu.Button {
         ]);
     }
 
-    // Also reachable via Ctrl+Q (Itsycal's ⌘Q) — see LitsycalCalendar.handleKeyPress.
+    // Also reachable via Ctrl+Q (Itsycal's Cmd+Q) - see LitsycalCalendar.handleKeyPress.
     _quitLitsycal() {
         this.menu.close();
         // Disabling from inside this handler would tear this actor down
@@ -359,7 +359,7 @@ class LitsycalIndicator extends PanelMenu.Button {
     }
 
     // True while today has a video-call event that's joinable right now
-    // (mirrors the agenda's own join-button window — see meetingIsJoinable).
+    // (mirrors the agenda's own join-button window - see meetingIsJoinable).
     _hasUpcomingMeeting() {
         const calManager = this._calWidget?._calManager;
         if (!calManager)
@@ -372,7 +372,7 @@ class LitsycalIndicator extends PanelMenu.Button {
     // Countdown text ("5m", "1h 20m", "now") to today's soonest not-yet-ended
     // video-call meeting, or null if there isn't one. Only considers events
     // with a parsable time (eventTimeRange returns null for all-day/
-    // unparsable ones) — there's no meaningful countdown to those.
+    // unparsable ones) - there's no meaningful countdown to those.
     _nextMeetingCountdownText() {
         const calManager = this._calWidget?._calManager;
         if (!calManager)
@@ -408,7 +408,7 @@ class LitsycalIndicator extends PanelMenu.Button {
     }
 
     // Fires just after each wall-clock minute boundary rather than every
-    // 60s from whenever enable() happened to run — a free-running 60s
+    // 60s from whenever enable() happened to run - a free-running 60s
     // interval leaves the badge time and time zone clocks up to 59s behind
     // GNOME's own clock. Re-armed each tick, so suspend/resume or clock
     // adjustments can't let it drift either.
@@ -420,7 +420,7 @@ class LitsycalIndicator extends PanelMenu.Button {
             this._timer = null;
             this._updateBadge();
             this._checkHourlyBeep();
-            // Keep the meeting join-button window (15 min before → end) and
+            // Keep the meeting join-button window (15 min before -> end) and
             // the time zone clocks fresh while the calendar is actually
             // visible.
             if (this._menuIsOpen || this._pinned) {
@@ -474,7 +474,7 @@ class LitsycalIndicator extends PanelMenu.Button {
             Main.layoutManager.findIndexForActor(this)
         ] ?? Main.layoutManager.primaryMonitor;
         // Captured before reparenting below, from the calendar's actual
-        // rendered position in the still-open popup, and used as-is — any
+        // rendered position in the still-open popup, and used as-is - any
         // reprocessing (recentring under the button, snapping to a min/max
         // gap below the panel) lands a pixel or two off GNOME's own
         // BoxPointer arrow-offset placement, visibly shifting it as it pins.

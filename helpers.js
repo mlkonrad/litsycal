@@ -5,7 +5,7 @@ import Pango   from 'gi://Pango';
 
 import {gettext as _, ngettext} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// Constants
 
 /**
  * @param {string} s
@@ -39,7 +39,7 @@ export function localeDayAbbrs() {
 }
 
 // First letter of each locale weekday abbreviation, e.g. M T W T F S S
-// (S T Q Q S S D for pt_BR) — matches the single-char labels already used
+// (S T Q Q S S D for pt_BR) - matches the single-char labels already used
 // for the highlight-days picker in prefs.js.
 /**
  * @returns {string[]}
@@ -56,16 +56,16 @@ export const SIZE_MIN_WIDTHS = [220, 238, 255, 285, 315]; // must match the widt
 
 // font-size index -> style class (index 1 "Medium" is the base CSS, no class needed).
 export const FONT_SIZE_CLASSES = ['litsycal-font-sm', null, 'litsycal-font-lg'];
-// Must match schemas/…gschema.xml's extra-week-rows <range max="…">.
+// Must match schemas/...gschema.xml's extra-week-rows <range max="...">.
 export const MAX_EXTRA_WEEK_ROWS = 5;
-// Outline top inset per calendar-size — see OutlinePainter.paint(). The line
+// Outline top inset per calendar-size - see OutlinePainter.paint(). The line
 // should sit close under the weekday-name row and clear of the day numbers
-// (Itsycal draws it flush with the cell's top edge, inset 0) — Small's own
+// (Itsycal draws it flush with the cell's top edge, inset 0) - Small's own
 // cell is so short that even a couple of extra px reads as "line hugging
 // the numbers, far from the weekday row" instead.
 export const OUTLINE_TOP_INSET = [0, 2, 4, 4, 4];
 
-// ── Accent colour ─────────────────────────────────────────────────────────────
+// Accent colour
 
 export const ACCENT_MAP = {
     blue: '#3584e4', teal: '#2190a4', green: '#3a944a', yellow: '#c88800',
@@ -91,7 +91,7 @@ export function accentAlpha(hex, a) {
     return `rgba(${r},${g},${b},${a})`;
 }
 
-// ── Date helpers ──────────────────────────────────────────────────────────────
+// Date helpers
 
 /**
  * @param {GLib.DateTime} dt
@@ -111,7 +111,7 @@ export function daysInMonth(year, month) {
 
 // Whole calendar days between two GLib.DateTime instants (b - a), independent
 // of any DST shift that falls between them: rounding to the nearest day
-// absorbs the up-to-±1h wall-clock drift a single transition introduces.
+// absorbs the up-to-+/-1h wall-clock drift a single transition introduces.
 /**
  * @param {GLib.DateTime} a
  * @param {GLib.DateTime} b
@@ -129,7 +129,7 @@ export function prevMonthOf(year, month) {
 }
 
 // Buddhist Era year = Gregorian + 543. Months/days/leap years are identical
-// between the two calendars, so this only ever touches the printed year —
+// between the two calendars, so this only ever touches the printed year -
 // every date computation elsewhere in this file stays Gregorian.
 const BUDDHIST_ERA_OFFSET = 543;
 
@@ -147,12 +147,12 @@ export function displayYear(gregorianYear, calendarSystem) {
  * @param {GLib.DateTime} dt
  */
 export function isoWeekNumber(dt) {
-    const isoDow    = dt.get_day_of_week(); // 1=Mon … 7=Sun
+    const isoDow    = dt.get_day_of_week(); // 1=Mon ... 7=Sun
     const thursday  = dt.add_days(4 - isoDow);
     return Math.ceil(thursday.get_day_of_year() / 7);
 }
 
-// ── Meeting link detection ───────────────────────────────────────────────────
+// Meeting link detection
 
 const MEETING_PATTERNS = [
     /https?:\/\/([\w-]+\.)?zoom\.us\/[^\s<>"']+/i,
@@ -180,7 +180,7 @@ const MEETING_PATTERNS = [
 export const URL_REGEXP = /https?:\/\/[^\s<>"']+/gi;
 
 // A loose "does this look like an absolute URI" check (any scheme, not just
-// http/https — meeting invites sometimes use e.g. zoommtg://) for the
+// http/https - meeting invites sometimes use e.g. zoommtg://) for the
 // standalone URL field, which unlike notes has no surrounding text to
 // distinguish a real link from plain text typed into the wrong field.
 /**
@@ -191,7 +191,7 @@ export function isLikelyUrl(str) {
 }
 
 // Scans the event's URL, location, and notes (in that order) for the first
-// link that matches a known video-call provider — organizers often paste the
+// link that matches a known video-call provider - organizers often paste the
 // dial-in link into notes/location rather than the dedicated URL field.
 /**
  * @param {object} ev
@@ -314,7 +314,7 @@ export function attendeeStatusInfo(partstat) {
 }
 
 // Formats a signed relative offset (e.g. "-6h", "+5h30") for how far a
-// zone's clock currently reads from a reference zone's, at some instant —
+// zone's clock currently reads from a reference zone's, at some instant -
 // positive means ahead of the reference, negative behind. diffSeconds is
 // (target UTC offset - reference UTC offset) at that instant.
 /**
@@ -329,7 +329,7 @@ export function formatRelativeOffset(diffSeconds) {
     return mins === 0 ? `${sign}${hours}h` : `${sign}${hours}h${String(mins).padStart(2, '0')}`;
 }
 
-// Builds one "city ..... time (+6h)" row for a world-clock listing — shared
+// Builds one "city ..... time (+6h)" row for a world-clock listing - shared
 // by calendarWidget.js's own world-clock section and eventDialog.js's
 // per-event time-zone preview. A dotted leader between city and time (a clipped run of dots
 // rather than a CSS border, since St's theme engine has no track record of
@@ -343,7 +343,7 @@ export function makeTzRow(city, time, relOffset) {
     // Zero min/natural width: the leader only ever gets the space left over
     // once city and time are sized. Otherwise its 200-dot natural width makes
     // BoxLayout split any shortfall evenly between it and the time label,
-    // ellipsizing the time ("4:3…") on narrow calendars with large fonts.
+    // ellipsizing the time ("4:3...") on narrow calendars with large fonts.
     const leader = new St.Label({
         text: '.'.repeat(200), x_expand: true, y_align: Clutter.ActorAlign.END,
         style_class: 'litsycal-tz-leader', min_width: 0, natural_width: 0,
@@ -352,7 +352,7 @@ export function makeTzRow(city, time, relOffset) {
     leader.clip_to_allocation = true;
 
     // Grouped in their own box so the row's own (wider) spacing between
-    // city/leader/time doesn't also apply between the time and its offset —
+    // city/leader/time doesn't also apply between the time and its offset -
     // those two read as one unit, so they sit tight together instead.
     // Neither ever ellipsizes, so their minimum width is their full text and
     // only the city name gives way when the row is short on space.

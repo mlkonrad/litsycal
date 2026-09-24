@@ -1,4 +1,4 @@
-// ── Outline painter ───────────────────────────────────────────────────────────
+// Outline painter
 
 export class OutlinePainter {
     configure(isDark, highlightCols, topInset = 4) {
@@ -13,7 +13,7 @@ export class OutlinePainter {
         const shade     = dark ? 1 : 0;
         // Vertical breathing room so the outline doesn't clip day numbers.
         // A row's own height shrinks a lot at the smaller calendar sizes,
-        // but the (fixed-size) event-dot strip under the number doesn't —
+        // but the (fixed-size) event-dot strip under the number doesn't -
         // so a small cell has far less slack above its number than a
         // medium/large one. A single constant inset that clears the number
         // comfortably at Medium ends up overlapping it at Small, so the

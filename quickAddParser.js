@@ -15,7 +15,7 @@ const _ = str => GLib.dgettext(DOMAIN, str);
 // keyword list (since gettext 0.18, across every --language backend
 // including JavaScript) already extracts a two-argument `pgettext(context,
 // msgid)` call as a proper msgctxt+msgid pair with no extra --keyword flag
-// needed — whatever plain `xgettext` invocation regenerates this project's
+// needed - whatever plain `xgettext` invocation regenerates this project's
 // .pot picks this up for free. Used below for the location marker ("at" as
 // in "lunch at the cafe") vs. the time preposition ("at" as in "lunch at
 // 3pm"): same English default text, but two independent translations,
@@ -43,8 +43,8 @@ function stripWord(text, word) {
     return {rest: `${before} ${after}`.replace(/\s+/g, ' ').trim()};
 }
 
-// One entry per day of the current locale's week, Monday(1)..Sunday(7) —
-// matching GLib.DateTime.get_day_of_week() — each with that locale's full
+// One entry per day of the current locale's week, Monday(1)..Sunday(7) -
+// matching GLib.DateTime.get_day_of_week() - each with that locale's full
 // and abbreviated weekday name. No translation strings needed for this part
 // (unlike today/tomorrow/next below): GLib already knows every locale's own
 // weekday names, the same source helpers.js's localeDayAbbrs() uses for the
@@ -82,7 +82,7 @@ function extractDate(text, now) {
         const hit = stripWord(text, wd.full) ?? stripWord(text, wd.abbr);
         if (!hit)
             continue;
-        // Drop an optional "next" before or after the weekday — it doesn't
+        // Drop an optional "next" before or after the weekday - it doesn't
         // change which date is meant.
         const withoutNext = stripWord(hit.rest, nextWord);
         return {date: dateStr(nextOccurrenceOf(wd.dow, now)), rest: withoutNext ? withoutNext.rest : hit.rest};
@@ -92,7 +92,7 @@ function extractDate(text, now) {
 
 // Pulls a time out of `text`, trying the most specific/least ambiguous
 // shapes first. A bare number is only ever treated as an hour when it's
-// unambiguous — via am/pm, a minutes component, or a preceding "at" — never
+// unambiguous - via am/pm, a minutes component, or a preceding "at" - never
 // on its own (so a title like "Room 5 cleanup" doesn't lose "5" to this).
 // Returns {time: 'HH:MM', rest} or null.
 function extractTime(text, atWord) {
@@ -104,31 +104,31 @@ function extractTime(text, atWord) {
     };
     const pad = n => String(n).padStart(2, '0');
     // Every pattern below optionally swallows a leading "<at> " too (not
-    // captured, doesn't affect the hour/minute group numbers) — so "at
+    // captured, doesn't affect the hour/minute group numbers) - so "at
     // 3pm"/"at 15:30" don't leave a stray "at" behind for extractLocation to
     // pick up next, in inputs that use the same word for both the time
     // preposition and, later, a real location marker (e.g. "... at 3pm at
     // Downtown Clinic").
     const optAt = atWord ? `(?:${escapeRegExp(atWord)}\\s+)?` : '';
 
-    // "3:30pm", "15:30", "3:30" — colon form, am/pm optional.
+    // "3:30pm", "15:30", "3:30" - colon form, am/pm optional.
     let m = new RegExp(`\\b${optAt}(\\d{1,2}):(\\d{2})\\s*(am|pm)?\\b`, 'iu').exec(text);
     if (m) {
         const hour = m[3] ? to24h(parseInt(m[1], 10), m[3]) : parseInt(m[1], 10);
         return {time: `${pad(hour)}:${pad(parseInt(m[2], 10))}`, rest: cut(text, m)};
     }
 
-    // "15h30", "15h" — pt_BR-style 24-hour shorthand.
+    // "15h30", "15h" - pt_BR-style 24-hour shorthand.
     m = new RegExp(`\\b${optAt}([01]?\\d|2[0-3])h(\\d{2})?\\b`, 'iu').exec(text);
     if (m)
         return {time: `${pad(parseInt(m[1], 10))}:${pad(m[2] ? parseInt(m[2], 10) : 0)}`, rest: cut(text, m)};
 
-    // "3pm", "3 pm" — am/pm makes a bare number unambiguous.
+    // "3pm", "3 pm" - am/pm makes a bare number unambiguous.
     m = new RegExp(`\\b${optAt}(\\d{1,2})\\s*(am|pm)\\b`, 'iu').exec(text);
     if (m)
         return {time: `${pad(to24h(parseInt(m[1], 10), m[2]))}:00`, rest: cut(text, m)};
 
-    // "<at> 3" — a bare hour is only safe to read right after the
+    // "<at> 3" - a bare hour is only safe to read right after the
     // (translatable) time-preposition keyword.
     if (atWord) {
         m = new RegExp(`\\b${escapeRegExp(atWord)}\\s+(\\d{1,2})\\b`, 'iu').exec(text);
@@ -144,7 +144,7 @@ function extractTime(text, atWord) {
     }
 }
 
-// Pulls a trailing "<location marker> <place>" clause out of `text` — the
+// Pulls a trailing "<location marker> <place>" clause out of `text` - the
 // marker is deliberately its own translation (see the pgettext comment up top),
 // independent of the time preposition above. Takes the LAST match so a
 // location clause always wins over an earlier, coincidental use of the same
@@ -160,7 +160,7 @@ function extractLocation(text, locationWord) {
 // Parses a quick-add one-liner into a draft for EventPanel: whatever's
 // recognized comes out as date/time/location, and everything left over
 // (after removing those) becomes the title. Returns null only for
-// empty/whitespace-only input — anything else always yields at least a
+// empty/whitespace-only input - anything else always yields at least a
 // title, even if nothing else was recognized, so the caller can open
 // EventPanel prefilled with just that rather than silently doing nothing.
 /**

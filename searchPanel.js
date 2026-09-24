@@ -11,11 +11,11 @@ import {FloatingModalPanel} from './floatingPanel.js';
 const DEBOUNCE_MS   = 250;
 const MAX_RESULTS   = 50;
 
-// Compact "Sep 12" / "Sep 12, 13:00" — formatEventWhen in helpers.js (full
+// Compact "Sep 12" / "Sep 12, 13:00" - formatEventWhen in helpers.js (full
 // weekday + month + day + year) reads fine for one event in a popover, but
 // is too long for a scrolling list of many search-result rows. The year is
-// only added for a date outside the current one — search spans roughly
-// ±1 year, wide enough that e.g. a yearly-recurring holiday can genuinely
+// only added for a date outside the current one - search spans roughly
+// +/-1 year, wide enough that e.g. a yearly-recurring holiday can genuinely
 // have two distinct same-day-and-month results a year apart, which read as
 // unexplained duplicates without it.
 function shortWhen(ev) {
@@ -28,14 +28,14 @@ function shortWhen(ev) {
     return `${day}, ${ev.time.split(' - ')[0]}`;
 }
 
-// ── Event search (Ctrl+F) ────────────────────────────────────────────────────
+// Event search (Ctrl+F)
 //
 // A FloatingModalPanel (see floatingPanel.js for its Main.pushModal/Escape/
 // click-outside handling, and settingsMenuPanel.js for why a competing grab
 // is needed while the calendar dropdown holds its own). Debounces typing before
 // calling CalendarManager.searchEvents(), which queries every connected
 // calendar directly rather than filtering whatever month happens to be
-// cached for the grid — see that method's own comment for why.
+// cached for the grid - see that method's own comment for why.
 export class SearchPanel extends FloatingModalPanel {
     // onClose is called exactly once, with the selected event on a result
     // click/Enter, or null on cancel (Escape / click outside).
@@ -45,7 +45,7 @@ export class SearchPanel extends FloatingModalPanel {
         this._debounceId  = null;
         this._lastResults = [];
         // Guards the UI against a slow query's results landing after a
-        // newer one already has — CalendarManager.searchEvents() has its
+        // newer one already has - CalendarManager.searchEvents() has its
         // own such guard for query results, but debounced calls here race
         // independently of that, so this needs its own.
         this._searchGen = 0;

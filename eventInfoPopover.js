@@ -15,28 +15,28 @@ import {
     URL_REGEXP, attendeeStatusInfo, isLikelyUrl,
 } from './helpers.js';
 
-// ── Event info popover ───────────────────────────────────────────────────────
+// Event info popover
 //
 // itsycal's AgendaPopoverVC, ported: a compact, read-only card showing an
 // event's details, opened right next to the clicked agenda row with a small
-// diamond "arrow" pointing at it — the itsycal-style popover the row's click
+// diamond "arrow" pointing at it - the itsycal-style popover the row's click
 // now opens instead of the full edit form. Built the same hand-rolled way as
 // EventPanel/SettingsMenuPanel (own Main.pushModal grab, own click-outside/
 // Escape handling) for the same reason: it opens while the calendar dropdown
-// (a PopupMenu) still holds its own grab — see settingsMenuPanel.js for the
+// (a PopupMenu) still holds its own grab - see settingsMenuPanel.js for the
 // full explanation of why that needs a competing grab here too.
 export class EventInfoPopover {
-    // onClose is called exactly once, however the popover ends up closing —
+    // onClose is called exactly once, however the popover ends up closing -
     // deleted, dismissed via Escape or an outside click, or closed by its owner.
     // onOutsideClick, if given, is called (after the popover has already
     // closed) as (actorUnderClick, thisPopoversEvent) with whatever actor
     // was actually under an outside click and the event this popover was
-    // showing — see this._backdrop below — so a click on a different agenda
+    // showing - see this._backdrop below - so a click on a different agenda
     // row can open its popover in the same click rather than requiring a
     // second one, while a second click on the *same* row's event (the
     // caller compares actorUnderClick's event against thisPopoversEvent)
-    // just leaves it closed instead of reopening — a toggle.
-    // fontSize is the raw 'font-size' setting value (0=S, 1=M, 2=L) — this
+    // just leaves it closed instead of reopening - a toggle.
+    // fontSize is the raw 'font-size' setting value (0=S, 1=M, 2=L) - this
     // popover lives in Main.layoutManager.uiGroup, a sibling of the calendar
     // widget rather than a descendant of it, so it doesn't inherit the
     // litsycal-font-sm/-lg class LitsycalCalendar._applyFontSizeClass()
@@ -50,10 +50,10 @@ export class EventInfoPopover {
         this._root = new St.Widget();
         Main.layoutManager.uiGroup.add_child(this._root);
 
-        // The arrow: a plain square, rotated 45° into a diamond. Added to
+        // The arrow: a plain square, rotated 45 degrees into a diamond. Added to
         // this._root before this._box so the box (opaque, painted after)
         // covers the half of the diamond that overlaps it, leaving only the
-        // outward-pointing triangle visible — the standard CSS/GUI
+        // outward-pointing triangle visible - the standard CSS/GUI
         // speech-bubble-arrow trick, done here with real actor z-order
         // instead of CSS since St has no z-index/clip-to-sibling concept.
         // Hidden via opacity (not `visible`, which the modal grab below
@@ -64,7 +64,7 @@ export class EventInfoPopover {
         this._root.add_child(this._arrow);
 
         // Use popup-menu-content so background/text follow the user's shell
-        // theme, same as EventPanel — the arrow's fill is read from this
+        // theme, same as EventPanel - the arrow's fill is read from this
         // box's own resolved theme in the idle_add below, once it applies.
         // litsycal-font-sm/-lg (see the constructor comment above) makes
         // this respect the font-size setting the same way the main calendar
@@ -100,7 +100,7 @@ export class EventInfoPopover {
         });
 
         // Under this competing Main.pushModal() grab, capture-phase
-        // 'captured-event' listeners don't receive input — not on
+        // 'captured-event' listeners don't receive input - not on
         // this._root, this._box, or global.stage. Only a plain bubble-phase
         // signal on the actor that was clicked or holds key focus does, so
         // both handlers below are connected that way.
@@ -124,12 +124,12 @@ export class EventInfoPopover {
             return Clutter.EVENT_PROPAGATE;
         });
 
-        // Click-outside: a full-stage, invisible, reactive backdrop — a real
+        // Click-outside: a full-stage, invisible, reactive backdrop - a real
         // actor inside our own grabbed subtree, added to this._root BEFORE
         // this._arrow/this._box so it sits behind them in z-order. A click
         // anywhere on screen picks whichever reactive actor is topmost at
         // that point: this._box (or its children) when it lands on the
-        // popover itself, this backdrop everywhere else — and since it's a
+        // popover itself, this backdrop everywhere else - and since it's a
         // genuine pick target being clicked directly, its own plain
         // 'button-press-event' is the same proven-working delivery path as
         // Escape above, not a global/stage-level listener trying to observe
@@ -144,7 +144,7 @@ export class EventInfoPopover {
             // Resolve what's actually under the click before tearing
             // anything down: with the backdrop itself excluded, picking
             // falls through to whatever real actor is there (another agenda
-            // row, or nothing) — this is a synchronous geometry query, not
+            // row, or nothing) - this is a synchronous geometry query, not
             // event delivery, so it works fine even though nothing besides a
             // plain signal on the exact clicked actor is ever *delivered* an
             // event under this grab (see the comment above this._btnKeyId).
@@ -164,7 +164,7 @@ export class EventInfoPopover {
         const ev  = this._event;
         const box = this._box;
 
-        // ── Header: colored dot, title, delete button ────────────────────────
+        // Header: colored dot, title, delete button
         const header = new St.BoxLayout({style_class: 'litsycal-panel-icon-row', x_expand: true});
         header.add_child(new St.Widget({
             style_class: 'litsycal-panel-dot',
@@ -191,7 +191,7 @@ export class EventInfoPopover {
         header.add_child(this._deleteBtn);
         box.add_child(header);
 
-        // ── Duration ───────────────────────────────────────────────────────
+        // Duration
         const whenLbl = new St.Label({text: formatEventWhen(ev), style_class: 'litsycal-info-popover-text'});
         whenLbl.clutter_text.set_line_wrap(true);
         whenLbl.clutter_text.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR);
@@ -210,7 +210,7 @@ export class EventInfoPopover {
             box.add_child(row);
         };
 
-        // ── Location / recurrence ─────────────────────────────────────────
+        // Location / recurrence
         if (ev.location)
             addIconRow('mark-location-symbolic', ev.location);
 
@@ -218,7 +218,7 @@ export class EventInfoPopover {
         if (recurrence)
             addIconRow('media-playlist-repeat-symbolic', recurrence);
 
-        // Only shown when the event's own TZID differs from where we are —
+        // Only shown when the event's own TZID differs from where we are -
         // calendarManager.js already converts date/time to local wall-clock,
         // this just adds context for where the event was actually scheduled.
         if (ev.originalTzid && ev.originalTzid !== GLib.TimeZone.new_local().get_identifier()) {
@@ -227,9 +227,9 @@ export class EventInfoPopover {
                 _('Originally scheduled in %s').replace('%s', city));
         }
 
-        // ── Attendees ──────────────────────────────────────────────────────
+        // Attendees
         // Capped so one meeting with a huge invite list can't blow out the
-        // popover's height — same idea as the agenda's own per-day cap. Only
+        // popover's height - same idea as the agenda's own per-day cap. Only
         // the first row gets the leading icon; later rows get a same-width
         // spacer instead, so every row's dot/name lines up in a column.
         const MAX_ATTENDEES_SHOWN = 5;
@@ -289,12 +289,12 @@ export class EventInfoPopover {
             box.add_child(btn);
         };
 
-        // ── Join meeting (same detection as the agenda row's own button) ───
+        // Join meeting (same detection as the agenda row's own button)
         const meetingUrl = findMeetingUrl(ev);
         if (meetingUrl && meetingIsJoinable(ev))
             addLinkRow('camera-video-symbolic', _('Join meeting'), meetingUrl, _('Join meeting'));
 
-        // ── Notes / URL ────────────────────────────────────────────────────
+        // Notes / URL
         if (ev.notes || ev.url)
             box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
 
@@ -326,7 +326,7 @@ export class EventInfoPopover {
             // The New Event form now rejects anything here that doesn't look
             // like an actual URI (see eventDialog.js's _save()), but an
             // event synced in from another calendar client is under no such
-            // obligation — fall back to plain text rather than rendering a
+            // obligation - fall back to plain text rather than rendering a
             // clickable-looking "Open link" row for something that isn't
             // actually a link.
             if (isLikelyUrl(ev.url))
@@ -337,7 +337,7 @@ export class EventInfoPopover {
     }
 
     // Same confirm-then-delete flow as the event edit panel's own Delete
-    // button (eventDialog.js EventPanel._confirmDelete/confirmDeleteEvent) —
+    // button (eventDialog.js EventPanel._confirmDelete/confirmDeleteEvent) -
     // itsycal wires its popover's delete button to the exact same delete
     // path as its agenda context menu's Delete item.
     _confirmDelete() {

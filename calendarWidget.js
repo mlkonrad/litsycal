@@ -25,7 +25,7 @@ import {
     formatRelativeOffset, isLikelyUrl, makeTzRow,
 } from './helpers.js';
 
-// ── Calendar widget ───────────────────────────────────────────────────────────
+// Calendar widget
 
 export const LitsycalCalendar = GObject.registerClass(
 class LitsycalCalendar extends St.BoxLayout {
@@ -148,7 +148,7 @@ class LitsycalCalendar extends St.BoxLayout {
                 // Only the header year needs an immediate refresh. Day cells'
                 // accessible names embed the year too, but rebuilding all of
                 // them here means destroying every interactive day-cell
-                // button — unnecessary just to refresh a label, and each one
+                // button - unnecessary just to refresh a label, and each one
                 // will pick up the new year on its next natural rebuild
                 // (month navigation, day selection, ...) anyway.
                 this._updateMonthLabel();
@@ -230,7 +230,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._calManager.fetchMonth(this._year, this._month);
     }
 
-    // ── Cleanup ───────────────────────────────────────────────────────────────
+    // Cleanup
 
     destroy() {
         this._cancelTooltip();
@@ -260,7 +260,7 @@ class LitsycalCalendar extends St.BoxLayout {
         super.destroy();
     }
 
-    // ── Settings ──────────────────────────────────────────────────────────────
+    // Settings
 
     _readHighlight() {
         const fd = this._firstDayOfWeek;
@@ -284,7 +284,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._dotBtn.style = `color: ${this._accent};`;
     }
 
-    // calendar-size: 0=S, 1=S+, 2=M (no class — the base CSS values), 3=M+, 4=L
+    // calendar-size: 0=S, 1=S+, 2=M (no class - the base CSS values), 3=M+, 4=L
     _applySizeClass() {
         for (const cls of SIZE_CLASSES) {
             if (cls)
@@ -296,7 +296,7 @@ class LitsycalCalendar extends St.BoxLayout {
             this.add_style_class_name(cls);
     }
 
-    // font-size: 0=S, 1=M (no class — the base CSS values), 2=L
+    // font-size: 0=S, 1=M (no class - the base CSS values), 2=L
     _applyFontSizeClass() {
         for (const cls of FONT_SIZE_CLASSES) {
             if (cls)
@@ -322,7 +322,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._outline.queue_repaint();
     }
 
-    // ── Header ────────────────────────────────────────────────────────────────
+    // Header
 
     _buildHeader() {
         const row = new St.BoxLayout({style_class: 'litsycal-header'});
@@ -359,7 +359,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._updateHeaderColors();
     }
 
-    // ── Day-name row ──────────────────────────────────────────────────────────
+    // Day-name row
 
     _buildDayNameRow(rebuild = false) {
         if (rebuild && this._dayNameRow) {
@@ -391,7 +391,7 @@ class LitsycalCalendar extends St.BoxLayout {
             this._calRight.add_child(row);
     }
 
-    // ── Grid container ────────────────────────────────────────────────────────
+    // Grid container
 
     _buildGridContainer() {
         const overlay = new St.Widget({
@@ -419,7 +419,7 @@ class LitsycalCalendar extends St.BoxLayout {
         overlay.connect('notify::allocation', () => this._outline.queue_repaint());
     }
 
-    // ── Resize handle ─────────────────────────────────────────────────────────
+    // Resize handle
     // A thin drag grip below the grid, mirroring Itsycal's own resize handle:
     // dragging it down reveals extra overflow weeks from next month (up to
     // MAX_EXTRA_WEEK_ROWS), dragging up hides them again. The chosen row
@@ -484,13 +484,13 @@ class LitsycalCalendar extends St.BoxLayout {
         this._dragStartY  = undefined;
     }
 
-    // ── Calendar grid ─────────────────────────────────────────────────────────
+    // Calendar grid
 
     _buildGrid() {
         this._cancelTooltip(); // cells about to be destroyed would leave a dangling anchor
         this._gridBox.destroy_all_children();
         this._cellsByDate = new Map();
-        this._rangeHighlightedCells = []; // stale refs to now-destroyed buttons — drop them
+        this._rangeHighlightedCells = []; // stale refs to now-destroyed buttons - drop them
 
         const fd       = this._firstDayOfWeek;
         const glibDow  = GLib.DateTime.new_local(this._year, this._month, 1, 0, 0, 0)
@@ -574,7 +574,7 @@ class LitsycalCalendar extends St.BoxLayout {
     // One label per grid row, showing the ISO week number of that row's
     // first column. The gutter is a separate sibling column (so nothing
     // here affects OutlinePainter's math, which is based on the overlay's
-    // own width) — but that also means its rows can't rely on shared CSS
+    // own width) - but that also means its rows can't rely on shared CSS
     // to match the real grid row heights. Instead each cell's height is
     // bound directly to its corresponding grid row's actual rendered
     // height, so it always lines up exactly regardless of size class.
@@ -592,7 +592,7 @@ class LitsycalCalendar extends St.BoxLayout {
         }));
 
         // Row cells go in their own nested box so the 4px inter-row spacing
-        // (which must match .litsycal-grid's) only applies between rows —
+        // (which must match .litsycal-grid's) only applies between rows -
         // not between the spacer above and the first row, which sits flush
         // against the day-name row/grid boundary with no gap, same as
         // _calRight's dayNameRow-to-grid-overlay join.
@@ -615,7 +615,7 @@ class LitsycalCalendar extends St.BoxLayout {
 
     // Mirrors _makeCell's number+dot-row composition (number on top, an
     // empty dot-row-height spacer below, the pair centered as a group via
-    // the St.Bin wrapper — exactly like St.Button centers a day cell's
+    // the St.Bin wrapper - exactly like St.Button centers a day cell's
     // content) so the printed week number sits at the same vertical offset
     // as the day numbers rather than at the row's raw geometric center.
     _makeWeekCell(weekNum) {
@@ -633,7 +633,7 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     // Cap the agenda's height to whatever screen space is actually left below
-    // the calendar/header/footer, mirroring Itsycal's agendaMaxPossibleHeight —
+    // the calendar/header/footer, mirroring Itsycal's agendaMaxPossibleHeight -
     // rather than letting a busy week grow the popup past the monitor edge.
     _updateAgendaMaxHeight() {
         // Measuring children before this widget is on the stage (during
@@ -646,7 +646,7 @@ class LitsycalCalendar extends St.BoxLayout {
         const monitor = Main.layoutManager.monitors[
             Main.layoutManager.findIndexForActor(this)
         ] ?? Main.layoutManager.primaryMonitor;
-        // No monitor geometry yet — observed during mutter-devkit nested-session
+        // No monitor geometry yet - observed during mutter-devkit nested-session
         // startup, where extensions activate before layoutManager has
         // registered a monitor. _buildAgenda() (this method's other caller)
         // runs again on the next agenda rebuild (60s timer, month navigation,
@@ -670,11 +670,11 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     // Uses the exact same St.Button shell (litsycal-day-btn) and behaviour as
-    // _makeCell — click/keyboard select, hover tint, the hover-delay day
-    // tooltip, event dots — just visually muted, since it belongs to an
+    // _makeCell - click/keyboard select, hover tint, the hover-delay day
+    // tooltip, event dots - just visually muted, since it belongs to an
     // adjacent month. Selecting a visible overflow day does NOT change the
     // displayed month (see the click handler below and _moveSelectionByDays'
-    // _visibleDateRange check) — only navigating off the rendered grid
+    // _visibleDateRange check) - only navigating off the rendered grid
     // entirely does, mirroring Itsycal's MoCalendar (mouseUp: passes its
     // *current* monthDate through unchanged; moveSelectionByDays: only
     // re-centers once the new date is outside the whole visible grid, not
@@ -720,7 +720,7 @@ class LitsycalCalendar extends St.BoxLayout {
 
         // Same dots as a real day cell (own event colour kept, mirroring
         // Itsycal), just faded via litsycal-event-dot-overflow so an
-        // overflow week still reads as "not the active month" — unless this
+        // overflow week still reads as "not the active month" - unless this
         // is today, which is already called out via the accent background.
         const dotRow = new St.BoxLayout({style_class: 'litsycal-dot-row', x_expand: true});
         dotRow.set_x_align(Clutter.ActorAlign.CENTER);
@@ -742,8 +742,8 @@ class LitsycalCalendar extends St.BoxLayout {
 
         btn.accessible_name = this._cellAccessibleName(ds, day, isToday);
 
-        // Mirrors Itsycal's mouseUp: → setMonthDate:self.monthDate
-        // selectedDate:clickedCell.date — the displayed month is passed
+        // Mirrors Itsycal's mouseUp: -> setMonthDate:self.monthDate
+        // selectedDate:clickedCell.date - the displayed month is passed
         // through unchanged, so clicking a visible overflow day just moves
         // the selection onto it in place rather than navigating there.
         btn.connect('clicked', () => {
@@ -822,9 +822,9 @@ class LitsycalCalendar extends St.BoxLayout {
         return btn;
     }
 
-    // ── Range hover highlight ────────────────────────────────────────────────
+    // Range hover highlight
     // Hovering a multi-day event in the agenda list highlights every day it
-    // spans in the grid above, using the same tint as a plain cell :hover —
+    // spans in the grid above, using the same tint as a plain cell :hover -
     // mirrors Itsycal's agendaHoveredOverRow/highlightCellsFromDate, minus
     // the custom Cairo drawing (a toggled CSS class does the same job here).
 
@@ -861,7 +861,7 @@ class LitsycalCalendar extends St.BoxLayout {
         return name;
     }
 
-    // ── Cell hover tooltip ───────────────────────────────────────────────────
+    // Cell hover tooltip
     // A lightweight day preview shown ~600ms into a hover, so browsing days
     // doesn't require clicking (which moves the selected day and rebuilds the
     // agenda panel below).
@@ -911,7 +911,7 @@ class LitsycalCalendar extends St.BoxLayout {
             orientation: Clutter.Orientation.VERTICAL,
             style_class: 'popup-menu-content litsycal-cell-tooltip',
             // Painted at (0,0) until the idle-positioning callback below runs
-            // a frame later — stay invisible until then so it doesn't flash
+            // a frame later - stay invisible until then so it doesn't flash
             // at the screen corner first. Opacity, not `visible`, so it stays
             // mapped/measurable in the meantime.
             opacity: 0,
@@ -981,8 +981,8 @@ class LitsycalCalendar extends St.BoxLayout {
         });
     }
 
-    // ── Footer button tooltip ────────────────────────────────────────────────
-    // The footer icons carry no visible label — only an accessible_name, which
+    // Footer button tooltip
+    // The footer icons carry no visible label - only an accessible_name, which
     // reaches a screen reader and nothing else. This shows that same string on
     // hover, reusing the day-cell tooltip's delay and its _tooltipBox slot
     // above. _cancelTooltip() clears both pending timeouts, so the two can
@@ -1040,12 +1040,12 @@ class LitsycalCalendar extends St.BoxLayout {
         });
     }
 
-    // ── Agenda ────────────────────────────────────────────────────────────────
+    // Agenda
 
     _buildAgenda() {
         this._agendaBox.destroy_all_children();
-        // Rebuilt on every call, in agenda display order — first entry is
-        // whatever ⌃⇧J ("open first active meeting") should trigger.
+        // Rebuilt on every call, in agenda display order - first entry is
+        // whatever Ctrl+Shift+J ("open first active meeting") should trigger.
         this._joinButtons = [];
 
         const hidden = this._agendaDays <= 0;
@@ -1101,7 +1101,7 @@ class LitsycalCalendar extends St.BoxLayout {
                     });
                     // Tagged so a click that lands on this row while an
                     // EventInfoPopover's backdrop is up can be traced back to
-                    // the event it belongs to — see _eventButtonAt().
+                    // the event it belongs to - see _eventButtonAt().
                     evtBtn._litsycalEvent = ev;
                     const evtBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
 
@@ -1176,7 +1176,7 @@ class LitsycalCalendar extends St.BoxLayout {
                     });
                     // Right-click: same {label, icon, action} SettingsMenuPanel
                     // used for the panel icon/gear menu, offering the itsycal-
-                    // style Open Calendar / Copy / Delete… trio for this event.
+                    // style Open Calendar / Copy / Delete... trio for this event.
                     evtBtn.connect('button-press-event', (actor, event) => {
                         if (event.get_button() !== Clutter.BUTTON_SECONDARY)
                             return Clutter.EVENT_PROPAGATE;
@@ -1188,19 +1188,19 @@ class LitsycalCalendar extends St.BoxLayout {
                 }
             }
 
-            // Separator between groups — not after last
+            // Separator between groups - not after last
             if (g < groups.length - 1)
                 this._agendaBox.add_child(new St.Widget({style_class: 'litsycal-agenda-sep'}));
         });
     }
 
-    // ── Footer ────────────────────────────────────────────────────────────────
+    // Footer
 
     _buildFooter() {
         this.add_child(new St.Widget({style_class: 'litsycal-sep'}));
         const footer = new St.BoxLayout({style_class: 'litsycal-footer'});
 
-        // Shows the button's accessible_name on hover — these icons have no
+        // Shows the button's accessible_name on hover - these icons have no
         // other label. Cancelled on click too: a button that opens a panel of
         // its own (gear, +) takes a pointer grab, so the leave event that
         // would otherwise dismiss the tooltip never arrives.
@@ -1258,7 +1258,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this.add_child(footer);
     }
 
-    // Time zone clocks section — sits between the agenda and the footer,
+    // Time zone clocks section - sits between the agenda and the footer,
     // hidden entirely when 'timezones' is empty. Rows are (re)built by
     // _updateTimeZones(), called here once and again on every relevant
     // settings change and by LitsycalIndicator's minute timer while the
@@ -1304,7 +1304,7 @@ class LitsycalCalendar extends St.BoxLayout {
             text: _('Time Zones'), style_class: 'litsycal-tz-title litsycal-agenda-day-name',
         }));
 
-        // Reference point for the "(-6h)"-style relative labels below —
+        // Reference point for the "(-6h)"-style relative labels below -
         // deliberately set in Preferences rather than read from the
         // system's own local zone, since a traveling user's system clock
         // may already be showing wherever they physically are right now.
@@ -1336,7 +1336,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._suppressPinNotify = false;
     }
 
-    // ── Event panels ──────────────────────────────────────────────────────────
+    // Event panels
 
     _openCreateDialog() {
         if (!this._calManager.isAvailable())
@@ -1352,7 +1352,7 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     // Ctrl+Shift+N: parse a one-liner into a draft, then open the same full
-    // EventPanel _openCreateDialog does, pre-filled with it — never saves
+    // EventPanel _openCreateDialog does, pre-filled with it - never saves
     // directly from the one-liner. See QuickAddPanel/quickAddParser.js.
     _openQuickAdd() {
         if (!this._calManager.isAvailable())
@@ -1374,7 +1374,7 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     // Ctrl+F: search every connected calendar (not just the currently
-    // displayed month — see CalendarManager.searchEvents). Selecting a
+    // displayed month - see CalendarManager.searchEvents). Selecting a
     // result navigates the grid to its date and opens the same read-only
     // info popover a normal agenda-row click does.
     _openSearch() {
@@ -1389,7 +1389,7 @@ class LitsycalCalendar extends St.BoxLayout {
             const [y, m, d] = ev.date.split('-').map(Number);
             // Wait for _goToDate's own fetch to actually finish (its onDone,
             // not just the synchronous grid/agenda rebuild it does
-            // immediately) before looking for the row — otherwise, for a
+            // immediately) before looking for the row - otherwise, for a
             // month not already cached, the agenda that exists at that
             // instant is still whatever was there before navigating.
             this._goToDate(GLib.DateTime.new_local(y, m, d, 0, 0, 0), () => {
@@ -1399,7 +1399,7 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     // Anchors the popover to the actual rendered agenda row for `ev`, same
-    // as a normal row click does — anchoring to `this` (the whole calendar
+    // as a normal row click does - anchoring to `this` (the whole calendar
     // widget) instead positions the popover nowhere near anything
     // meaningful. Falls back to that only if the row genuinely isn't there
     // (e.g. the event was deleted server-side between the search and now).
@@ -1421,12 +1421,12 @@ class LitsycalCalendar extends St.BoxLayout {
         );
     }
 
-    // ── Event info popover (left-click on an agenda row) ─────────────────────────
+    // Event info popover (left-click on an agenda row)
     //
     // itsycal's own agenda click behavior: a compact, read-only card next to the
     // clicked row (AgendaPopoverVC in AgendaViewController.m) rather than jumping
     // straight into the full edit form. Editing is still one step away via the
-    // row's right-click menu's new Edit… entry, just not from this popover itself.
+    // row's right-click menu's new Edit... entry, just not from this popover itself.
     // Clicking a row toggles: opens that event's popover, clicking the same row
     // again closes it, clicking a different row switches straight to that one.
 
@@ -1453,7 +1453,7 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     // Identifies one specific event occurrence the same way delete/edit
-    // already do elsewhere (uid + clientUid + recurrenceId) — title/date
+    // already do elsewhere (uid + clientUid + recurrenceId) - title/date
     // aren't unique enough (two events can share a title; a recurring
     // series' own uid repeats across its occurrences, recurrenceId is what
     // tells those apart).
@@ -1463,9 +1463,9 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     // Walks up from `actor` (whatever the popover's backdrop found under an
-    // outside click) looking for the agenda-row button it belongs to — a
+    // outside click) looking for the agenda-row button it belongs to - a
     // click can land on a child of evtBtn (its title label, its time row,
-    // …) rather than evtBtn itself, so this can't just check `actor`
+    // ...) rather than evtBtn itself, so this can't just check `actor`
     // directly. Returns null for a click on empty space or anything that
     // isn't an agenda row (in which case the popover just stays closed).
     _eventButtonAt(actor) {
@@ -1477,12 +1477,12 @@ class LitsycalCalendar extends St.BoxLayout {
         return null;
     }
 
-    // ── Event context menu (right-click on an agenda row) ───────────────────────
+    // Event context menu (right-click on an agenda row)
     //
     // Same {label, icon, action} SettingsMenuPanel used for the panel icon/gear
-    // menu. Open Calendar/Copy/Delete… mirror itsycal's own agenda context-menu
-    // trio (menuNeedsUpdate in itsycal's AgendaViewController.m); Edit… is a
-    // litsycal-only addition — itsycal has no in-app event editing at all — since
+    // menu. Open Calendar/Copy/Delete... mirror itsycal's own agenda context-menu
+    // trio (menuNeedsUpdate in itsycal's AgendaViewController.m); Edit... is a
+    // litsycal-only addition - itsycal has no in-app event editing at all - since
     // clicking a row now opens the read-only info popover instead of this dialog.
 
     _openEventContextMenu(anchorActor, ev) {
@@ -1519,7 +1519,7 @@ class LitsycalCalendar extends St.BoxLayout {
     // gnome-calendar parses --date with evolution-data-server's
     // e_time_parse_date_and_time(), which tries strptime("%x", ...) against
     // the locale's own short-date order (MM/DD/YYYY for en_US, DD/MM/YYYY
-    // elsewhere, ...) — it does NOT accept the ISO "YYYY-MM-DD" ev.date is
+    // elsewhere, ...) - it does NOT accept the ISO "YYYY-MM-DD" ev.date is
     // stored in. Reformat with GLib's own "%x" so it matches whatever order
     // strptime("%x") expects on this system; passing ev.date as-is silently
     // fails (gnome-calendar logs "Date ... is invalid" and opens on today).
@@ -1546,7 +1546,7 @@ class LitsycalCalendar extends St.BoxLayout {
 
     // Same confirm-then-delete flow as the event edit panel's own Delete
     // button (see eventDialog.js confirmDeleteEvent), just reached directly
-    // from the agenda row without opening the panel first — mirroring
+    // from the agenda row without opening the panel first - mirroring
     // itsycal's deleteEvent, which is wired to both the popover's delete
     // button and this context-menu item alike.
     _deleteEventFromAgenda(ev) {
@@ -1558,7 +1558,7 @@ class LitsycalCalendar extends St.BoxLayout {
         });
     }
 
-    // ── Navigation ────────────────────────────────────────────────────────────
+    // Navigation
 
     _shiftMonth(delta) {
         this._month += delta;
@@ -1589,7 +1589,7 @@ class LitsycalCalendar extends St.BoxLayout {
 
     // Used by the settings menu's "Go to date" dialog.
     // onDone (optional), if given, fires once the fetch this triggers for
-    // the new month has actually completed — see _openEventInfoPopoverFor
+    // the new month has actually completed - see _openEventInfoPopoverFor
     // SearchResult below for why that matters more than it sounds like it
     // should.
     _goToDate(dt, onDone) {
@@ -1607,7 +1607,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._monthLbl.set_text(`${monthName} ${displayYear(this._year, this._calendarSystem)}`);
     }
 
-    // ── Keyboard navigation ──────────────────────────────────────────────────
+    // Keyboard navigation
     // Arrow keys (and vi-style h/j/k/l) move the selected day (Up/Down or k/j
     // by a week); holding Shift moves by month/year instead. Space jumps to
     // today. Wired up by LitsycalIndicator only while the popup is open and no
@@ -1617,7 +1617,7 @@ class LitsycalCalendar extends St.BoxLayout {
     // Plain/Shift Down (and h/j/k/l's Down-equivalent, j) can't be reached via
     // the physical arrow key alone: GNOME Shell's PopupMenu reserves bare
     // Down for its own accessibility keynav whenever a menu drops down from
-    // the top panel (js/ui/popupMenu.js PopupMenu._onKeyPress — it matches on
+    // the top panel (js/ui/popupMenu.js PopupMenu._onKeyPress - it matches on
     // the keysym only, ignoring modifiers, and consumes the event before it
     // ever reaches actor-level signal handlers). j/J is the reliable way to
     // trigger that direction; the Down/Shift+Down cases below are kept for
@@ -1625,15 +1625,15 @@ class LitsycalCalendar extends St.BoxLayout {
     //
     // The rest of the bindings below round out Itsycal's own shortcut list
     // (mowglii.com/itsycal/help) that isn't day/week/month/year navigation:
-    // #, P, W, . carry straight over unmodified. Itsycal's plain ⌃J/⌃K
-    // (add/remove calendar weeks) also carries straight over — but its
-    // Command-tier bindings (⌘, ⌘O ⌘N ⌘Q ⌥⌘R ⇧⌘T) have no Command key on
-    // Linux, so they're remapped to Ctrl, the nearest GNOME equivalent; ⌘J
+    // #, P, W, . carry straight over unmodified. Itsycal's plain Ctrl+J/Ctrl+K
+    // (add/remove calendar weeks) also carries straight over - but its
+    // Command-tier bindings (Cmd+, Cmd+O Cmd+N Cmd+Q Opt+Cmd+R Shift+Cmd+T) have no Command key on
+    // Linux, so they're remapped to Ctrl, the nearest GNOME equivalent; Cmd+J
     // (open first active meeting) picks up an extra Shift on top of that
-    // (→ Ctrl+Shift+J) purely to stay clear of the already-taken Ctrl+J.
+    // (-> Ctrl+Shift+J) purely to stay clear of the already-taken Ctrl+J.
 
     // The full span of dates the currently rendered grid covers, leading and
-    // trailing overflow days included — _firstCol/_numRows are set by the
+    // trailing overflow days included - _firstCol/_numRows are set by the
     // last _buildGrid() call. Mirrors Itsycal's moveSelectionByDays:, which
     // checks the new selection against _dateGrid's first/last cell rather
     // than against the displayed month.
@@ -1650,7 +1650,7 @@ class LitsycalCalendar extends St.BoxLayout {
         this._selected = sel;
 
         // Only jump the displayed month once the selection moves off the
-        // grid entirely — a day that's still visible via overflow (leading,
+        // grid entirely - a day that's still visible via overflow (leading,
         // trailing, or a dragged-in extra week) just gets selected in place,
         // same as Itsycal.
         if (sel.compare(firstVisible) < 0 || sel.compare(lastVisible) > 0) {
@@ -1715,7 +1715,7 @@ class LitsycalCalendar extends St.BoxLayout {
         case Clutter.KEY_Up:
         case Clutter.KEY_k:
         case Clutter.KEY_K:
-            // ⌃K (no Shift): remove one calendar week (⌃J's counterpart below).
+            // Ctrl+K (no Shift): remove one calendar week (Ctrl+J's counterpart below).
             if (ctrl) {
                 this._adjustExtraWeekRows(-1);
                 return true;
@@ -1728,9 +1728,9 @@ class LitsycalCalendar extends St.BoxLayout {
         case Clutter.KEY_Down:
         case Clutter.KEY_j:
         case Clutter.KEY_J:
-            // ⌃⇧J: open the first active virtual meeting in the agenda
-            // (Itsycal's ⌘J — bumped onto Shift so it doesn't collide
-            // with plain ⌃J just below). ⌃J (no Shift): add one calendar week.
+            // Ctrl+Shift+J: open the first active virtual meeting in the agenda
+            // (Itsycal's Cmd+J - bumped onto Shift so it doesn't collide
+            // with plain Ctrl+J just below). Ctrl+J (no Shift): add one calendar week.
             if (ctrl && shift) {
                 this._joinFirstMeeting();
                 return true;
@@ -1763,14 +1763,14 @@ class LitsycalCalendar extends St.BoxLayout {
         case Clutter.KEY_period:
             this._settings.set_boolean('show-event-location', !this._showEventLocation);
             return true;
-        case Clutter.KEY_comma: // Ctrl+, (Itsycal's ⌘,): open Settings
+        case Clutter.KEY_comma: // Ctrl+, (Itsycal's Cmd+,): open Settings
             if (ctrl) {
                 this._openSettingsMenu(this._gearBtn);
                 return true;
             }
             return false;
         case Clutter.KEY_o:
-        case Clutter.KEY_O: // Ctrl+O (Itsycal's ⌘O): open the default calendar app
+        case Clutter.KEY_O: // Ctrl+O (Itsycal's Cmd+O): open the default calendar app
             if (ctrl) {
                 this._openCalendar();
                 return true;
@@ -1786,9 +1786,9 @@ class LitsycalCalendar extends St.BoxLayout {
         case Clutter.KEY_n:
         case Clutter.KEY_N:
             // Ctrl+Shift+N: quick-add a one-liner. Checked before plain
-            // Ctrl+N below since Shift+N produces KEY_N here too — same
+            // Ctrl+N below since Shift+N produces KEY_N here too - same
             // ctrl-then-ctrl+shift ordering as Ctrl+J/Ctrl+Shift+J above.
-            // Ctrl+N alone (Itsycal's ⌘N): create a new event via the full
+            // Ctrl+N alone (Itsycal's Cmd+N): create a new event via the full
             // form, unchanged.
             if (ctrl && shift) {
                 this._openQuickAdd();
@@ -1799,13 +1799,13 @@ class LitsycalCalendar extends St.BoxLayout {
                 return true;
             }
             return false;
-        case Clutter.KEY_T: // Ctrl+Shift+T (Itsycal's ⇧⌘T): go to date
+        case Clutter.KEY_T: // Ctrl+Shift+T (Itsycal's Shift+Cmd+T): go to date
             if (ctrl && shift) {
                 this._openGoToDate(this._gearBtn);
                 return true;
             }
             return false;
-        case Clutter.KEY_r: // Ctrl+Alt+R (Itsycal's ⌥⌘R): refresh events
+        case Clutter.KEY_r: // Ctrl+Alt+R (Itsycal's Opt+Cmd+R): refresh events
             if (ctrl && alt) {
                 this._calManager.refreshFromServer();
                 this._calManager.fetchMonth(this._year, this._month);
@@ -1813,7 +1813,7 @@ class LitsycalCalendar extends St.BoxLayout {
             }
             return false;
         case Clutter.KEY_q:
-        case Clutter.KEY_Q: // Ctrl+Q (Itsycal's ⌘Q): quit Litsycal
+        case Clutter.KEY_Q: // Ctrl+Q (Itsycal's Cmd+Q): quit Litsycal
             if (ctrl) {
                 this._quit();
                 return true;
@@ -1842,7 +1842,7 @@ class LitsycalCalendar extends St.BoxLayout {
 
     // Mirrors Itsycal's showDateInfo: briefly swaps the month label for the
     // selected day's offset from today and its ordinal day-of-year, e.g.
-    // "+5 ∕ 253", then restores the plain month label after a couple seconds.
+    // "+5 / 253", then restores the plain month label after a couple seconds.
     _showDayInfo() {
         if (this._dayInfoTimeoutId) {
             GLib.source_remove(this._dayInfoTimeoutId);

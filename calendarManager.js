@@ -6,7 +6,7 @@ import Gio         from 'gi://Gio';
 
 import {MAX_EXTRA_WEEK_ROWS} from './helpers.js';
 
-// EDS calendar backends report colour in whatever format they like — hex,
+// EDS calendar backends report colour in whatever format they like - hex,
 // "rgb(r,g,b)"/"rgba(r,g,b,a)" (Google's backend, after a colour change), or
 // occasionally a named CSS colour. Normalizing to hex here, once, gives every
 // consumer downstream (day-cell dots, agenda pills, the event dialog's
@@ -21,7 +21,7 @@ function normalizeColor(color, fallback = '#3584e4') {
         const hex = n => Number(n).toString(16).padStart(2, '0');
         return `#${hex(m[1])}${hex(m[2])}${hex(m[3])}`;
     }
-    return color; // named colour or unrecognized format — CSS still accepts it
+    return color; // named colour or unrecognized format - CSS still accepts it
 }
 
 // An EDS call cut short by destroy() cancelling this._cancellable: not a
@@ -34,18 +34,18 @@ export class CalendarManager {
     constructor(settings, onEventsChanged) {
         this._settings  = settings;
         this._onEventsChanged = onEventsChanged;
-        this._clients   = new Map();   // uid → {client, color, name}
-        this._views     = new Map();   // uid → {view, signalIds} (live change listener)
-        this._viewTokens = new Map();  // uid → latest view request; see _startView()
+        this._clients   = new Map();   // uid -> {client, color, name}
+        this._views     = new Map();   // uid -> {view, signalIds} (live change listener)
+        this._viewTokens = new Map();  // uid -> latest view request; see _startView()
         this._cancellable = new Gio.Cancellable();
         this._events    = [];
-        this._byDate    = new Map();   // dateStr → Event[] (sorted, kept in sync with _events)
+        this._byDate    = new Map();   // dateStr -> Event[] (sorted, kept in sync with _events)
         this._registry    = null;
         this._year        = null;
         this._month       = null;
         this._available   = false;
-        this._searchToken = 0; // see searchEvents() — discards stale/out-of-order results
-        this._fetchToken  = 0; // see fetchMonth() — discards a superseded batch's stale onDone
+        this._searchToken = 0; // see searchEvents() - discards stale/out-of-order results
+        this._fetchToken  = 0; // see fetchMonth() - discards a superseded batch's stale onDone
         this._disabled  = new Set(settings.get_strv('disabled-calendars'));
         this._disabledCalsSettingsId = settings.connect('changed::disabled-calendars', () => {
             this._disabled = new Set(settings.get_strv('disabled-calendars'));
@@ -55,7 +55,7 @@ export class CalendarManager {
         this._initRegistry();
     }
 
-    // ── Init ──────────────────────────────────────────────────────────────────
+    // Init
 
     _initRegistry() {
         EDataServer.SourceRegistry.new(this._cancellable, (_obj, res) => {
@@ -124,7 +124,7 @@ export class CalendarManager {
         this._onEventsChanged(this._events);
     }
 
-    // ── Live view (change notifications) ──────────────────────────────────────
+    // Live view (change notifications)
 
     // get_view() is async, so two quick month changes can leave two requests
     // for the same source in flight. Every start/stop bumps that source's
@@ -178,9 +178,9 @@ export class CalendarManager {
             this._startView(uid, client);
     }
 
-    // ── Manual refresh (Ctrl+Alt+R) ─────────────────────────────────────────────
+    // Manual refresh (Ctrl+Alt+R)
     // fetchMonth() below only re-reads whatever EDS already has cached
-    // locally — it never asks a backend like Google's own to go check for
+    // locally - it never asks a backend like Google's own to go check for
     // anything new; EDS polls that on its own schedule (commonly ~30 min),
     // so a plain fetchMonth() right after a remote change can visibly do
     // nothing. This asks each backend that supports it to sync now; any
@@ -202,10 +202,10 @@ export class CalendarManager {
         }
     }
 
-    // ── Fetch ─────────────────────────────────────────────────────────────────
+    // Fetch
 
     // onDone, if given, fires once every connected client has responded to
-    // this specific call — not on the general live-update path (source
+    // this specific call - not on the general live-update path (source
     // added/changed events also call _fetchFromClient for just one client,
     // without this aggregation). _fetchToken guards against a batch from a
     // superseded fetchMonth call (e.g. the user navigated to another month
@@ -234,24 +234,24 @@ export class CalendarManager {
         }
     }
 
-    // ── Search (independent of the month cache above) ───────────────────────────
+    // Search (independent of the month cache above)
     //
     // A one-off query across every connected calendar, over a wide-but-bounded
-    // time window (±1 year — wide enough to find "that thing from a few
+    // time window (+/-1 year - wide enough to find "that thing from a few
     // months back" without an unbounded query against a backend with years
     // of history). EDS does the text filtering itself (the (contains? ...)
     // clauses below run server/backend-side), so this stays fast even with
-    // several calendars — never touches this._events/_byDate, the grid's own
+    // several calendars - never touches this._events/_byDate, the grid's own
     // month cache, so it can't disturb whatever's currently displayed.
     //
     // callback(events) fires once, with every match across every source,
-    // sorted by date/time. Stale results — a slower-to-respond earlier
-    // search finishing after a newer one already has — are silently
+    // sorted by date/time. Stale results - a slower-to-respond earlier
+    // search finishing after a newer one already has - are silently
     // discarded via _searchToken rather than clobbering fresher results.
     searchEvents(text, callback) {
         const token = ++this._searchToken;
         const query = (text ?? '').trim();
-        // Same disabled-calendar exclusion as getSources()/_reindex() — a
+        // Same disabled-calendar exclusion as getSources()/_reindex() - a
         // calendar the user hid shouldn't resurface through search, letting
         // a result navigate to and open an event from it anyway.
         const uids = [...this._clients.keys()].filter(uid => !this._disabled.has(uid));
@@ -272,7 +272,7 @@ export class CalendarManager {
             `(contains? "location" "${needle}")))`;
 
         // {pending, results} is one shared, mutable object rather than two
-        // separate outer variables closed over from inside a loop — see
+        // separate outer variables closed over from inside a loop - see
         // _searchClient below, called once per source instead of defining
         // the completion closure directly in this loop.
         const state = {pending: uids.length, results: []};
@@ -284,7 +284,7 @@ export class CalendarManager {
         const {client, color} = this._clients.get(uid);
         client.get_object_list_as_comps(sexp, this._cancellable, (_obj, res) => {
             if (token !== this._searchToken)
-                return; // superseded by a newer search — drop this result
+                return; // superseded by a newer search - drop this result
             try {
                 const [, comps] = client.get_object_list_as_comps_finish(res);
                 for (const comp of comps ?? []) {
@@ -305,7 +305,7 @@ export class CalendarManager {
         });
     }
 
-    // Lisp string-literal escaping for the search text embedded above —
+    // Lisp string-literal escaping for the search text embedded above -
     // correctness (a title containing a literal `"` would otherwise corrupt
     // the S-expression), not a security boundary.
     _escapeSexpString(s) {
@@ -336,7 +336,7 @@ export class CalendarManager {
     }
 
     // onDone (optional) fires once this one client's fetch finishes, success
-    // or failure — used by fetchMonth() above to know when every client in
+    // or failure - used by fetchMonth() above to know when every client in
     // one batch has responded. Every other caller (live-update refetch of
     // a single client) just omits it.
     _fetchFromClient(uid, year, month, onDone) {
@@ -378,7 +378,7 @@ export class CalendarManager {
 
     // The system's local timezone as an ICalGLib.Timezone usable with
     // convert_to_zone(). Re-resolved per call rather than cached on `this`
-    // — it's a cheap in-process libical lookup, and caching would risk a
+    // - it's a cheap in-process libical lookup, and caching would risk a
     // stale zone if the system timezone changes while litsycal keeps
     // running.
     _resolveLocalTimezone() {
@@ -390,7 +390,7 @@ export class CalendarManager {
     // wall-clock time. Returns null (caller keeps the original,
     // unconverted value) when the TZID can't be resolved to a real zone
     // (e.g. a non-IANA Windows/Exchange zone name) or the local zone
-    // itself can't be resolved — same "leave it as-is" behavior this data
+    // itself can't be resolved - same "leave it as-is" behavior this data
     // already got everywhere before timezone conversion existed, rather
     // than guessing.
     _convertToLocal(tObj, tzid, localTz) {
@@ -406,7 +406,7 @@ export class CalendarManager {
     }
 
     // Shared by _ingestComps (month cache) and searchEvents (a separate,
-    // one-off query — see below) so both build the exact same event shape
+    // one-off query - see below) so both build the exact same event shape
     // from a raw ECal component. Returns null (logging) rather than
     // throwing on a single malformed component, so one bad event never
     // takes down a whole batch.
@@ -433,7 +433,7 @@ export class CalendarManager {
                     localTz = this._resolveLocalTimezone();
                     const converted = this._convertToLocal(tObj, tzid, localTz);
                     // Only report an originalTzid (and only display the
-                    // converted digits) when conversion actually succeeded —
+                    // converted digits) when conversion actually succeeded -
                     // otherwise tObj still holds the raw, unconverted digits
                     // and labeling them as "originally scheduled in <tzid>"
                     // would misrepresent a conversion that never happened.
@@ -495,7 +495,7 @@ export class CalendarManager {
                 attendees  = this._parseAttendees(ic);
 
                 // Present only on one occurrence of a recurring series (never
-                // on the master) — identifies which occurrence this is, so a
+                // on the master) - identifies which occurrence this is, so a
                 // "delete this event only" can target it specifically.
                 const ridProp = ic.get_first_property(ICalGLib.PropertyKind.RECURRENCEID_PROPERTY);
                 recurrenceId = ridProp ? ridProp.get_value_as_string() || null : null;
@@ -579,7 +579,7 @@ export class CalendarManager {
         return blocks;
     }
 
-    // Read-only display data — only CN (display name) and PARTSTAT (RSVP
+    // Read-only display data - only CN (display name) and PARTSTAT (RSVP
     // status) per ATTENDEE. Never fed back into a save: editing an event
     // patches only the fields our dialog exposes onto the live component
     // (see _applyFieldsToIcal below), so attendee data always stays
@@ -597,7 +597,7 @@ export class CalendarManager {
         return attendees;
     }
 
-    // ── Index ─────────────────────────────────────────────────────────────────
+    // Index
 
     _reindex() {
         this._byDate = new Map();
@@ -629,7 +629,7 @@ export class CalendarManager {
     }
 
     // Dates (YYYY-MM-DD, inclusive) a multi-day event's dot/agenda entry
-    // — and its calendar-grid hover highlight — should appear under: every
+    // - and its calendar-grid hover highlight - should appear under: every
     // day it spans, not just its start day. Mirrors Itsycal's EventCenter,
     // which walks each event's date range and adds it to every day's
     // bucket rather than just the start date. Public because the hover
@@ -638,8 +638,8 @@ export class CalendarManager {
         if (!ev.endDate || ev.endDate === ev.date)
             return [ev.date];
 
-        // An event ending exactly at midnight (e.g. 22:00 → 00:00 next day)
-        // occupies zero minutes of its DTEND date — treat the day before as
+        // An event ending exactly at midnight (e.g. 22:00 -> 00:00 next day)
+        // occupies zero minutes of its DTEND date - treat the day before as
         // the last spanned day. Mirrors Itsycal's identical fixup ("Fixup
         // for endDates that are at midnight") in its hover-highlight code.
         let lastDate = ev.endDate;
@@ -665,7 +665,7 @@ export class CalendarManager {
         return dates;
     }
 
-    // ── iCal builder ─────────────────────────────────────────────────────────
+    // iCal builder
 
     _buildRRuleLine(recurrence) {
         if (!recurrence)
@@ -722,7 +722,7 @@ export class CalendarManager {
 
         let dtLines;
         if (allDay) {
-            // DTEND is exclusive, so it's the following day — through GLib so
+            // DTEND is exclusive, so it's the following day - through GLib so
             // month/year boundaries roll over, in UTC so no DST shift applies.
             const next = GLib.DateTime.new_utc(y, m, d, 0, 0, 0).add_days(1);
             dtLines = [
@@ -733,7 +733,7 @@ export class CalendarManager {
             // Tagged with the system's own timezone rather than left floating:
             // _parseComp() shows/edits times as local wall-clock digits, and a
             // floating DTSTART/DTEND is reinterpreted as *each viewer's own*
-            // local time by other clients — silently shifting the instant for
+            // local time by other clients - silently shifting the instant for
             // anyone not in this machine's timezone. An explicit TZID keeps
             // the instant fixed no matter who views it next.
             const tzid = GLib.TimeZone.new_local().get_identifier();
@@ -758,7 +758,7 @@ export class CalendarManager {
         ].join('\r\n');
     }
 
-    // ── Create ────────────────────────────────────────────────────────────────
+    // Create
 
     createEvent(fields, sourceUid, onDone) {
         const entry = this._clients.get(sourceUid);
@@ -782,7 +782,7 @@ export class CalendarManager {
         });
     }
 
-    // ── Update ────────────────────────────────────────────────────────────────
+    // Update
 
     // Replaces just the properties our Edit dialog exposes (SUMMARY, DTSTART/
     // DTEND, DESCRIPTION, LOCATION, URL, RRULE, VALARMs) on the live component,
@@ -790,7 +790,7 @@ export class CalendarManager {
     // data, ...) untouched. Rebuilding the whole VEVENT from only our fields
     // and PUTting that as a full replacement would drop those other
     // properties, which Google's CalDAV backend rejects for meeting events
-    // with a 409 (Conflict) — it won't accept a modification that strips a
+    // with a 409 (Conflict) - it won't accept a modification that strips a
     // meeting's organizer/attendees/conferencing structure.
     _applyFieldsToIcal(ical, fields) {
         const newIcal = ICalGLib.Component.new_from_string(this._buildICal(ical.get_uid(), fields));
@@ -863,7 +863,7 @@ export class CalendarManager {
         });
     }
 
-    // ── Delete ────────────────────────────────────────────────────────────────
+    // Delete
 
     // opts: {scope: 'ALL' | 'THIS' | 'FUTURE', recurrenceId}. scope defaults to
     // 'ALL' (the whole series, or a non-recurring event); 'THIS'/'FUTURE' need
@@ -898,7 +898,7 @@ export class CalendarManager {
         });
     }
 
-    // ── Accessors ─────────────────────────────────────────────────────────────
+    // Accessors
 
     isAvailable() {
         return this._available;
@@ -915,7 +915,7 @@ export class CalendarManager {
     }
 
     // Backs the New Event form's default calendar (see EventPanel's
-    // constructor and _save() in eventDialog.js) — remembers whichever
+    // constructor and _save() in eventDialog.js) - remembers whichever
     // calendar was picked last time, rather than always defaulting to
     // whatever getSources() happens to list first.
     getLastEventSourceUid() {
@@ -926,7 +926,7 @@ export class CalendarManager {
         this._settings.set_string('last-event-calendar-uid', uid);
     }
 
-    // ── Cleanup ───────────────────────────────────────────────────────────────
+    // Cleanup
 
     destroy() {
         // Keeps every in-flight EDS call from calling back into this manager

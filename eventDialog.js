@@ -70,7 +70,7 @@ function alertLabel(value, allDay) {
 
 // Standalone delete-confirmation flow, usable with or without an open
 // EventPanel (the agenda list's right-click Delete action has no panel open
-// at all). Every delete — recurring or not — goes through this prompt, since
+// at all). Every delete - recurring or not - goes through this prompt, since
 // a stray click (e.g. the popover's delete button sitting right next to the
 // title) would otherwise delete with no way back.
 // Deletion itself always triggers CalendarManager's onEventsChanged, so
@@ -79,7 +79,7 @@ function alertLabel(value, allDay) {
 // onDone(err) fires once, after the delete attempt (or immediately with
 // undefined if the user cancels the prompt). onOverlayChange, if given, is
 // called with a function that closes the prompt while it's up, and with null
-// once it's gone — callers use this to keep their own click-outside/Escape
+// once it's gone - callers use this to keep their own click-outside/Escape
 // handling from closing out from under the prompt, and to close the prompt
 // along with themselves if they're torn down first.
 /**
@@ -172,7 +172,7 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
     Main.layoutManager.uiGroup.add_child(overlay);
 
     // Opens nested inside EventPanel's own modal grab (which itself nests
-    // inside the calendar dropdown's grab) — needs its own competing grab
+    // inside the calendar dropdown's grab) - needs its own competing grab
     // for the same reason EventPanel does: see the comment on EventPanel's
     // this._grab.
     const grab = Main.pushModal(overlay, {actionMode: Shell.ActionMode.POPUP});
@@ -213,11 +213,11 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
 }
 
 export class EventPanel {
-    // onClose is called exactly once, however the panel ends up closing —
+    // onClose is called exactly once, however the panel ends up closing -
     // saved, deleted, cancelled via Escape, or dismissed by clicking
     // outside. Callers rely on this to null out their own reference to it.
     // draft (title/date/time/location, all optional) prefills a NEW event
-    // from quick-add (see QuickAddPanel/quickAddParser.js) — ignored when
+    // from quick-add (see QuickAddPanel/quickAddParser.js) - ignored when
     // editing an existing one, which already has its own values.
     constructor(calManager, settings, event, selectedDate, anchorActor, onClose, calendarSystem = 'gregorian', draft = null) {
         this._calManager     = calManager;
@@ -247,13 +247,13 @@ export class EventPanel {
         });
 
         // Dropdown/date/time pickers float above the panel instead of being
-        // laid out inline, so opening one never grows the panel itself — but
+        // laid out inline, so opening one never grows the panel itself - but
         // Main.pushModal() scopes input delivery to the grabbed actor's own
         // subtree, so a floater sitting outside it could be seen (clicks
         // still hit-test fine) but never actually receive them (nothing
         // would fire on click). So both this._box and every floater are
         // parented under one shared this._root, and that's what gets the
-        // grab — same wrapper-actor pattern GNOME Shell's own ModalDialog
+        // grab - same wrapper-actor pattern GNOME Shell's own ModalDialog
         // uses to host a dialog plus overlays under a single grab.
         this._root = new St.Widget();
         Main.layoutManager.uiGroup.add_child(this._root);
@@ -266,12 +266,12 @@ export class EventPanel {
         // Needed because this opens while the calendar dropdown (a
         // PopupMenu) is still open, holding its own modal grab: without a
         // competing grab here, a key event is delivered starting from that
-        // grab's actor, not the stage — and PopupMenu's own built-in
+        // grab's actor, not the stage - and PopupMenu's own built-in
         // close-on-Escape handling sits upstream of a plain global.stage
         // listener in that delivery chain, so it was consuming Escape and
         // closing the whole calendar dropdown before our own key-press-event
         // handler below ever saw it. See settingsMenuPanel.js for the full
-        // explanation — same mechanism, same fix.
+        // explanation - same mechanism, same fix.
         this._grab = Main.pushModal(this._root, {actionMode: Shell.ActionMode.POPUP});
 
         // Defer positioning until after layout pass so actor size is known
@@ -299,12 +299,12 @@ export class EventPanel {
 
         // Captured (not bubble-phase global.stage) so this fires ahead of
         // PopupMenu's own Escape handling now that our grab above is the
-        // active one — see the comment on this._grab. Confirmed by
+        // active one - see the comment on this._grab. Confirmed by
         // instrumentation: under this grab, captured-event never reaches
-        // either global.stage or the grabbed actor itself (this._root) —
+        // either global.stage or the grabbed actor itself (this._root) -
         // only a genuine descendant of it sees the event. So this shared
         // handler (_handleKeyEvent) is attached directly to this._box AND,
-        // in _attachFloatingDropdown, to every floating dropdown too —
+        // in _attachFloatingDropdown, to every floating dropdown too -
         // whichever of those actually contains the currently focused actor
         // is the one that will see it.
         this._keyId = this._box.connect('captured-event', (_actor, ev) => this._handleKeyEvent(ev));
@@ -342,7 +342,7 @@ export class EventPanel {
             if (this._openDropdown) {
                 // The date picker's grid wants 2D navigation (Left/Right by
                 // day, Up/Down by week, crossing month boundaries) rather
-                // than the flat-list walk every other dropdown uses —
+                // than the flat-list walk every other dropdown uses -
                 // _makeDateField tags its floater with _dateNav for that.
                 const dateNav = this._openDropdown._dateNav;
                 if (dateNav) {
@@ -360,7 +360,7 @@ export class EventPanel {
                     return Clutter.EVENT_STOP;
                 }
                 if (sym === Clutter.KEY_Down || sym === Clutter.KEY_Up) {
-                    // Arrow keys, not Tab, walk an open list's own items —
+                    // Arrow keys, not Tab, walk an open list's own items -
                     // same as a native combobox's popup.
                     this._moveInDropdown(sym === Clutter.KEY_Down);
                     return Clutter.EVENT_STOP;
@@ -369,7 +369,7 @@ export class EventPanel {
                 return Clutter.EVENT_PROPAGATE;
             }
             // Nothing open yet: if the focused button is one of the
-            // dropdown/date/time triggers, Down/Up opens it — same as a
+            // dropdown/date/time triggers, Down/Up opens it - same as a
             // closed native combobox. Reuses the button's own existing
             // 'clicked' handler rather than duplicating what it does.
             if (sym === Clutter.KEY_Down || sym === Clutter.KEY_Up) {
@@ -381,8 +381,8 @@ export class EventPanel {
             }
         }
         if (sym === Clutter.KEY_Return || sym === Clutter.KEY_KP_Enter || sym === Clutter.KEY_space) {
-            // Enter/Space activates the highlighted item in an open list —
-            // same as a native combobox's popup — instead of falling through
+            // Enter/Space activates the highlighted item in an open list -
+            // same as a native combobox's popup - instead of falling through
             // to whatever St.Button's own default key handling would do.
             if (this._openDropdown) {
                 const focused = global.stage.get_key_focus();
@@ -416,7 +416,7 @@ export class EventPanel {
             this._box.set_position(x, y);
         } else {
             // Clamp against boxH too (not just center horizontally) so a tall
-            // panel — e.g. editing an event with a long note — can't have its
+            // panel - e.g. editing an event with a long note - can't have its
             // bottom pushed off-screen; it settles against the bottom margin
             // instead of overflowing past it.
             const idealY = monitor.y + panelH + Math.round((monitor.height - panelH) * 0.18);
@@ -430,7 +430,7 @@ export class EventPanel {
         const ev  = this._event;
         const box = this._box;
 
-        // ── Title ──────────────────────────────────────────────────────────────
+        // Title
         this._titleEntry = new St.Entry({
             style_class: 'litsycal-panel-title-entry',
             hint_text: _('Event title'),
@@ -445,7 +445,7 @@ export class EventPanel {
         this._focusOnClick(this._titleEntry);
         box.add_child(this._titleEntry);
 
-        // ── Calendar picker ────────────────────────────────────────────────────
+        // Calendar picker
         const calBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
         this._calPickerBtn = new St.Button({
             style_class: 'litsycal-panel-cal-btn',
@@ -485,7 +485,7 @@ export class EventPanel {
 
         box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
 
-        // ── Location ───────────────────────────────────────────────────────────
+        // Location
         const locationRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
         locationRow.add_child(new St.Label({text: _('Location'), style_class: 'litsycal-panel-lbl'}));
         this._locationEntry = new St.Entry({
@@ -502,7 +502,7 @@ export class EventPanel {
         locationRow.add_child(this._locationEntry);
         box.add_child(locationRow);
 
-        // ── URL ────────────────────────────────────────────────────────────────
+        // URL
         const urlRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
         urlRow.add_child(new St.Label({text: _('URL'), style_class: 'litsycal-panel-lbl'}));
         this._urlEntry = new St.Entry({
@@ -531,7 +531,7 @@ export class EventPanel {
 
         box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
 
-        // ── All-day ────────────────────────────────────────────────────────────
+        // All-day
         const allDayRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
         allDayRow.add_child(new St.Label({
             text: _('All-day'), style_class: 'litsycal-panel-lbl', x_expand: true,
@@ -545,7 +545,7 @@ export class EventPanel {
         allDayRow.add_child(this._allDayBtn);
         box.add_child(allDayRow);
 
-        // ── Starts ─────────────────────────────────────────────────────────────
+        // Starts
         const defStartTime = ev && !ev.allDay
             ? ev.time?.split(' - ')[0] ?? this._nowHour()
             : this._draft?.time ?? this._nowHour();
@@ -557,7 +557,7 @@ export class EventPanel {
         this._startsRow.add_child(this._startTimePicker.actor);
         box.add_child(this._startsRow);
 
-        // ── Ends ───────────────────────────────────────────────────────────────
+        // Ends
         let defEndTime;
         if (ev && !ev.allDay)
             defEndTime = ev.time?.split(' - ')[1]?.trim() ?? this._nextHour();
@@ -580,7 +580,7 @@ export class EventPanel {
 
         box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
 
-        // ── Repeat ─────────────────────────────────────────────────────────────
+        // Repeat
         const repeatInit = this._repeatInitFor(ev?.recurrence);
         this._customRecurrence = repeatInit.customRecurrence;
 
@@ -610,7 +610,7 @@ export class EventPanel {
 
         box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
 
-        // ── Alert ──────────────────────────────────────────────────────────────
+        // Alert
         const alertInit = this._alertInitFor(ev?.alarm, this._allDay);
         this._customAlarm = alertInit.customAlarm;
         const alertRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
@@ -621,7 +621,7 @@ export class EventPanel {
 
         box.add_child(new St.Widget({style_class: 'litsycal-panel-sep'}));
 
-        // ── Notes ──────────────────────────────────────────────────────────────
+        // Notes
         const notesRow = new St.BoxLayout({style_class: 'litsycal-panel-row', x_expand: true});
         notesRow.add_child(new St.Label({text: _('Notes'), style_class: 'litsycal-panel-lbl'}));
         const notesScroll = new St.ScrollView({
@@ -649,20 +649,20 @@ export class EventPanel {
         this._focusOnClick(this._notesEntry);
         // St.ScrollView.set_child() requires an St.Scrollable child, which
         // St.Entry doesn't implement (only container types like BoxLayout
-        // do) — go through a plain wrapper, same as the time picker's list.
+        // do) - go through a plain wrapper, same as the time picker's list.
         const notesInner = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
         notesInner.add_child(this._notesEntry);
         notesScroll.set_child(notesInner);
         notesRow.add_child(notesScroll);
         box.add_child(notesRow);
 
-        // ── Error ──────────────────────────────────────────────────────────────
+        // Error
         this._errorLbl = new St.Label({
             style_class: 'litsycal-panel-error', text: '', visible: false,
         });
         box.add_child(this._errorLbl);
 
-        // ── Buttons ────────────────────────────────────────────────────────────
+        // Buttons
         const btnRow = new St.BoxLayout({style_class: 'litsycal-panel-btn-row', x_expand: true});
         if (ev) {
             this._deleteBtn = new St.Button({label: _('Delete'), style_class: 'litsycal-panel-delete-btn'});
@@ -681,9 +681,9 @@ export class EventPanel {
         this._titleEntry.clutter_text.connect('text-changed', () => this._updateSaveEnabled());
         this._updateSaveEnabled();
 
-        // ── Tab order ──────────────────────────────────────────────────────────
+        // Tab order
         // Plain St/Clutter widgets don't get Tab-traversal for free the way a
-        // GTK dialog's widgets do — see _moveFocus() for the key handling.
+        // GTK dialog's widgets do - see _moveFocus() for the key handling.
         // Listed in visual order; _focusableActors() filters to whatever is
         // currently mapped/reactive (rows like Ends' time or Repeat's Until
         // come and go based on All-day/Repeat/Alert state).
@@ -710,7 +710,7 @@ export class EventPanel {
         return `${pad((n.get_hour() + 1) % 24)}:00`;
     }
 
-    // One hour after a given 'HH:MM' time string, minutes reset to :00 —
+    // One hour after a given 'HH:MM' time string, minutes reset to :00 -
     // same rounding _nextHour() above applies to "now". Derives a quick-add
     // draft's end time from its parsed start time; _nextHour() is relative
     // to the current wall clock, so quick-adding "3pm" at 10am would
@@ -766,7 +766,7 @@ export class EventPanel {
 
     // Live preview of the selected start time converted into each zone from
     // the 'timezones' setting (the same list the main calendar's own
-    // world-clock section reads) — lets you see what time a remote
+    // world-clock section reads) - lets you see what time a remote
     // invitee would see without doing the math yourself.
     _buildTzPreview() {
         this._tzPreviewBox = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, visible: false});
@@ -792,16 +792,16 @@ export class EventPanel {
         const timeFormat = this._settings.get_string('time-format');
 
         // The picked y/m/d/h/min are wall-clock digits in *your* local zone
-        // — build the actual instant they represent first, then re-express
+        // - build the actual instant they represent first, then re-express
         // that same instant in each configured zone. (GLib.DateTime.new(tz,
         // ...) would instead stamp the raw digits directly onto tz, which is
-        // wrong here — it's only correct for "now", where the digits are
+        // wrong here - it's only correct for "now", where the digits are
         // already tz-agnostic since they're derived from the current UTC
         // instant.)
         const localInstant = GLib.DateTime.new_local(y, m, d, h, min, 0);
         const instantUnix  = localInstant.to_unix();
 
-        // Same reference-point idea as calendarWidget.js's world clock —
+        // Same reference-point idea as calendarWidget.js's world clock -
         // resolved fresh each call rather than cached, since the dialog is
         // short-lived and this setting isn't read anywhere else here.
         const homeId = this._settings.get_string('home-timezone');
@@ -850,7 +850,7 @@ export class EventPanel {
         if (presets.some(o => o.value === key))
             return {value: key, options: presets, customAlarm: null};
 
-        // Exact offset from another app that isn't one of our presets — inject
+        // Exact offset from another app that isn't one of our presets - inject
         // it so it stays visible and editable instead of looking unsupported.
         const extra = {value: key, label: minutesLabel(alarm.minutesBefore, allDay)};
         return {value: key, options: [extra, ...presets], customAlarm: null};
@@ -884,7 +884,7 @@ export class EventPanel {
         this._repeatUntilPicker.actor.visible = this._repeatEndPicker.getValue() === 'ON_DATE';
     }
 
-    // Actors from this._focusOrder that are actually reachable right now —
+    // Actors from this._focusOrder that are actually reachable right now -
     // a hidden row (Ends' time while All-day is on, Repeat's Until, the
     // disabled Save button, ...) leaves its actor un-mapped rather than
     // removed, so `mapped` is what tells us it's currently skippable.
@@ -893,8 +893,8 @@ export class EventPanel {
     }
 
     // Depth-first collection of an open floating dropdown's own focusable
-    // buttons/entries — e.g. the date picker's prev/next-month buttons plus
-    // its whole day grid, not just its trigger button — used by
+    // buttons/entries - e.g. the date picker's prev/next-month buttons plus
+    // its whole day grid, not just its trigger button - used by
     // _moveInDropdown() and by _toggleDropdown()'s focus-on-open step.
     _collectFocusable(actor, out = []) {
         if (actor instanceof St.Button || actor instanceof St.Entry) {
@@ -908,7 +908,7 @@ export class EventPanel {
     }
 
     // Closes the currently open dropdown, if any, and returns focus to the
-    // button that opened it — the same "leave the popup" step Escape, Tab,
+    // button that opened it - the same "leave the popup" step Escape, Tab,
     // and picking an option all end up doing.
     _closeDropdown() {
         const anchor = this._openDropdownAnchor;
@@ -918,7 +918,7 @@ export class EventPanel {
         anchor?.grab_key_focus();
     }
 
-    // Up/Down move the highlight among an open dropdown's own items — same
+    // Up/Down move the highlight among an open dropdown's own items - same
     // as a native combobox's popup. Wraps at either end.
     _moveInDropdown(forward) {
         const items = this._collectFocusable(this._openDropdown);
@@ -937,11 +937,11 @@ export class EventPanel {
 
     // St.Entry forwards key focus to its internal clutter_text, so that's
     // what global.stage.get_key_focus() actually returns while one is
-    // focused — matched here via each actor's own .clutter_text, if it has one.
-    // Tab always leaves an open dropdown (Up/Down navigate within it — see
+    // focused - matched here via each actor's own .clutter_text, if it has one.
+    // Tab always leaves an open dropdown (Up/Down navigate within it - see
     // _moveInDropdown) rather than walking its items one Tab at a time,
     // which made tabbing past e.g. Alert's 10 options, or the date picker's
-    // whole day grid, painfully slow — same as a native combobox, where Tab
+    // whole day grid, painfully slow - same as a native combobox, where Tab
     // moves between fields and the popup's own list uses arrow keys.
     _moveFocus(forward) {
         if (this._openDropdown) {
@@ -983,7 +983,7 @@ export class EventPanel {
     }
 
     // This panel floats in Main.layoutManager.uiGroup, detached from the shell's
-    // PopupMenu that hosts the calendar — clicking an entry here doesn't reliably
+    // PopupMenu that hosts the calendar - clicking an entry here doesn't reliably
     // grab key focus on its own, so do it explicitly.
     _focusOnClick(entry) {
         entry.connect('button-press-event', () => {
@@ -995,13 +995,13 @@ export class EventPanel {
     // Registers a dropdown/date/time list as a floating overlay: added to
     // this._root (a later sibling of this._box there, so it paints on top
     // of it, and still inside the grabbed subtree so its buttons actually
-    // receive clicks — see the constructor) rather than into the panel's
+    // receive clicks - see the constructor) rather than into the panel's
     // own layout, so showing it never grows the panel. Tracked for teardown
     // in close().
     //
     // Also wired to the same _handleKeyEvent as this._box: captured-event
     // under this panel's grab only reaches a genuine descendant of the
-    // grabbed actor (this._root) that itself contains the focused actor —
+    // grabbed actor (this._root) that itself contains the focused actor -
     // this._box covers focus living in the main fields, but a dropdown is
     // this._root's *other* child, a sibling of this._box, so it needs its
     // own connection to see Escape/Tab/arrows while one of its own items
@@ -1011,7 +1011,7 @@ export class EventPanel {
         this._floaters.push(dropdown);
         // St.BoxLayout/St.ScrollView default to non-reactive, and a
         // non-reactive actor is skipped entirely by Clutter's key-event
-        // capture-phase walk — without this, 'captured-event' below never
+        // capture-phase walk - without this, 'captured-event' below never
         // fires once focus is on one of the dropdown's own items, so
         // Escape/arrows silently do nothing (confirmed via instrumentation:
         // the item itself still received the raw bubble-phase event, but
@@ -1020,7 +1020,7 @@ export class EventPanel {
         dropdown.connect('captured-event', (_actor, ev) => this._handleKeyEvent(ev));
         // Registered here, at construction, rather than lazily inside
         // _toggleDropdown() (which only ever runs once the button has
-        // already been clicked once) — otherwise Down/Up-opens-a-closed-
+        // already been clicked once) - otherwise Down/Up-opens-a-closed-
         // trigger in _handleKeyEvent can't recognize a field that hasn't
         // been interacted with yet, and does nothing on it.
         (this._dropdownTriggers ??= new Set()).add(anchorBtn);
@@ -1068,7 +1068,7 @@ export class EventPanel {
 
         if (willOpen) {
             // Land keyboard focus on the list's current selection (or its
-            // first item) as soon as it opens, same as a native combobox —
+            // first item) as soon as it opens, same as a native combobox -
             // Up/Down then move within it (_moveInDropdown), no extra Tab
             // press needed to "enter" it. Deferred one idle: becoming
             // visible this frame means it hasn't been through an allocation
@@ -1159,7 +1159,7 @@ export class EventPanel {
 
         // The label shows the calendar-system year for the user, but getValue()
         // below always returns the real Gregorian ISO string _save()/_parseDate()
-        // expect — display and stored value are deliberately kept separate.
+        // expect - display and stored value are deliberately kept separate.
         const labelFor = ({y, m, d}) =>
             `${displayYear(y, this._calendarSystem)}-${pad(m)}-${pad(d)}`;
 
@@ -1262,8 +1262,8 @@ export class EventPanel {
             }
         };
 
-        // 2D grid navigation for the date picker specifically — Left/Right
-        // move a day, Up/Down move a week — rather than the flat-list walk
+        // 2D grid navigation for the date picker specifically - Left/Right
+        // move a day, Up/Down move a week - rather than the flat-list walk
         // every other dropdown uses (see _handleKeyEvent's dateNav check).
         // GLib.DateTime.add_days() does the month/year-boundary crossing
         // (e.g. Left from the 1st lands on the last day of the prior month)
@@ -1356,7 +1356,7 @@ export class EventPanel {
             this._toggleDropdown(scroll, btn, () => {
                 const idx = optBtns.findIndex(b => b.get_label() === cur);
                 // Buttons are built once and never rebuilt, so picking a
-                // time only moves `cur` — re-derive the "-selected" mark
+                // time only moves `cur` - re-derive the "-selected" mark
                 // (used both visually and by _toggleDropdown's
                 // auto-focus-on-open) every time the list opens.
                 for (const b of optBtns)
@@ -1488,7 +1488,7 @@ export class EventPanel {
 
         // Plain text with no scheme (e.g. typed into the wrong field) isn't a
         // link, so it's rejected rather than saved as one. Only
-        // enforced when the field actually changed — synced events often
+        // enforced when the field actually changed - synced events often
         // arrive with non-URL text (room codes, "TBD") already in this
         // field, and editing an unrelated field shouldn't be blocked by
         // data this dialog didn't put there.
@@ -1649,11 +1649,11 @@ export class GoToDatePanel extends FloatingModalPanel {
 
 // Single-line "quick add" entry (Ctrl+Shift+N): parses a one-liner into a
 // draft (title/date/time/location) that EventPanel then opens pre-filled
-// with, rather than creating the event directly — parsing free text into a
+// with, rather than creating the event directly - parsing free text into a
 // date/time is inherently a little fragile, so the full form still gets a
 // chance to confirm or fix anything before anything is actually saved. See
 // quickAddParser.js for the parsing itself. Modeled directly on
-// GoToDatePanel just above — same modal-grab/Escape/click-outside pattern.
+// GoToDatePanel just above - same modal-grab/Escape/click-outside pattern.
 export class QuickAddPanel extends FloatingModalPanel {
     // onClose is called exactly once, with the parsed draft on a successful
     // submit or null on cancel (Escape / click outside).
@@ -1687,7 +1687,7 @@ export class QuickAddPanel extends FloatingModalPanel {
     }
 
     // Mirrors EventPanel's own _updateSaveEnabled (disabled until there's
-    // something to parse — parseQuickAdd only ever returns null for
+    // something to parse - parseQuickAdd only ever returns null for
     // empty/whitespace input).
     _updateSubmitEnabled() {
         const hasText = this._entry.get_text().trim().length > 0;
