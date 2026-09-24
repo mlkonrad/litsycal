@@ -117,7 +117,7 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
             GLib.source_remove(positionIdleId);
             positionIdleId = null;
         }
-        overlay.disconnect(eventId);
+        overlay.disconnectObject(overlay);
         if (grab)
             Main.popModal(grab);
         Main.layoutManager.uiGroup.remove_child(overlay);
@@ -130,10 +130,10 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
     const buttons = [];
     const mkBtn = (label, styleClass, onClick) => {
         const b = new St.Button({label, style_class: styleClass, x_expand: true, can_focus: true});
-        b.connect('clicked', () => {
+        b.connectObject('clicked', () => {
             closeOverlay();
             onClick();
-        });
+        }, overlay);
         buttons.push(b);
         return b;
     };
@@ -153,11 +153,12 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
     // listener on the overlay (or on Main.pushModal's grabbed actor itself)
     // isn't reliable here: this overlay's grab nests inside a caller's own
     // competing grab (EventPanel's or the info popover's), where
-    // capture-phase events don't reach anything (see eventInfoPopover.js's
-    // this._btnKeyId comment). A bubble-phase 'key-press-event' on the actor
-    // holding key focus does, so that's what's used here.
+    // capture-phase events don't reach anything (see the comment on
+    // eventInfoPopover.js's _deleteBtn key-press handler). A bubble-phase
+    // 'key-press-event' on the actor holding key focus does, so that's what's
+    // used here.
     buttons.forEach((b, i) => {
-        b.connect('key-press-event', (_actor, keyEvent) => {
+        b.connectObject('key-press-event', (_actor, keyEvent) => {
             const sym = keyEvent.get_key_symbol();
             if (sym !== Clutter.KEY_Tab && sym !== Clutter.KEY_ISO_Left_Tab)
                 return Clutter.EVENT_PROPAGATE;
@@ -166,7 +167,7 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
             const next = (i + (forward ? 1 : -1) + buttons.length) % buttons.length;
             buttons[next].grab_key_focus();
             return Clutter.EVENT_STOP;
-        });
+        }, overlay);
     });
 
     Main.layoutManager.uiGroup.add_child(overlay);
@@ -193,7 +194,7 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
         return GLib.SOURCE_REMOVE;
     });
 
-    const eventId = overlay.connect('captured-event', (_actor, ev) => {
+    overlay.connectObject('captured-event', (_actor, ev) => {
         if (ev.type() === Clutter.EventType.BUTTON_PRESS) {
             const [x, y] = ev.get_coords();
             const actor  = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
@@ -207,7 +208,7 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
             return Clutter.EVENT_STOP;
         }
         return Clutter.EVENT_PROPAGATE;
-    });
+    }, overlay);
 
     onOverlayChange?.(closeOverlay);
 }
@@ -283,7 +284,7 @@ export class EventPanel {
             return GLib.SOURCE_REMOVE;
         });
 
-        this._clickId = global.stage.connect('button-press-event', (_stage, ev) => {
+        global.stage.connectObject('button-press-event', (_stage, ev) => {
             if (this._closeConfirmOverlay)
                 return Clutter.EVENT_PROPAGATE; // let it handle its own clicks
             const [x, y] = ev.get_coords();
@@ -295,7 +296,7 @@ export class EventPanel {
                 !(this._openDropdown && this._openDropdown.contains(actor)))
                 this.close();
             return Clutter.EVENT_PROPAGATE;
-        });
+        }, this);
 
         // Captured (not bubble-phase global.stage) so this fires ahead of
         // PopupMenu's own Escape handling now that our grab above is the
@@ -307,7 +308,7 @@ export class EventPanel {
         // in _attachFloatingDropdown, to every floating dropdown too -
         // whichever of those actually contains the currently focused actor
         // is the one that will see it.
-        this._keyId = this._box.connect('captured-event', (_actor, ev) => this._handleKeyEvent(ev));
+        this._box.connectObject('captured-event', (_actor, ev) => this._handleKeyEvent(ev), this);
     }
 
     _handleKeyEvent(ev) {
@@ -441,7 +442,7 @@ export class EventPanel {
             this._titleEntry.set_text(ev.title ?? '');
         else if (this._draft?.title)
             this._titleEntry.set_text(this._draft.title);
-        this._titleEntry.clutter_text.connect('activate', () => this._save());
+        this._titleEntry.clutter_text.connectObject('activate', () => this._save(), this);
         this._focusOnClick(this._titleEntry);
         box.add_child(this._titleEntry);
 
@@ -468,17 +469,17 @@ export class EventPanel {
                 row.add_child(dot);
                 row.add_child(new St.Label({text: src.name, x_expand: true}));
                 btn.set_child(row);
-                btn.connect('clicked', () => {
+                btn.connectObject('clicked', () => {
                     this._selSource = src;
                     this._refreshCalBtn();
                     this._closeDropdown();
-                });
+                }, this);
                 this._calDropdown.add_child(btn);
             }
             this._attachFloatingDropdown(this._calDropdown, this._calPickerBtn);
-            this._calPickerBtn.connect('clicked', () => {
+            this._calPickerBtn.connectObject('clicked', () => {
                 this._toggleDropdown(this._calDropdown, this._calPickerBtn);
-            });
+            }, this);
         }
         calBox.add_child(this._calPickerBtn);
         box.add_child(calBox);
@@ -521,10 +522,10 @@ export class EventPanel {
             style_class: 'litsycal-panel-open-btn',
             visible: !!ev?.url,
         });
-        this._openUrlBtn.connect('clicked', () => this._openUrl());
-        this._urlEntry.clutter_text.connect('text-changed', () => {
+        this._openUrlBtn.connectObject('clicked', () => this._openUrl(), this);
+        this._urlEntry.clutter_text.connectObject('text-changed', () => {
             this._openUrlBtn.visible = this._urlEntry.get_text().trim().length > 0;
-        });
+        }, this);
         urlRow.add_child(this._urlEntry);
         urlRow.add_child(this._openUrlBtn);
         box.add_child(urlRow);
@@ -541,7 +542,7 @@ export class EventPanel {
             style_class: `litsycal-panel-toggle ${
                 this._allDay ? 'litsycal-panel-toggle-on' : 'litsycal-panel-toggle-off'}`,
         });
-        this._allDayBtn.connect('clicked', () => this._toggleAllDay());
+        this._allDayBtn.connectObject('clicked', () => this._toggleAllDay(), this);
         allDayRow.add_child(this._allDayBtn);
         box.add_child(allDayRow);
 
@@ -666,19 +667,19 @@ export class EventPanel {
         const btnRow = new St.BoxLayout({style_class: 'litsycal-panel-btn-row', x_expand: true});
         if (ev) {
             this._deleteBtn = new St.Button({label: _('Delete'), style_class: 'litsycal-panel-delete-btn'});
-            this._deleteBtn.connect('clicked', () => this._confirmDelete());
+            this._deleteBtn.connectObject('clicked', () => this._confirmDelete(), this);
             btnRow.add_child(this._deleteBtn);
         }
         btnRow.add_child(new St.Widget({x_expand: true}));
         this._cancelBtn = new St.Button({label: _('Cancel'), style_class: 'litsycal-panel-cancel-btn'});
-        this._cancelBtn.connect('clicked', () => this.close());
+        this._cancelBtn.connectObject('clicked', () => this.close(), this);
         this._saveBtn = new St.Button({label: _('Save Event'), style_class: 'litsycal-panel-save-btn'});
-        this._saveBtn.connect('clicked', () => this._save());
+        this._saveBtn.connectObject('clicked', () => this._save(), this);
         btnRow.add_child(this._cancelBtn);
         btnRow.add_child(this._saveBtn);
         box.add_child(btnRow);
 
-        this._titleEntry.clutter_text.connect('text-changed', () => this._updateSaveEnabled());
+        this._titleEntry.clutter_text.connectObject('text-changed', () => this._updateSaveEnabled(), this);
         this._updateSaveEnabled();
 
         // Tab order
@@ -986,10 +987,10 @@ export class EventPanel {
     // PopupMenu that hosts the calendar - clicking an entry here doesn't reliably
     // grab key focus on its own, so do it explicitly.
     _focusOnClick(entry) {
-        entry.connect('button-press-event', () => {
+        entry.connectObject('button-press-event', () => {
             entry.grab_key_focus();
             return Clutter.EVENT_PROPAGATE;
-        });
+        }, this);
     }
 
     // Registers a dropdown/date/time list as a floating overlay: added to
@@ -1017,7 +1018,7 @@ export class EventPanel {
         // the item itself still received the raw bubble-phase event, but
         // it never reached this container or anything above it).
         dropdown.reactive = true;
-        dropdown.connect('captured-event', (_actor, ev) => this._handleKeyEvent(ev));
+        dropdown.connectObject('captured-event', (_actor, ev) => this._handleKeyEvent(ev), this);
         // Registered here, at construction, rather than lazily inside
         // _toggleDropdown() (which only ever runs once the button has
         // already been clicked once) - otherwise Down/Up-opens-a-closed-
@@ -1123,7 +1124,7 @@ export class EventPanel {
                     style_class: `litsycal-panel-dropdown-option${
                         isSel ? ' litsycal-panel-dropdown-option-selected' : ''}`,
                 });
-                optBtn.connect('clicked', onOptionClicked(opt));
+                optBtn.connectObject('clicked', onOptionClicked(opt), this);
                 dropdown.add_child(optBtn);
             }
         };
@@ -1135,7 +1136,7 @@ export class EventPanel {
         // visually and by _toggleDropdown's auto-focus-on-open) would stay
         // stuck on whatever was selected when the list was last built,
         // since picking an option updates `cur` but doesn't itself rebuild.
-        btn.connect('clicked', () => this._toggleDropdown(dropdown, btn, rebuildList));
+        btn.connectObject('clicked', () => this._toggleDropdown(dropdown, btn, rebuildList), this);
 
         wrap.add_child(btn);
 
@@ -1244,7 +1245,7 @@ export class EventPanel {
                 dayBtn.accessible_name =
                     `${capitalize(GLib.DateTime.new_local(view.y, view.m, d, 0, 0, 0).format('%A, %B %-d'))
                     }, ${displayYear(view.y, this._calendarSystem)}`;
-                dayBtn.connect('clicked', onDayClicked(view.y, view.m, d));
+                dayBtn.connectObject('clicked', onDayClicked(view.y, view.m, d), this);
                 row.add_child(dayBtn);
                 col++;
                 if (col === 7) {
@@ -1287,20 +1288,20 @@ export class EventPanel {
                 ?.grab_key_focus();
         };
 
-        prevBtn.connect('clicked', () => {
+        prevBtn.connectObject('clicked', () => {
             view = view.m === 1 ? {y: view.y - 1, m: 12} : {y: view.y, m: view.m - 1};
             rebuild();
-        });
-        nextBtn.connect('clicked', () => {
+        }, this);
+        nextBtn.connectObject('clicked', () => {
             view = view.m === 12 ? {y: view.y + 1, m: 1} : {y: view.y, m: view.m + 1};
             rebuild();
-        });
-        btn.connect('clicked', () => {
+        }, this);
+        btn.connectObject('clicked', () => {
             this._toggleDropdown(dropdown, btn, () => {
                 view = {y: cur.y, m: cur.m};
                 rebuild();
             });
-        });
+        }, this);
 
         rebuild();
         wrap.add_child(btn);
@@ -1346,13 +1347,13 @@ export class EventPanel {
                     style_class: `litsycal-panel-time-option${
                         isSel ? ' litsycal-panel-time-option-selected' : ''}`,
                 });
-                optBtn.connect('clicked', onTimeClicked(value));
+                optBtn.connectObject('clicked', onTimeClicked(value), this);
                 list.add_child(optBtn);
                 optBtns.push(optBtn);
             }
         }
 
-        btn.connect('clicked', () => {
+        btn.connectObject('clicked', () => {
             this._toggleDropdown(scroll, btn, () => {
                 const idx = optBtns.findIndex(b => b.get_label() === cur);
                 // Buttons are built once and never rebuilt, so picking a
@@ -1377,7 +1378,7 @@ export class EventPanel {
                     return GLib.SOURCE_REMOVE;
                 });
             });
-        });
+        }, this);
 
         wrap.add_child(btn);
 
@@ -1550,14 +1551,9 @@ export class EventPanel {
         }
         if (this._closeConfirmOverlay)
             this._closeConfirmOverlay();
-        if (this._clickId) {
-            global.stage.disconnect(this._clickId);
-            this._clickId = null;
-        }
-        if (this._keyId)   {
-            this._box.disconnect(this._keyId);
-            this._keyId   = null;
-        }
+        global.stage.disconnectObject(this);
+        if (this._box)
+            this._box.disconnectObject(this);
         if (this._grab)    {
             Main.popModal(this._grab);
             this._grab = null;
@@ -1612,14 +1608,14 @@ export class GoToDatePanel extends FloatingModalPanel {
             x_expand: true,
             can_focus: true,
         });
-        this._entry.clutter_text.connect('activate', () => this._submit());
-        this._entry.clutter_text.connect('text-changed', () => {
+        this._entry.clutter_text.connectObject('activate', () => this._submit(), this);
+        this._entry.clutter_text.connectObject('text-changed', () => {
             this._errorLbl.visible = false;
-        });
+        }, this);
         row.add_child(this._entry);
 
         const goBtn = new St.Button({label: _('Go'), style_class: 'litsycal-panel-save-btn'});
-        goBtn.connect('clicked', () => this._submit());
+        goBtn.connectObject('clicked', () => this._submit(), this);
         row.add_child(goBtn);
 
         box.add_child(row);
@@ -1674,12 +1670,12 @@ export class QuickAddPanel extends FloatingModalPanel {
             x_expand: true,
             can_focus: true,
         });
-        this._entry.clutter_text.connect('activate', () => this._submit());
-        this._entry.clutter_text.connect('text-changed', () => this._updateSubmitEnabled());
+        this._entry.clutter_text.connectObject('activate', () => this._submit(), this);
+        this._entry.clutter_text.connectObject('text-changed', () => this._updateSubmitEnabled(), this);
         row.add_child(this._entry);
 
         this._addBtn = new St.Button({label: _('Add'), style_class: 'litsycal-panel-save-btn'});
-        this._addBtn.connect('clicked', () => this._submit());
+        this._addBtn.connectObject('clicked', () => this._submit(), this);
         row.add_child(this._addBtn);
 
         box.add_child(row);
