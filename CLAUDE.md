@@ -310,18 +310,27 @@ new code should keep meeting these — checked clean as of 2026-09-07:
   extensions.gnome.org"); EGO assigns it on upload.
 - **GSettings schema id** must stay under the `org.gnome.shell.extensions.*`
   base (already true: `org.gnome.shell.extensions.litsycal`).
-- **`GObject.Object.run_dispose()`** must not be called without a documented
-  reason. One justified use: `CalendarManager._disposeRegistryForShutdown()`
-  runs it on the EDS `SourceRegistry` from `global`'s `'shutdown'` signal
-  (the Shell never disables extensions before exiting). Without it the
-  registry's final unref happened inside GJS's own teardown, where EDS's
-  dispose drains the main context into GJS's callback-less promise-queue
-  child source, and gnome-shell segfaulted on every logout (237 of 243
-  gnome-shell core dumps, 2026-09-06 to 09-24; fixed 2026-09-27, verified in
-  the nested session: 0 crashes). A nested devkit session exiting with code
-  139 was this crash; check `coredumpctl info <pid>` for
-  `source_registry_dispose` before blaming a new change. Keep any other
-  use justified in a comment the same way.
+- **`GObject.Object.run_dispose()`**: treat as forbidden. shexli flags any
+  call (EGO-X-003) and the user confirmed EGO doesn't accept it
+  (2026-09-27) - a documented reason in a comment is not enough. It was
+  briefly used for the logout crash below and replaced.
+- **EDS `SourceRegistry` lives on a private `GLib.MainContext`**
+  (`CalendarManager._initRegistry()`), run by `_pumpRegistry()` on a timer
+  (100 ms until the registry exists, then every 5 s). Don't move it back to
+  the Shell's context. `source_registry_dispose()` drains the context that
+  was thread-default when the registry was created; on the Shell's context
+  that drain ran from whichever GC freed the registry, and at Shell exit
+  (extensions are never disabled first) that GC is GJS's own teardown,
+  where the drain dispatched GJS's callback-less promise-queue child source
+  and gnome-shell segfaulted on every logout (237 of 243 gnome-shell core
+  dumps, 2026-09-06 to 09-24). Corollary: anything async started from a
+  registry callback must not inherit the private context - GTask pushes its
+  own context as thread-default while running a callback, so
+  `_connectSource()` pushes `GLib.MainContext.default()` around
+  `ECal.Client.connect()` (without it, calendars only progressed every 5 s).
+  A nested devkit session exiting with code 139 was this crash; check
+  `coredumpctl info <pid>` for `source_registry_dispose` before blaming a
+  new change.
 - Code must be genuinely functional (not a stub) and avoid interfering with
   other extensions or the shell's own systems.
 - **Unnecessary files**: the guide's Recommendations discourage shipping

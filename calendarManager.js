@@ -6,6 +6,14 @@ import Gio         from 'gi://Gio';
 
 import {MAX_EXTRA_WEEK_ROWS} from './helpers.js';
 
+// How often the registry's private main context is run (see _initRegistry()):
+// quickly until the registry exists, so calendars load without delay, then
+// every few seconds - how soon calendars added, removed, enabled or disabled
+// elsewhere show up here. Event changes don't wait on this; they arrive
+// through the clients' own views on the Shell's main context.
+const REGISTRY_STARTUP_PUMP_MS  = 100;
+const REGISTRY_PUMP_INTERVAL_S  = 5;
+
 // EDS calendar backends report colour in whatever format they like - hex,
 // "rgb(r,g,b)"/"rgba(r,g,b,a)" (Google's backend, after a colour change), or
 // occasionally a named CSS colour. Normalizing to hex here, once, gives every
@@ -41,6 +49,9 @@ export class CalendarManager {
         this._events    = [];
         this._byDate    = new Map();   // dateStr -> Event[] (sorted, kept in sync with _events)
         this._registry    = null;
+        this._registryContext        = null;
+        this._registryStartupPumpId  = null;
+        this._registryPumpId         = null;
         this._year        = null;
         this._month       = null;
         this._available   = false;
@@ -53,17 +64,44 @@ export class CalendarManager {
             this._onEventsChanged(this._events);
         }, this);
         // GNOME Shell doesn't disable extensions before it exits, so
-        // destroy() never runs then - see _disposeRegistryForShutdown().
-        global.connectObject('shutdown', () => this._disposeRegistryForShutdown(), this);
+        // destroy() never runs then. The registry is freed during GJS's own
+        // teardown instead, and its dispose dispatches whatever it still has
+        // queued (see _initRegistry()) - which must not reach our handlers
+        // while GJS is shutting down.
+        global.connectObject('shutdown', () => this._registry?.disconnectObject(this), this);
         this._initRegistry();
     }
 
     // Init
 
+    // The registry lives on a private main context, not the Shell's.
+    // ESourceRegistry dispatches its signals (and its ESources') on whatever
+    // context was thread-default when it was created, and its dispose drains
+    // that same context. On the Shell's context, that drain ran from
+    // whichever GC finally freed the registry - at Shell exit, GJS's own
+    // teardown, where it dispatched GJS's promise-queue child source, whose
+    // callback is NULL, and gnome-shell segfaulted on every logout. On a
+    // private context the drain only ever runs EDS's own callbacks. Nothing
+    // runs that context for us, so _pumpRegistry() does, on a timer.
+    // Only the registry itself belongs on the private context: ECal clients
+    // connected from its callbacks are pinned to the Shell's context in
+    // _connectSource().
     _initRegistry() {
+        this._registryContext = new GLib.MainContext();
+        this._registryContext.push_thread_default();
         EDataServer.SourceRegistry.new(this._cancellable, (_obj, res) => {
+            // Already removed when this arrives from destroy()'s last pump.
+            if (this._registryStartupPumpId) {
+                GLib.source_remove(this._registryStartupPumpId);
+                this._registryStartupPumpId = null;
+            }
             try {
                 this._registry  = EDataServer.SourceRegistry.new_finish(res);
+                this._registryPumpId = GLib.timeout_add_seconds(
+                    GLib.PRIORITY_DEFAULT, REGISTRY_PUMP_INTERVAL_S, () => {
+                        this._pumpRegistry();
+                        return GLib.SOURCE_CONTINUE;
+                    });
                 this._available = true;
 
                 this._registry.connectObject(
@@ -78,6 +116,18 @@ export class CalendarManager {
                     logError(e, 'CalendarManager: registry init failed');
             }
         });
+        this._registryContext.pop_thread_default();
+        this._registryStartupPumpId = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT, REGISTRY_STARTUP_PUMP_MS, () => {
+                this._pumpRegistry();
+                return GLib.SOURCE_CONTINUE;
+            });
+    }
+
+    // Dispatches whatever the registry has queued on its private context.
+    _pumpRegistry() {
+        while (this._registryContext.pending())
+            this._registryContext.iteration(false);
     }
 
     _loadSources() {
@@ -101,6 +151,13 @@ export class CalendarManager {
         const color  = normalizeColor(calExt.get_color());
         const name   = source.get_display_name();
 
+        // A client dispatches everything (this callback included) on the
+        // context that is thread-default when it's created. This can run
+        // from the registry's creation callback, which GTask invokes with
+        // the registry's private context pushed as thread-default (see
+        // _initRegistry()), so the Shell's context is pushed explicitly.
+        const shellContext = GLib.MainContext.default();
+        shellContext.push_thread_default();
         ECal.Client.connect(source, ECal.ClientSourceType.EVENTS, 10, this._cancellable, (_obj, res) => {
             try {
                 const client = ECal.Client.connect_finish(res);
@@ -114,6 +171,7 @@ export class CalendarManager {
                     logError(e, `CalendarManager: failed to connect to calendar source '${name}' (${uid})`);
             }
         });
+        shellContext.pop_thread_default();
     }
 
     _dropSource(uid) {
@@ -932,6 +990,14 @@ export class CalendarManager {
     // Cleanup
 
     destroy() {
+        if (this._registryStartupPumpId) {
+            GLib.source_remove(this._registryStartupPumpId);
+            this._registryStartupPumpId = null;
+        }
+        if (this._registryPumpId) {
+            GLib.source_remove(this._registryPumpId);
+            this._registryPumpId = null;
+        }
         // Keeps every in-flight EDS call from calling back into this manager
         // (and the calendar widget behind it) after teardown.
         this._cancellable.cancel();
@@ -943,25 +1009,12 @@ export class CalendarManager {
             this._registry.disconnectObject(this);
             this._registry = null;
         }
+        // One last run, now that everything above is cancelled and
+        // disconnected: a registry creation still in flight then completes
+        // (with CANCELLED) instead of sitting queued on a context nobody
+        // runs anymore, keeping itself and the registry alive.
+        this._pumpRegistry();
+        this._registryContext = null;
         this._clients.clear();
-    }
-
-    // The documented reason for run_dispose() here. EDS's
-    // source_registry_dispose() drains the main context, dispatching
-    // whatever sources are pending. Left to the registry's final unref at
-    // Shell exit, that happens inside GJS's own teardown, where it
-    // dispatches GJS's promise-queue child source - whose callback is NULL -
-    // and gnome-shell segfaults: on every logout/shutdown while litsycal was
-    // enabled. Disposing on 'shutdown' drains it while the main loop is
-    // still sound, and the drain happens only once (dispose clears its main
-    // context), so the final unref later has nothing left to dispatch.
-    // destroy() (disable) doesn't need this: the registry is then released
-    // by an ordinary GC with GJS fully alive.
-    _disposeRegistryForShutdown() {
-        if (this._registry) {
-            this._registry.disconnectObject(this);
-            this._registry.run_dispose();
-            this._registry = null;
-        }
     }
 }
