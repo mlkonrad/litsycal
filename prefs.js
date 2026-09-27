@@ -159,6 +159,17 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             dlg.set_extra_child(hint);
             dlg.add_response('cancel', _('Cancel'));
 
+            // Closes the dialog shortly after a shortcut is recorded, so the
+            // new label is visible for a moment. Removed if the dialog closes
+            // first (Escape, Cancel, the window closing).
+            let closeTimeoutId = null;
+            dlg.connect('closed', () => {
+                if (closeTimeoutId) {
+                    GLib.source_remove(closeTimeoutId);
+                    closeTimeoutId = null;
+                }
+            });
+
             // Capture phase, so the recorder sees every key (Space, Return,
             // ...) before the dialog's own Cancel button can act on it.
             const ctrl = new Gtk.EventControllerKey({propagation_phase: Gtk.PropagationPhase.CAPTURE});
@@ -184,7 +195,12 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                     settings.set_strv('litsycal-toggle-shortcut', [accel]);
                     recordBtn.set_label(Gtk.accelerator_get_label(keyval, mods));
                     hint.set_accelerator(accel);
-                    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 600, () => {
+                    if (closeTimeoutId) {
+                        GLib.source_remove(closeTimeoutId);
+                        closeTimeoutId = null;
+                    }
+                    closeTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 600, () => {
+                        closeTimeoutId = null;
                         dlg.close();
                         return GLib.SOURCE_REMOVE;
                     });
@@ -884,7 +900,12 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         makeLinkRow('Buy Me a Coffee', _('Support Litsycal’s development'),
             'https://buymeacoffee.com/mlkonrad');
 
+        let initialPageIdleId = null;
         window.connect('close-request', () => {
+            if (initialPageIdleId) {
+                GLib.source_remove(initialPageIdleId);
+                initialPageIdleId = null;
+            }
             detectCancellable?.cancel();
             previewMedia?.pause();
             for (const id of settingsHandlerIds)
@@ -906,7 +927,12 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             // set_visible_page() here, mid-construction, doesn't stick - the
             // window's own navigation view isn't ready to switch pages until
             // it's mapped. Defer to the next idle tick, once it is.
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            if (initialPageIdleId) {
+                GLib.source_remove(initialPageIdleId);
+                initialPageIdleId = null;
+            }
+            initialPageIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                initialPageIdleId = null;
                 window.set_visible_page(pagesByName[requestedPage]);
                 return GLib.SOURCE_REMOVE;
             });
