@@ -69,7 +69,7 @@ class LitsycalIndicator extends PanelMenu.Button {
 
         this._logo = new St.Icon({
             y_align: Clutter.ActorAlign.CENTER,
-            icon_size: 26, visible: false,
+            icon_size: 24, visible: false,
         });
         this._logo.set_gicon(Gio.icon_new_for_string(`${extPath}/litsycal-logo.svg`));
         this._box.insert_child_above(this._logo, this._badge);
