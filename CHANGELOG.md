@@ -54,6 +54,12 @@ longer carries a `version` key — see that file's history for why).
 
 ### Fixed
 
+- GNOME Shell no longer crashes on logout or shutdown while Litsycal is
+  enabled. Litsycal's connection to Evolution Data Server was only released
+  during the Shell's final teardown, where releasing it crashed the Shell
+  (after the session had already ended, so nothing was lost, but it left a
+  crash report behind every time). It's now released as soon as the Shell
+  starts shutting down.
 - Time zone clocks no longer cut the time short (e.g. "4:3…" instead of
   "4:36pm") on a small calendar with a large font, most visibly with the
   12h format. The dotted leader between city and time now only fills the

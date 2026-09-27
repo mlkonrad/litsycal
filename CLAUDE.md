@@ -311,7 +311,17 @@ new code should keep meeting these — checked clean as of 2026-09-07:
 - **GSettings schema id** must stay under the `org.gnome.shell.extensions.*`
   base (already true: `org.gnome.shell.extensions.litsycal`).
 - **`GObject.Object.run_dispose()`** must not be called without a documented
-  reason — currently unused, keep it that way unless justified in a comment.
+  reason. One justified use: `CalendarManager._disposeRegistryForShutdown()`
+  runs it on the EDS `SourceRegistry` from `global`'s `'shutdown'` signal
+  (the Shell never disables extensions before exiting). Without it the
+  registry's final unref happened inside GJS's own teardown, where EDS's
+  dispose drains the main context into GJS's callback-less promise-queue
+  child source, and gnome-shell segfaulted on every logout (237 of 243
+  gnome-shell core dumps, 2026-09-06 to 09-24; fixed 2026-09-27, verified in
+  the nested session: 0 crashes). A nested devkit session exiting with code
+  139 was this crash; check `coredumpctl info <pid>` for
+  `source_registry_dispose` before blaming a new change. Keep any other
+  use justified in a comment the same way.
 - Code must be genuinely functional (not a stub) and avoid interfering with
   other extensions or the shell's own systems.
 - **Unnecessary files**: the guide's Recommendations discourage shipping

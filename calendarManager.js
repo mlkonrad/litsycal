@@ -52,6 +52,9 @@ export class CalendarManager {
             this._reindex();
             this._onEventsChanged(this._events);
         }, this);
+        // GNOME Shell doesn't disable extensions before it exits, so
+        // destroy() never runs then - see _disposeRegistryForShutdown().
+        global.connectObject('shutdown', () => this._disposeRegistryForShutdown(), this);
         this._initRegistry();
     }
 
@@ -933,6 +936,7 @@ export class CalendarManager {
         // (and the calendar widget behind it) after teardown.
         this._cancellable.cancel();
         this._settings.disconnectObject(this);
+        global.disconnectObject(this);
         for (const uid of [...this._views.keys()])
             this._stopView(uid);
         if (this._registry) {
@@ -940,5 +944,24 @@ export class CalendarManager {
             this._registry = null;
         }
         this._clients.clear();
+    }
+
+    // The documented reason for run_dispose() here. EDS's
+    // source_registry_dispose() drains the main context, dispatching
+    // whatever sources are pending. Left to the registry's final unref at
+    // Shell exit, that happens inside GJS's own teardown, where it
+    // dispatches GJS's promise-queue child source - whose callback is NULL -
+    // and gnome-shell segfaults: on every logout/shutdown while litsycal was
+    // enabled. Disposing on 'shutdown' drains it while the main loop is
+    // still sound, and the drain happens only once (dispose clears its main
+    // context), so the final unref later has nothing left to dispatch.
+    // destroy() (disable) doesn't need this: the registry is then released
+    // by an ordinary GC with GJS fully alive.
+    _disposeRegistryForShutdown() {
+        if (this._registry) {
+            this._registry.disconnectObject(this);
+            this._registry.run_dispose();
+            this._registry = null;
+        }
     }
 }
