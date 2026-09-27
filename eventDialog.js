@@ -206,6 +206,10 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
     // this._grab.
     const grab = Main.pushModal(overlay, {actionMode: Shell.ActionMode.POPUP});
 
+    if (positionIdleId) {
+        GLib.source_remove(positionIdleId);
+        positionIdleId = null;
+    }
     positionIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
         positionIdleId = null;
         const monitor = Main.layoutManager.primaryMonitor;
@@ -304,6 +308,10 @@ export class EventPanel {
         this._grab = Main.pushModal(this._root, {actionMode: Shell.ActionMode.POPUP});
 
         // Defer positioning until after layout pass so actor size is known
+        if (this._positionIdleId) {
+            GLib.source_remove(this._positionIdleId);
+            this._positionIdleId = null;
+        }
         this._positionIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
             this._positionIdleId = null;
             this._position(anchorActor);

@@ -87,6 +87,10 @@ export class EventInfoPopover {
         this._grab = Main.pushModal(this._root, {actionMode: Shell.ActionMode.POPUP});
 
         // Defer positioning until after layout pass so actor size is known.
+        if (this._positionIdleId) {
+            GLib.source_remove(this._positionIdleId);
+            this._positionIdleId = null;
+        }
         this._positionIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
             this._positionIdleId = null;
             this._position(anchorActor);

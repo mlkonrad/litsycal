@@ -279,6 +279,13 @@ new code should keep meeting these — checked clean as of 2026-09-07:
   unjustified method aliases, and co-locate a timeout's removal check
   immediately before the line that creates its replacement (see the
   `_dayInfoTimeoutId` pattern in calendarWidget.js).
+  - **Every** `timeout_add*`/`idle_add` stored in a variable gets that
+    `if (id) { GLib.source_remove(id); id = null; }` block right before it,
+    even when it can only ever be created once (in a constructor or a
+    one-shot init). The EGO reviewer rejected `bcb3730` for exactly that
+    case (`_registryStartupPumpId` in `CalendarManager._initRegistry()`,
+    2026-09-27). A helper that removes it (`_cancelTooltip()`) called on
+    the line before also counts.
   - **One property per timeout.** Never store two different timeouts in the
     same id property, even when they're mutually exclusive: the cell and
     footer tooltips sharing `_tooltipTimeoutId` was flagged (2026-09-24) and

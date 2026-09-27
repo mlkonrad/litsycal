@@ -97,6 +97,10 @@ export class SettingsMenuPanel {
         Main.layoutManager.uiGroup.add_child(this._box);
         this._grab = Main.pushModal(this._box, {actionMode: Shell.ActionMode.POPUP});
 
+        if (this._positionIdleId) {
+            GLib.source_remove(this._positionIdleId);
+            this._positionIdleId = null;
+        }
         this._positionIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
             this._positionIdleId = null;
             this._position(anchorActor);

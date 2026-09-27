@@ -97,6 +97,10 @@ export class CalendarManager {
             }
             try {
                 this._registry  = EDataServer.SourceRegistry.new_finish(res);
+                if (this._registryPumpId) {
+                    GLib.source_remove(this._registryPumpId);
+                    this._registryPumpId = null;
+                }
                 this._registryPumpId = GLib.timeout_add_seconds(
                     GLib.PRIORITY_DEFAULT, REGISTRY_PUMP_INTERVAL_S, () => {
                         this._pumpRegistry();
@@ -117,6 +121,10 @@ export class CalendarManager {
             }
         });
         this._registryContext.pop_thread_default();
+        if (this._registryStartupPumpId) {
+            GLib.source_remove(this._registryStartupPumpId);
+            this._registryStartupPumpId = null;
+        }
         this._registryStartupPumpId = GLib.timeout_add(
             GLib.PRIORITY_DEFAULT, REGISTRY_STARTUP_PUMP_MS, () => {
                 this._pumpRegistry();

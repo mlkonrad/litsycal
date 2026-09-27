@@ -51,6 +51,10 @@ export class FloatingModalPanel {
         // same fix.
         this._grab = Main.pushModal(this._box, {actionMode: Shell.ActionMode.POPUP});
 
+        if (this._positionIdleId) {
+            GLib.source_remove(this._positionIdleId);
+            this._positionIdleId = null;
+        }
         this._positionIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
             this._positionIdleId = null;
             this._position();
