@@ -10,6 +10,8 @@ longer carries a `version` key — see that file's history for why).
 
 ## [Unreleased]
 
+## [8] - 2026-09-27
+
 ### Added
 
 - A "Buy Me a Coffee" link on the Preferences About page, for anyone who
@@ -523,7 +525,8 @@ longer carries a `version` key — see that file's history for why).
 - Internationalization via gettext, including a Brazilian Portuguese
   translation.
 
-[Unreleased]: https://github.com/mlkonrad/litsycal/compare/9e7980e...HEAD
+[Unreleased]: https://github.com/mlkonrad/litsycal/compare/2693fdd...HEAD
+[8]: https://github.com/mlkonrad/litsycal/compare/9e7980e...2693fdd
 [7]: https://github.com/mlkonrad/litsycal/compare/6fd7207...9e7980e
 [6]: https://github.com/mlkonrad/litsycal/compare/d257c22...6fd7207
 [5]: https://github.com/mlkonrad/litsycal/compare/b9c302f...d257c22
