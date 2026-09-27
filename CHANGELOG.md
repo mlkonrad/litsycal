@@ -10,6 +10,15 @@ longer carries a `version` key — see that file's history for why).
 
 ## [Unreleased]
 
+### Added
+
+- A "Litsycal logo" panel icon style (Preferences > Appearance > Icon
+  style), showing the Litsycal logo in the top bar instead of the date. The
+  month, weekday, time and custom pattern options are greyed out while it's
+  selected, since there is no date text for them to change. A meeting
+  countdown still replaces the logo, or sits next to it in "Show alongside
+  icon text" mode.
+
 ## [8] - 2026-09-27
 
 ### Added

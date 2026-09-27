@@ -659,6 +659,10 @@ msgstr ""
 msgid "Text — no background"
 msgstr ""
 
+#: prefs.js:526
+msgid "Litsycal logo"
+msgstr ""
+
 #: prefs.js:513
 msgid "Icon style"
 msgstr ""

@@ -522,8 +522,8 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         const iconGroup = new Adw.PreferencesGroup({title: _('Panel Icon')});
         appearance.add(iconGroup);
 
-        const STYLE_IDS    = ['number-light', 'number-dark', 'calendar', 'calendar-dark', 'text'];
-        const STYLE_LABELS = [_('Number — light'), _('Number — dark'), _('Calendar — light'), _('Calendar — dark'), _('Text — no background')];
+        const STYLE_IDS    = ['number-light', 'number-dark', 'calendar', 'calendar-dark', 'text', 'logo'];
+        const STYLE_LABELS = [_('Number — light'), _('Number — dark'), _('Calendar — light'), _('Calendar — dark'), _('Text — no background'), _('Litsycal logo')];
 
         const styleRow = new Adw.ComboRow({
             title: _('Icon style'),
@@ -633,6 +633,16 @@ export default class LitsycalPrefs extends ExtensionPreferences {
         patBox.append(helpBtn);
         patRow.add_suffix(patBox);
         iconGroup.add(patRow);
+
+        // The logo style replaces the date text entirely, so the rows that
+        // only shape that text do nothing while it's selected.
+        const updateTextRows = () => {
+            const text = settings.get_string('badge-style') !== 'logo';
+            for (const row of [showMonthRow, showDowRow, showTimeRow, patRow])
+                row.set_sensitive(text);
+        };
+        updateTextRows();
+        settingsHandlerIds.push(settings.connect('changed::badge-style', updateTextRows));
 
         const hideRow = new Adw.SwitchRow({title: _('Hide icon')});
         settings.bind('hide-icon', hideRow, 'active', Gio.SettingsBindFlags.DEFAULT);

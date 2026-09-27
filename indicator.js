@@ -69,10 +69,10 @@ class LitsycalIndicator extends PanelMenu.Button {
 
         this._logo = new St.Icon({
             y_align: Clutter.ActorAlign.CENTER,
-            icon_size: 20, visible: false,
+            icon_size: 26, visible: false,
         });
         this._logo.set_gicon(Gio.icon_new_for_string(`${extPath}/litsycal-logo.svg`));
-        this._box.add_child(this._logo);
+        this._box.insert_child_above(this._logo, this._badge);
 
         // Shown in place of the (hidden) badge text when there's a meeting
         // starting soon or in progress, so the icon isn't completely blank
@@ -336,8 +336,13 @@ class LitsycalIndicator extends PanelMenu.Button {
         const countdown = this._settings.get_boolean('show-countdown-in-badge')
             ? this._nextMeetingCountdownText() : null;
 
+        // The logo style shows the logo instead of the date text, so the
+        // text options (month, weekday, time, pattern) don't apply to it.
+        const logo = style === 'logo';
+
         if (!countdown) {
-            this._badge.visible = true;
+            this._badge.visible = !logo;
+            this._logo.visible  = logo;
             this._badge.set_text(normalText);
             this._countdownBox.visible = false;
             return;
@@ -347,7 +352,8 @@ class LitsycalIndicator extends PanelMenu.Button {
         this._countdownLabel.set_text(countdown);
 
         const append = this._settings.get_string('countdown-badge-mode') === 'append';
-        this._badge.visible = append;
+        this._badge.visible = append && !logo;
+        this._logo.visible  = append && logo;
         if (append) {
             this._badge.set_text(normalText);
             this._countdownBox.add_style_class_name('litsycal-countdown-box-spaced');

@@ -662,6 +662,10 @@ msgstr "Calendário — escuro"
 msgid "Text — no background"
 msgstr "Texto — sem fundo"
 
+#: prefs.js:526
+msgid "Litsycal logo"
+msgstr "Logo do Litsycal"
+
 #: prefs.js:513
 msgid "Icon style"
 msgstr "Estilo do ícone"

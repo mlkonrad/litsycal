@@ -88,7 +88,7 @@
     <key name="badge-style" type="s">
       <default>'number-light'</default>
       <summary>Panel badge style</summary>
-      <description>One of: number-light, number-dark, calendar, calendar-dark, text</description>
+      <description>One of: number-light, number-dark, calendar, calendar-dark, text, logo</description>
     </key>
     <key name="show-month-in-badge" type="b">
       <default>false</default>
