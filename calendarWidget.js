@@ -631,7 +631,13 @@ class LitsycalCalendar extends St.BoxLayout {
     // Cap the agenda's height to whatever screen space is actually left below
     // the calendar/header/footer, mirroring Itsycal's agendaMaxPossibleHeight -
     // rather than letting a busy week grow the popup past the monitor edge.
-    _updateAgendaMaxHeight() {
+    // `top` is the widget's screen y when the caller knows it before a layout
+    // pass has caught up (right after pinning moves it); otherwise the
+    // current transformed position is used. Either way it is measured from
+    // the real top edge, since the pinned box has no PopupMenu constraints
+    // to clamp it and on a short monitor its footer (with the unpin button)
+    // would otherwise end up off-screen.
+    _updateAgendaMaxHeight(top = null) {
         // Measuring children before this widget is on the stage (during
         // construction, before the indicator joins the panel) makes St log a
         // "not in the stage" warning for every widget measured. The menu's
@@ -651,16 +657,24 @@ class LitsycalCalendar extends St.BoxLayout {
         if (!monitor)
             return;
         const panelH = Main.panel.get_height();
+        top = Math.max(top ?? this.get_transformed_position()[1], monitor.y + panelH);
 
+        // The widget's own padding, borders and inter-child spacing: its
+        // preferred height minus that of the children it lays out.
         let othersHeight = 0;
+        let childrenHeight = 0;
         for (const child of this.get_children()) {
-            if (child === this._agendaScroll)
+            if (!child.visible)
                 continue;
-            othersHeight += child.get_preferred_height(-1)[1];
+            const h = child.get_preferred_height(-1)[1];
+            childrenHeight += h;
+            if (child !== this._agendaScroll)
+                othersHeight += h;
         }
+        const chrome = Math.max(0, this.get_preferred_height(-1)[1] - childrenHeight);
 
         const margin    = 16; // breathing room below the popup
-        const maxTotal  = monitor.height - panelH - margin;
+        const maxTotal  = monitor.y + monitor.height - margin - top - chrome;
         const maxAgenda = Math.max(80, maxTotal - othersHeight);
         this._agendaScroll.style = `max-height: ${maxAgenda}px;`;
     }

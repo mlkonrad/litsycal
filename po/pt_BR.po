@@ -715,10 +715,8 @@ msgid "Time format"
 msgstr "Formato de hora"
 
 #: prefs.js:565
-msgid "Used by the panel icon (when it shows time) and the time zone clocks"
-msgstr ""
-"Usado pelo ícone do painel (quando exibe a hora) e pelos relógios de fusos "
-"horários"
+msgid "For the panel clock and time zone clocks"
+msgstr "Para o relógio do painel e os relógios de fusos horários"
 
 #: prefs.js:578
 msgid "Custom datetime pattern"

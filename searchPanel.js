@@ -141,6 +141,7 @@ export class SearchPanel extends FloatingModalPanel {
             btn.connectObject('clicked', () => this._finish(ev), this);
             this._resultsBox.add_child(btn);
         }
+        this._position();
     }
 
     _finish(result) {

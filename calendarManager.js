@@ -498,8 +498,12 @@ export class CalendarManager {
                     // otherwise tObj still holds the raw, unconverted digits
                     // and labeling them as "originally scheduled in <tzid>"
                     // would misrepresent a conversion that never happened.
+                    // Plain UTC times (a trailing Z) get no originalTzid:
+                    // many CalDAV/ICS feeds store every event that way, so
+                    // it says nothing about the zone it was planned in.
                     if (converted) {
-                        originalTzid = tObj.is_utc() ? 'UTC' : tzid;
+                        if (!tObj.is_utc())
+                            originalTzid = tzid;
                         tObj = converted;
                     }
                 }

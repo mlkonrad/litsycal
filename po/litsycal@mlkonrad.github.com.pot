@@ -710,7 +710,7 @@ msgid "Time format"
 msgstr ""
 
 #: prefs.js:565
-msgid "Used by the panel icon (when it shows time) and the time zone clocks"
+msgid "For the panel clock and time zone clocks"
 msgstr ""
 
 #: prefs.js:578

@@ -51,9 +51,29 @@ longer carries a `version` key — see that file's history for why).
   calendar deliberately holds no keyboard focus — that's what keeps the rest
   of the desktop usable while it stays visible — so no shortcut reaches it
   once pinned, and unpinning is click-only.
+- The dark and calendar-page badge styles now stand out on GNOME's default
+  black top bar. The dark style has a faint light outline (its dark fill
+  alone disappeared against the bar), and both calendar-page styles have a
+  red top band, like a tear-off calendar, instead of differing from the
+  plain styles only by a thicker top edge.
+- Events stored in plain UTC, as many CalDAV and ICS feeds store every
+  event, no longer say "Originally scheduled in UTC" in the event details.
+  The note is kept for events that name a time zone.
+- The Time format preference's subtitle is shorter, so its value
+  ("24-hour (13:05)") is no longer cut short.
 
 ### Fixed
 
+- The event dialog could fail to close (Cancel, Escape and clicking outside
+  all did nothing) when nothing in the Shell had keyboard focus.
+- The search panel (Ctrl+F) moves up when its results appear, instead of
+  letting them run off the bottom of the screen. It was placed once while
+  still empty and never again.
+- A pinned calendar now fits on short screens. The agenda's height cap was
+  worked out as if the calendar started right under the top bar and had no
+  padding, which the dropdown menu hid but a pinned calendar didn't: on a
+  900px-tall screen its footer, pin button included, ran off the bottom, so
+  it couldn't be unpinned.
 - GNOME Shell no longer crashes on logout or shutdown while Litsycal is
   enabled. Litsycal's connection to Evolution Data Server was only released
   during the Shell's final teardown, and releasing it there made the Shell

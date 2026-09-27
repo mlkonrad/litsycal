@@ -1772,7 +1772,8 @@ export class EventPanel {
         // can update other fields and schedule a list scroll. Left to the
         // teardown below, that focus-out would fire mid-destroy and reach
         // already-disposed actors, and its scroll idle would outlive close().
-        if (this._box?.contains(global.stage.get_key_focus()))
+        const focus = global.stage.get_key_focus();
+        if (focus && this._box?.contains(focus))
             global.stage.set_key_focus(null);
         if (this._positionIdleId) {
             GLib.source_remove(this._positionIdleId);

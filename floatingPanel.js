@@ -25,6 +25,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 export class FloatingModalPanel {
     constructor(styleClass, defaultWidth, defaultHeight, anchorActor, onClose) {
         this._onClose       = onClose;
+        this._anchor        = anchorActor;
         this._defaultWidth  = defaultWidth;
         this._defaultHeight = defaultHeight;
 
@@ -52,7 +53,7 @@ export class FloatingModalPanel {
 
         this._positionIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
             this._positionIdleId = null;
-            this._position(anchorActor);
+            this._position();
             this._box.opacity = 255;
             this._entry?.grab_key_focus();
             return GLib.SOURCE_REMOVE;
@@ -79,11 +80,16 @@ export class FloatingModalPanel {
     // called from within this base constructor, before uiGroup.add_child.
     _build() {}
 
-    _position(anchor) {
+    // Safe to call again whenever the content changes size (SearchPanel does
+    // when results arrive). The height is the preferred one rather than
+    // get_height(), which still reports the previous allocation until the
+    // next layout pass.
+    _position() {
+        const anchor  = this._anchor;
         const monitor = Main.layoutManager.primaryMonitor;
         const panelH  = Main.panel.get_height();
-        const boxW    = this._box.get_width()  || this._defaultWidth;
-        const boxH    = this._box.get_height() || this._defaultHeight;
+        const boxW    = this._box.get_width() || this._defaultWidth;
+        const boxH    = this._box.get_preferred_height(boxW)[1] || this._defaultHeight;
 
         if (anchor) {
             const [ax, ay] = anchor.get_transformed_position();
@@ -118,6 +124,7 @@ export class FloatingModalPanel {
         Main.layoutManager.uiGroup.remove_child(this._box);
         this._box.destroy();
         this._box = null;
+        this._anchor = null;
         this._onClose(result);
     }
 

@@ -491,6 +491,7 @@ class LitsycalIndicator extends PanelMenu.Button {
         const x = Math.max(monitor.x, Math.min(Math.round(calX), monitor.x + monitor.width - calW));
         const y = Math.max(monitor.y, Math.round(calY));
         this._floatingBox.set_position(x, y);
+        this._calWidget._updateAgendaMaxHeight(y);
         this.menu.close();
     }
 

@@ -345,29 +345,34 @@
     spacing: 4px;
 }
 
-/* Badge style: dark background */
+/* Badge style: dark background. The light border is what keeps it visible
+   on GNOME's default black top bar, where the dark fill alone disappears. */
 .litsycal-badge-dark {
     background-color: rgba(0, 0, 0, 0.80);
-    border: none;
+    border: 1px solid rgba(255, 255, 255, 0.28);
     color: white;
 }
 
-/* Badge style: calendar page look - light */
+/* Badge style: calendar page look - light. The red top band, like the
+   header of a paper tear-off calendar, is what sets both calendar styles
+   apart from the plain light/dark ones. It is an inset shadow because St
+   paints a rounded border in one colour: a red border-top-color turned the
+   whole border red. */
 .litsycal-badge-calendar {
     background-color: rgba(255, 255, 255, 0.14);
     border: 1px solid rgba(255, 255, 255, 0.35);
-    border-top-width: 3px;
+    box-shadow: inset 0 3px 0 0 #e0443e;
     border-radius: 4px;
-    padding: 1px 5px 1px 5px;
+    padding: 4px 5px 1px 5px;
 }
 
 /* Badge style: calendar page look - dark */
 .litsycal-badge-calendar-dark {
     background-color: rgba(0, 0, 0, 0.80);
     border: 1px solid rgba(255, 255, 255, 0.35);
-    border-top-width: 3px;
+    box-shadow: inset 0 3px 0 0 #e0443e;
     border-radius: 4px;
-    padding: 1px 5px 1px 5px;
+    padding: 4px 5px 1px 5px;
     color: white;
 }
 
