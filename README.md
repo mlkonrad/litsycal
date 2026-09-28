@@ -10,6 +10,8 @@ Litsycal brings the simplicity of Itsycal to Linux. Click the panel indicator to
 
 **Supported GNOME Shell versions:** 48, 49, 50
 
+**Get it on [extensions.gnome.org](https://extensions.gnome.org/extension/10933/litsycal/).**
+
 ## Keyboard Shortcuts
 
 While the calendar popup is open, these keys work — arrow keys and vi-style
@@ -73,6 +75,17 @@ Clicking anywhere outside the popover closes it; clicking a different event clos
 Add time zones under **Preferences → General → Time Zones** to show live clocks between the agenda and the footer. To also show how far ahead or behind each one is (e.g. `São Paulo ........ 14:32 (-6h)`), set **Home Timezone** in the same page — pick your home city, or use **Detect my location**. The offset labels stay hidden while Home Timezone is unset; it's deliberately a separate setting rather than your system's timezone, so the offsets stay correct while you travel.
 
 ## Installation
+
+### From extensions.gnome.org (recommended)
+
+Install Litsycal from its page on GNOME Extensions:
+**[extensions.gnome.org/extension/10933/litsycal](https://extensions.gnome.org/extension/10933/litsycal/)**
+
+Toggle it on there (with the GNOME Shell browser integration installed), or
+use the Extension Manager app and search for "Litsycal". Updates arrive
+automatically through GNOME's extension updater.
+
+### From source
 
 1. Clone the repository:
    ```bash
