@@ -44,6 +44,52 @@ export class SearchPanel extends FloatingModalPanel {
         this._calManager  = calManager;
         this._debounceId  = null;
         this._lastResults = [];
+        this._resultBtns  = [];
+
+        // Up/Down/Enter navigation among the entry and the result buttons,
+        // following SettingsMenuPanel's captured-event handler (Up/Down move,
+        // wrapping at either end; Return activates). Unlike that panel (no
+        // actor holds key focus there, so it tracks a pseudo-class by hand),
+        // this entry holds real key focus, so navigation here is a real
+        // grab_key_focus() and the buttons' :focus style in stylesheet.css
+        // is the highlight. The cycle is the full [entry, ...results] in
+        // both directions: Down on the entry goes to the first result and
+        // Up to the last, Down on the last result returns to the entry,
+        // and Up on the first result returns to the entry. Escape and
+        // click-outside are left to FloatingModalPanel's own captured-event
+        // handler on this same box.
+        this._box.connectObject('captured-event', (_actor, ev) => {
+            if (ev.type() !== Clutter.EventType.KEY_PRESS)
+                return Clutter.EVENT_PROPAGATE;
+            const sym = ev.get_key_symbol();
+            if (sym === Clutter.KEY_Down || sym === Clutter.KEY_Up) {
+                if (this._resultBtns.length === 0)
+                    return Clutter.EVENT_PROPAGATE;
+                const cycle   = [this._entry, ...this._resultBtns];
+                const focused = global.stage.get_key_focus();
+                const curIdx  = cycle.indexOf(focused);
+                let nextIdx;
+                if (curIdx === -1) {
+                    // Focus is on neither (e.g. the entry's own text actor,
+                    // or nowhere): keep the previous entry points into the
+                    // results - Down to the first, Up to the last.
+                    nextIdx = sym === Clutter.KEY_Down ? 1 : cycle.length - 1;
+                } else {
+                    nextIdx = (curIdx + (sym === Clutter.KEY_Down ? 1 : -1) + cycle.length) %
+                        cycle.length;
+                }
+                cycle[nextIdx].grab_key_focus();
+                return Clutter.EVENT_STOP;
+            }
+            if (sym === Clutter.KEY_Return || sym === Clutter.KEY_KP_Enter) {
+                const focused = global.stage.get_key_focus();
+                if (this._resultBtns.includes(focused)) {
+                    focused.emit('clicked', 1);
+                    return Clutter.EVENT_STOP;
+                }
+            }
+            return Clutter.EVENT_PROPAGATE;
+        }, this);
         // Guards the UI against a slow query's results landing after a
         // newer one already has - CalendarManager.searchEvents() has its
         // own such guard for query results, but debounced calls here race
@@ -113,7 +159,16 @@ export class SearchPanel extends FloatingModalPanel {
 
     _showResults(results) {
         this._lastResults = results;
+        // destroy_all_children() below destroys whichever button holds key
+        // focus if the user had navigated into the old results while this
+        // search was in flight, leaving focus nowhere and swallowing
+        // further typing - hand it back to the entry in that case. Focus
+        // already on the entry (the common typing case) is untouched.
+        const hadResultFocus = this._resultBtns.includes(global.stage.get_key_focus());
+        this._resultBtns  = [];
         this._resultsBox.destroy_all_children();
+        if (hadResultFocus)
+            this._entry.grab_key_focus();
         this._emptyLbl.visible = results.length === 0 && this._entry.get_text().trim().length > 0;
 
         for (const ev of results.slice(0, MAX_RESULTS)) {
@@ -139,6 +194,7 @@ export class SearchPanel extends FloatingModalPanel {
 
             btn.set_child(row);
             btn.connectObject('clicked', () => this._finish(ev), this);
+            this._resultBtns.push(btn);
             this._resultsBox.add_child(btn);
         }
         this._position();

@@ -165,9 +165,46 @@ export class EventInfoPopover {
         }, this);
     }
 
+    // Adds a button to this popover's Tab cycle: Tab/Shift-Tab move key
+    // focus among the delete button and every link button (in the order
+    // they were added), wrapping at either end - the same per-button
+    // 'key-press-event' cycle as confirmDeleteEvent's buttons in
+    // eventDialog.js, since a bubble-phase handler on the actor holding
+    // key focus is what gets delivered under this popover's grab (see the
+    // constructor's _deleteBtn handler). Escape closes from any of them,
+    // via the same close() the _deleteBtn handler uses: that handler only
+    // ever fires while the delete button itself holds focus (a link is a
+    // sibling, so its key presses never bubble through it). Backspace/
+    // Delete are deliberately NOT handled here - that destructive
+    // shortcut stays scoped to the delete button itself (see the
+    // constructor), so it isn't armed while just Tabbing through links.
+    // This is a cycle, not a trap: Escape and click-outside still close
+    // the popover as before.
+    _addFocusable(btn) {
+        this._focusable.push(btn);
+        btn.connectObject('key-press-event', (_actor, event) => {
+            if (this._closeConfirmOverlay)
+                return Clutter.EVENT_PROPAGATE; // let it handle its own keys
+            const sym = event.get_key_symbol();
+            if (sym === Clutter.KEY_Escape) {
+                this.close();
+                return Clutter.EVENT_STOP;
+            }
+            if (sym !== Clutter.KEY_Tab && sym !== Clutter.KEY_ISO_Left_Tab)
+                return Clutter.EVENT_PROPAGATE;
+            const forward = sym === Clutter.KEY_Tab &&
+                (event.get_state() & Clutter.ModifierType.SHIFT_MASK) === 0;
+            const next = (this._focusable.indexOf(btn) + (forward ? 1 : -1) +
+                this._focusable.length) % this._focusable.length;
+            this._focusable[next].grab_key_focus();
+            return Clutter.EVENT_STOP;
+        }, this);
+    }
+
     _build() {
         const ev  = this._event;
         const box = this._box;
+        this._focusable = [];
 
         // Header: colored dot, title, delete button
         const header = new St.BoxLayout({style_class: 'litsycal-panel-icon-row', x_expand: true});
@@ -193,6 +230,7 @@ export class EventInfoPopover {
             can_focus: true,
         });
         this._deleteBtn.connectObject('clicked', () => this._confirmDelete(), this);
+        this._addFocusable(this._deleteBtn);
         header.add_child(this._deleteBtn);
         box.add_child(header);
 
@@ -291,6 +329,7 @@ export class EventInfoPopover {
                     Gio.AppInfo.launch_default_for_uri(uri, null);
                 } catch {} // no app handles this URI scheme; nothing to fall back to
             }, this);
+            this._addFocusable(btn);
             box.add_child(btn);
         };
 
@@ -353,7 +392,16 @@ export class EventInfoPopover {
             }
             this.close();
         }, close => {
+            const wasOpen = !!this._closeConfirmOverlay;
             this._closeConfirmOverlay = close;
+            // The overlay grabs key focus (its Cancel button), so when it
+            // goes away - Cancel, its own Escape, a successful delete's
+            // first step - that focus dies with it. Hand it back to the
+            // delete button, this popover's initial focus target, while
+            // the popover itself is still open; if it's being torn down
+            // the grab below is immediately discarded with it anyway.
+            if (!close && wasOpen && this._root)
+                this._deleteBtn.grab_key_focus();
         });
     }
 

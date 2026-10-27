@@ -692,7 +692,8 @@
     border-radius: 4px;
     opacity: 0.55;
 }
-.litsycal-info-popover-delete-btn:hover { opacity: 1.0; background-color: rgba(230,45,66,0.18); }
+.litsycal-info-popover-delete-btn:hover,
+.litsycal-info-popover-delete-btn:focus { opacity: 1.0; background-color: rgba(230,45,66,0.18); }
 
 .litsycal-info-popover-icon { opacity: 0.65; }
 .litsycal-info-popover-text { opacity: 0.85; }
@@ -716,7 +717,8 @@
     padding: 2px 4px;
     border-radius: 4px;
 }
-.litsycal-info-popover-link-btn:hover { background-color: rgba(128,128,128,0.12); }
+.litsycal-info-popover-link-btn:hover,
+.litsycal-info-popover-link-btn:focus { background-color: rgba(128,128,128,0.12); }
 
 .litsycal-panel-title-entry {
     font-size: 1.13em;
