@@ -104,8 +104,10 @@ function alertLabel(value, allDay) {
 // Deletion itself always triggers CalendarManager's onEventsChanged, so
 // callers don't need to refresh anything themselves on success.
 //
-// onDone(err) fires once, after the delete attempt (or immediately with
-// undefined if the user cancels the prompt). onOverlayChange, if given, is
+// onDone(err) fires once, only after a delete attempt. Cancelling the
+// prompt (Cancel, click-outside, or Escape) fires no callback at all: the
+// overlay just closes and the caller is not notified, so e.g. an open
+// EventPanel stays open. onOverlayChange, if given, is
 // called with a function that closes the prompt while it's up, and with null
 // once it's gone - callers use this to keep their own click-outside/Escape
 // handling from closing out from under the prompt, and to close the prompt

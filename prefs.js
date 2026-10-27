@@ -595,7 +595,7 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             subtitle: _('Overrides other icon text when set'),
         });
         const patBox   = new Gtk.Box({spacing: 4, valign: Gtk.Align.CENTER});
-        const patEntry = new Gtk.Entry({placeholder_text: 'e.g. %d/%m', width_chars: 12});
+        const patEntry = new Gtk.Entry({placeholder_text: _('e.g. %d/%m'), width_chars: 12});
         settings.bind('datetime-pattern', patEntry, 'text', Gio.SettingsBindFlags.DEFAULT);
 
         const helpBtn = new Gtk.Button({

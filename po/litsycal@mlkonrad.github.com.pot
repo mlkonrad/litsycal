@@ -725,6 +725,10 @@ msgstr ""
 msgid "Overrides other icon text when set"
 msgstr ""
 
+#: prefs.js:598
+msgid "e.g. %d/%m"
+msgstr ""
+
 #: prefs.js:589
 msgid "Pattern help"
 msgstr ""

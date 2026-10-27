@@ -730,6 +730,10 @@ msgstr "Padrão personalizado de data/hora"
 msgid "Overrides other icon text when set"
 msgstr "Substitui o texto do ícone quando definido"
 
+#: prefs.js:598
+msgid "e.g. %d/%m"
+msgstr "ex.: %d/%m"
+
 #: prefs.js:589
 msgid "Pattern help"
 msgstr "Ajuda de padrão"
