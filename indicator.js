@@ -508,7 +508,15 @@ class LitsycalIndicator extends PanelMenu.Button {
         // Only clamped against actually running off the monitor edge.
         // get_width() also reads 0 once detached (no layout pass yet), hence
         // the SIZE_MIN_WIDTHS fallback.
-        const [calX, calY] = this._calWidget.get_transformed_position();
+        // The same pre-allocation NaN guarded against in
+        // _updateAgendaMaxHeight() would otherwise survive Math.round()
+        // and Math.max() into both set_position() below and the agenda
+        // top passed on from y. Fall back to 0 for either component: the
+        // monitor clamps below then place the box at the monitor origin
+        // until a later pass has real values.
+        const [rawCalX, rawCalY] = this._calWidget.get_transformed_position();
+        const calX = Number.isFinite(rawCalX) ? rawCalX : 0;
+        const calY = Number.isFinite(rawCalY) ? rawCalY : 0;
         const calW = this._calWidget.get_width() ||
             SIZE_MIN_WIDTHS[this._settings.get_int('calendar-size')] || 255;
 
