@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "gjs -m tests/test-quickadd-time.js"
   },
   "devDependencies": {
     "eslint": "^9.28.0",

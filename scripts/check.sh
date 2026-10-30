@@ -14,6 +14,9 @@ glib-compile-schemas schemas/ --strict --dry-run
 echo "== ESLint (GNOME Shell ruleset) =="
 npm run lint
 
+echo "== Unit tests (pure gjs modules) =="
+npm test
+
 echo "== Syntax-check JS =="
 cat > /tmp/litsycal-check-syntax.js <<'EOF'
 const fname = ARGV[0];

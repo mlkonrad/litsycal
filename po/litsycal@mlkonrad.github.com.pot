@@ -984,6 +984,14 @@ msgstr ""
 msgid "next"
 msgstr ""
 
+#: quickAddParser.js:110 quickAddParser.js:293
+msgid "noon"
+msgstr ""
+
+#: quickAddParser.js:111 quickAddParser.js:293
+msgid "midnight"
+msgstr ""
+
 #: quickAddParser.js:183
 msgctxt "quick-add: time preposition, e.g. \"lunch at 3pm\""
 msgid "at"

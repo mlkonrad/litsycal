@@ -26,6 +26,9 @@ jobs:
       - name: ESLint (GNOME Shell ruleset)
         run: npm run lint
 
+      - name: Unit tests (pure gjs modules)
+        run: npm test
+
       - name: Syntax-check JS
         run: |
           cat > /tmp/check-syntax.js <<'EOF'
