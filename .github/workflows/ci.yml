@@ -10,7 +10,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gjs libglib2.0-bin gettext
+          sudo apt-get install -y gjs libglib2.0-bin gettext gir1.2-ical-3.0
 
       - name: Compile schemas (strict)
         run: glib-compile-schemas schemas/ --strict --dry-run
@@ -42,6 +42,9 @@ jobs:
           for f in *.js; do
             gjs /tmp/check-syntax.js "$f" || exit 1
           done
+
+      - name: Unit tests
+        run: npm test
 
       - name: Validate translations
         run: |

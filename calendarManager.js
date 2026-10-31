@@ -2,12 +2,15 @@ import GLib from 'gi://GLib';
 import Gio  from 'gi://Gio';
 
 import {MAX_EXTRA_WEEK_ROWS} from './helpers.js';
+import {allDayEndDate, buildICal, parseAlarm, parseRecurrence} from './ical.js';
 
 // Evolution Data Server typelibs (EDataServer/ECal/ICalGLib) aren't
 // guaranteed to be installed - a static top-level import throws at module
 // load and takes down the whole extension, so they're loaded lazily by
 // _loadBackends() below (same pattern as Geoclue/GWeather in prefs.js).
 // Every use below only runs once these are non-null (see _loadBackends()).
+// The static ical.js import above is safe on such a system: it imports
+// only GLib and receives ICalGLib as a function parameter instead.
 let EDataServer = null;
 let ECal = null;
 let ICalGLib = null;
@@ -582,6 +585,12 @@ export class CalendarManager {
                     if (eDate !== date)
                         endDate = eDate;
                 }
+            } else {
+                // All-day DTEND;VALUE=DATE is exclusive (see
+                // allDayEndDate in ical.js): the last visible day
+                // is DTEND - 1, and only a span past the start day
+                // earns an endDate.
+                endDate = allDayEndDate(comp.get_dtend()?.get_value(), date);
             }
 
             let notes = null, url = null, location = null, recurrence = null, alarm = null,
@@ -599,8 +608,8 @@ export class CalendarManager {
                 if (location === '')
                     location = null;
 
-                recurrence = this._parseRecurrence(ic);
-                alarm      = this._parseAlarm(ic);
+                recurrence = parseRecurrence(ICalGLib, ic);
+                alarm      = parseAlarm(ICalGLib, ic);
                 attendees  = this._parseAttendees(ic);
 
                 // Present only on one occurrence of a recurring series (never
@@ -619,73 +628,6 @@ export class CalendarManager {
             logError(e, `CalendarManager: failed to parse calendar component ${comp.get_uid() ?? '?'}`);
             return null;
         }
-    }
-
-    // Only understands a plain FREQ/INTERVAL/UNTIL rule (what our UI can build).
-    // Anything else (BYDAY, COUNT, multiple rules, ...) is kept as raw text so
-    // editing an unrelated field never silently discards it.
-    _parseRecurrence(ic) {
-        const prop = ic.get_first_property(ICalGLib.PropertyKind.RRULE_PROPERTY);
-        if (!prop)
-            return null;
-        try {
-            const raw   = prop.get_value_as_string();
-            const parts = Object.fromEntries(raw.split(';').map(kv => kv.split('=')));
-            const isSimple = Object.keys(parts).every(k => ['FREQ', 'INTERVAL', 'UNTIL'].includes(k)) &&
-                              ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'].includes(parts.FREQ);
-            if (!isSimple)
-                return {raw};
-
-            const until = parts.UNTIL
-                ? `${parts.UNTIL.slice(0, 4)}-${parts.UNTIL.slice(4, 6)}-${parts.UNTIL.slice(6, 8)}`
-                : null;
-            return {freq: parts.FREQ, interval: parts.INTERVAL ? parseInt(parts.INTERVAL) : 1, until};
-        } catch {
-            return {raw: prop.get_value_as_string() ?? ''};
-        }
-    }
-
-    // Only understands a single DISPLAY alarm with a relative (before-start)
-    // duration trigger (what our UI can build). Anything else (multiple
-    // alarms, absolute triggers, EMAIL/AUDIO actions, ...) is kept as raw
-    // VALARM blocks so editing an unrelated field never silently discards it.
-    _parseAlarm(ic) {
-        const n = ic.count_components(ICalGLib.ComponentKind.VALARM_COMPONENT);
-        if (n === 0)
-            return null;
-        if (n > 1)
-            return {raw: this._allValarmBlocks(ic)};
-
-        const valarm = ic.get_first_component(ICalGLib.ComponentKind.VALARM_COMPONENT);
-        try {
-            const actionProp = valarm.get_first_property(ICalGLib.PropertyKind.ACTION_PROPERTY);
-            const action     = actionProp?.get_value_as_string() ?? '';
-            const trigProp = valarm.get_first_property(ICalGLib.PropertyKind.TRIGGER_PROPERTY);
-            if (!trigProp || action !== 'DISPLAY')
-                return {raw: this._allValarmBlocks(ic)};
-
-            // A relative trigger's raw form is a DURATION ("-PT10M", "PT0S", ...);
-            // an absolute one is a DATE-TIME. dur.is_null_duration() can't tell
-            // "explicitly zero" from "unset", so classify by raw form instead.
-            const raw = trigProp.get_value_as_string() ?? '';
-            if (!/^[+-]?P/i.test(raw))
-                return {raw: this._allValarmBlocks(ic)};
-
-            const dur = trigProp.get_trigger().get_duration();
-            return {minutesBefore: Math.round(-dur.as_int() / 60)};
-        } catch {
-            return {raw: this._allValarmBlocks(ic)};
-        }
-    }
-
-    _allValarmBlocks(ic) {
-        const blocks = [];
-        let v = ic.get_first_component(ICalGLib.ComponentKind.VALARM_COMPONENT);
-        while (v) {
-            blocks.push(v.as_ical_string().trim());
-            v = ic.get_next_component(ICalGLib.ComponentKind.VALARM_COMPONENT);
-        }
-        return blocks;
     }
 
     // Read-only display data - only CN (display name) and PARTSTAT (RSVP
@@ -746,6 +688,10 @@ export class CalendarManager {
     datesSpanned(ev) {
         if (!ev.endDate || ev.endDate === ev.date)
             return [ev.date];
+        // A malformed end before the start would otherwise fabricate a
+        // full MAX_SPAN_DAYS of buckets without ever hitting lastDate.
+        if (ev.endDate < ev.date)
+            return [ev.date];
 
         // An event ending exactly at midnight (e.g. 22:00 -> 00:00 next day)
         // occupies zero minutes of its DTEND date - treat the day before as
@@ -774,99 +720,6 @@ export class CalendarManager {
         return dates;
     }
 
-    // iCal builder
-
-    _buildRRuleLine(recurrence) {
-        if (!recurrence)
-            return [];
-        if (recurrence.raw)
-            return [`RRULE:${recurrence.raw}`];
-
-        const pad = n => String(n).padStart(2, '0');
-        let r = `FREQ=${recurrence.freq}`;
-        if (recurrence.interval > 1)
-            r += `;INTERVAL=${recurrence.interval}`;
-        if (recurrence.until) {
-            const [uy, um, ud] = recurrence.until.split('-').map(Number);
-            r += `;UNTIL=${uy}${pad(um)}${pad(ud)}T235959Z`;
-        }
-        return [`RRULE:${r}`];
-    }
-
-    _buildValarmLines(alarm) {
-        if (!alarm)
-            return [];
-        if (alarm.raw)
-            return alarm.raw.flatMap(block => block.split(/\r?\n/).filter(Boolean));
-
-        const min = alarm.minutesBefore;
-        const days  = Math.floor(min / 1440);
-        const rem   = min % 1440;
-        const hours = Math.floor(rem / 60);
-        const mins  = rem % 60;
-        let trigger = min === 0 ? 'PT0M' : '-P';
-        if (min !== 0) {
-            if (days)
-                trigger += `${days}D`;
-            if (hours || mins)
-                trigger += `T${hours ? `${hours}H` : ''}${mins ? `${mins}M` : ''}`;
-        }
-        return [
-            'BEGIN:VALARM',
-            'ACTION:DISPLAY',
-            'DESCRIPTION:Reminder',
-            `TRIGGER:${trigger}`,
-            'END:VALARM',
-        ];
-    }
-
-    _buildICal(uid, fields) {
-        const {
-            title, date, allDay, hour, minute, endHour, endMinute, endDate,
-            notes, url, location, recurrence, alarm,
-        } = fields;
-        const pad       = n => String(n).padStart(2, '0');
-        const [y, m, d] = date.split('-').map(Number);
-        const escText   = s => s.replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/,/g, '\\,');
-
-        let dtLines;
-        if (allDay) {
-            // DTEND is exclusive, so it's the following day - through GLib so
-            // month/year boundaries roll over, in UTC so no DST shift applies.
-            const next = GLib.DateTime.new_utc(y, m, d, 0, 0, 0).add_days(1);
-            dtLines = [
-                `DTSTART;VALUE=DATE:${y}${pad(m)}${pad(d)}`,
-                `DTEND;VALUE=DATE:${next.get_year()}${pad(next.get_month())}${pad(next.get_day_of_month())}`,
-            ];
-        } else {
-            // Tagged with the system's own timezone rather than left floating:
-            // _parseComp() shows/edits times as local wall-clock digits, and a
-            // floating DTSTART/DTEND is reinterpreted as *each viewer's own*
-            // local time by other clients - silently shifting the instant for
-            // anyone not in this machine's timezone. An explicit TZID keeps
-            // the instant fixed no matter who views it next.
-            const tzid = GLib.TimeZone.new_local().get_identifier();
-            const [ey, em2, ed2] = (endDate ?? date).split('-').map(Number);
-            dtLines = [
-                `DTSTART;TZID=${tzid}:${y}${pad(m)}${pad(d)}T${pad(hour)}${pad(minute)}00`,
-                `DTEND;TZID=${tzid}:${ey}${pad(em2)}${pad(ed2)}T${pad(endHour)}${pad(endMinute)}00`,
-            ];
-        }
-
-        return [
-            'BEGIN:VEVENT',
-            `UID:${uid}`,
-            `SUMMARY:${title}`,
-            ...dtLines,
-            ...notes    ? [`DESCRIPTION:${escText(notes)}`] : [],
-            ...url      ? [`URL:${url}`]                    : [],
-            ...location ? [`LOCATION:${escText(location)}`] : [],
-            ...this._buildRRuleLine(recurrence),
-            ...this._buildValarmLines(alarm),
-            'END:VEVENT',
-        ].join('\r\n');
-    }
-
     // Create
 
     createEvent(fields, sourceUid, onDone) {
@@ -876,8 +729,20 @@ export class CalendarManager {
             return;
         }
 
-        const icalStr = this._buildICal(GLib.uuid_string_random(), fields);
-        const ical = ICalGLib.Component.new_from_string(icalStr);
+        let ical;
+        try {
+            // new_from_string inside the try too: a binding throw there
+            // must report via onDone, never escape synchronously.
+            ical = ICalGLib.Component.new_from_string(
+                buildICal(GLib.uuid_string_random(), fields));
+        } catch (e) {
+            onDone?.(e);
+            return;
+        }
+        if (!ical) {
+            onDone?.(new Error('Invalid calendar data'));
+            return;
+        }
         entry.client.create_object(ical, ECal.OperationFlags.NONE, this._cancellable, (_obj, res) => {
             try {
                 entry.client.create_object_finish(res);
@@ -902,12 +767,19 @@ export class CalendarManager {
     // with a 409 (Conflict) - it won't accept a modification that strips a
     // meeting's organizer/attendees/conferencing structure.
     _applyFieldsToIcal(ical, fields) {
-        const newIcal = ICalGLib.Component.new_from_string(this._buildICal(ical.get_uid(), fields));
+        const newIcal = ICalGLib.Component.new_from_string(buildICal(ical.get_uid(), fields));
+        if (!newIcal)
+            throw new Error('Invalid calendar data');
 
         for (const kind of [
             ICalGLib.PropertyKind.SUMMARY_PROPERTY,
             ICalGLib.PropertyKind.DTSTART_PROPERTY,
             ICalGLib.PropertyKind.DTEND_PROPERTY,
+            // RFC 5545 forbids DTEND and DURATION coexisting. The
+            // rebuilt component never carries DURATION, so listing it
+            // here only strips a stale one from an externally-created
+            // event - the new DTEND above then stands alone.
+            ICalGLib.PropertyKind.DURATION_PROPERTY,
             ICalGLib.PropertyKind.DESCRIPTION_PROPERTY,
             ICalGLib.PropertyKind.LOCATION_PROPERTY,
             ICalGLib.PropertyKind.URL_PROPERTY,
@@ -957,7 +829,12 @@ export class CalendarManager {
                 return;
             }
 
-            this._applyFieldsToIcal(ical, fields);
+            try {
+                this._applyFieldsToIcal(ical, fields);
+            } catch (e) {
+                onDone?.(e);
+                return;
+            }
             entry.client.modify_object(ical, ECal.ObjModType.ALL, ECal.OperationFlags.NONE, this._cancellable, (_obj2, res2) => {
                 try {
                     entry.client.modify_object_finish(res2);
@@ -985,6 +862,10 @@ export class CalendarManager {
         }
 
         const {scope = 'ALL', recurrenceId = null} = opts ?? {};
+        if ((scope === 'THIS' || scope === 'FUTURE') && !recurrenceId) {
+            onDone?.(new Error('Missing recurrence id'));
+            return;
+        }
         const modType = {
             ALL:    ECal.ObjModType.ALL,
             THIS:   ECal.ObjModType.THIS,

@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "for f in tests/test-*.js; do gjs -m \"$f\" || exit 1; done"
   },
   "devDependencies": {
     "eslint": "^9.28.0",

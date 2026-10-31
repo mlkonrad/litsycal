@@ -31,6 +31,9 @@ for f in *.js; do
 done
 rm -f /tmp/litsycal-check-syntax.js
 
+echo "== Unit tests =="
+npm test
+
 echo "== Validate translations =="
 for po in po/*.po; do
     msgfmt --check "$po" -o /dev/null
