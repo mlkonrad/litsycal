@@ -10,6 +10,8 @@ longer carries a `version` key — see that file's history for why).
 
 ## [Unreleased]
 
+## [9] - 2026-11-02
+
 ### Added
 
 - A "Litsycal logo" panel icon style (Preferences > Appearance > Icon
@@ -49,6 +51,17 @@ longer carries a `version` key — see that file's history for why).
   range is removed from the title instead of leaving part of it behind. "noon" and "midnight"
   are now read as 12:00 and 00:00 instead of being taken for a
   location, including at the start of a range like "noon-1pm".
+- Several fixes to how events are saved and read. An alarm set to go off
+  after an event starts is no longer saved as one before it. A semicolon
+  in a title or description is saved correctly. All-day events that span
+  several days keep their full length when opened and saved again.
+  A repeating event's end date keeps its time of day, and a malformed
+  repeat rule or alarm from another app is kept as it was instead of
+  being rewritten.
+- The hourly sound plays the default bell when the custom sound file has
+  been deleted or moved, instead of playing nothing.
+- The example text in Preferences' custom date pattern field is now
+  translated.
 
 ## [8] - 2026-09-27
 
@@ -565,7 +578,8 @@ longer carries a `version` key — see that file's history for why).
 - Internationalization via gettext, including a Brazilian Portuguese
   translation.
 
-[Unreleased]: https://github.com/mlkonrad/litsycal/compare/2693fdd...HEAD
+[Unreleased]: https://github.com/mlkonrad/litsycal/compare/5c4d03d...HEAD
+[9]: https://github.com/mlkonrad/litsycal/compare/2693fdd...5c4d03d
 [8]: https://github.com/mlkonrad/litsycal/compare/9e7980e...2693fdd
 [7]: https://github.com/mlkonrad/litsycal/compare/6fd7207...9e7980e
 [6]: https://github.com/mlkonrad/litsycal/compare/d257c22...6fd7207
