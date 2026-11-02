@@ -35,24 +35,18 @@ longer carries a `version` key — see that file's history for why).
   opens. Before, that first open left the agenda uncapped, so a busy week
   could push the popup past the bottom of the screen, and GNOME Shell's log
   got an "Ignoring length property that isn't a number" warning each time.
-
-### Fixed
-
 - Litsycal now opens on systems without Evolution Data Server installed
   (#10). It used to fail to load at all there; the calendar libraries are
   now loaded only when needed, so without them you get the grid and the
   time-zone clocks, just no calendars or events.
-
-### Fixed
-
 - Quick-add no longer reads bad times like "99:99", "13pm" or "23h60"
   as real times, and a price or quantity like "1.50" is no longer read
   as a time either. Writing a time with a dot, like "9.30am" or "at
   9.30", is new: that spelling wasn't understood before, while a bare
   decimal in the title still stays in the title. A time range now
   gives the event its start time — "3-4pm" starts at 3pm, "Standup
-  9:30am-10am" at 9:30 — and the whole range is removed from the
-  title instead of leaving part of it behind. "noon" and "midnight"
+  9:30am-10am" at 9:30, "Gym 13:00-2pm" at 13:00 — and the whole
+  range is removed from the title instead of leaving part of it behind. "noon" and "midnight"
   are now read as 12:00 and 00:00 instead of being taken for a
   location, including at the start of a range like "noon-1pm".
 

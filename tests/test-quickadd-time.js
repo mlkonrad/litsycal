@@ -88,6 +88,11 @@ check('quickadd range to-noon time', parseQuickAdd('Workshop 9-12pm')?.time, '09
 check('quickadd range to-noon title', parseQuickAdd('Workshop 9-12pm')?.title, 'Workshop');
 check('quickadd range crosses-midnight time', parseQuickAdd('Shift 11-1am')?.time, '23:00');
 check('quickadd range crosses-midnight title', parseQuickAdd('Shift 11-1am')?.title, 'Shift');
+// A start with minutes outside 1-12 is 24-hour, and the range is cut whole.
+check('quickadd range 24h-start time', parseQuickAdd('Gym 13:00-2pm')?.time, '13:00');
+check('quickadd range 24h-start title', parseQuickAdd('Gym 13:00-2pm')?.title, 'Gym');
+check('quickadd range 0h-start time', parseQuickAdd('Ops 0:30-1am')?.time, '00:30');
+check('quickadd range 0h-start title', parseQuickAdd('Ops 0:30-1am')?.title, 'Ops');
 check('quickadd 9.30pm time', parseQuickAdd('Call 9.30pm')?.time, '21:30');
 check('quickadd 9.30pm title', parseQuickAdd('Call 9.30pm')?.title, 'Call');
 check('quickadd range dotted-bare time', parseQuickAdd('meet 3-4.30pm')?.time, '15:00');

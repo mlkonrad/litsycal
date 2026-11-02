@@ -182,6 +182,11 @@ function extractTime(text, atWord) {
         if (start.ampm)
             return `${pad(to24h(start.hour, start.ampm))}:${pad(start.minute)}`;
         if (end.ampm) {
+            // A start with minutes outside 1-12 is already 24-hour
+            // ("13:00-2pm" -> 13:00). A bare one stays rejected, since
+            // "22-2am" has no minutes to say it's a time at all.
+            if ((start.hour < 1 || start.hour > 12) && !start.bare)
+                return `${pad(start.hour)}:${pad(start.minute)}`;
             if (start.hour < 1 || start.hour > 12)
                 return null;
             // Inheriting the end's am/pm must not put the start after
