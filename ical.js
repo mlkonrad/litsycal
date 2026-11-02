@@ -181,66 +181,65 @@ export function parseRecurrence(ICalGLib, ic) {
     const prop = ic.get_first_property(ICalGLib.PropertyKind.RRULE_PROPERTY);
     if (!prop)
         return null;
-    try {
-        const raw   = prop.get_value_as_string();
-        const parts = Object.fromEntries(raw.split(';').map(kv => kv.split('=')));
-        const isSimple = Object.keys(parts).every(k => ['FREQ', 'INTERVAL', 'UNTIL'].includes(k)) &&
-                          ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'].includes(parts.FREQ);
-        if (!isSimple)
+    // An RRULE with an empty value ("RRULE:") has no rule to keep.
+    const raw   = prop.get_value_as_string();
+    if (!raw)
+        return null;
+    const parts = Object.fromEntries(raw.split(';').map(kv => kv.split('=')));
+    const isSimple = Object.keys(parts).every(k => ['FREQ', 'INTERVAL', 'UNTIL'].includes(k)) &&
+                      ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'].includes(parts.FREQ);
+    if (!isSimple)
+        return {raw};
+    // A malformed UNTIL/INTERVAL falls back to {raw}, preserving
+    // the original rule untouched instead of re-emitting it
+    // corrupted. UNTIL's suffix after T, when present, must be a
+    // valid time (/^\d{6}Z?$/, e.g. '100000Z'); 'UNTIL=20240101TX'
+    // or 'INTERVAL=2x' are not - parseInt alone would tolerate
+    // the latter and silently change the rule.
+    if (parts.UNTIL && !/^\d{8}(T\d{6}Z?)?$/.test(parts.UNTIL))
+        return {raw};
+    // Shape alone is not enough: '20250230' and 'T246000Z' pass
+    // the regex above but are not real dates/times. GLib returns
+    // null for those (month 13, Feb 30, hour 24, min/sec 60), so
+    // reuse it as the semantic check - likewise {raw} below.
+    // Note: {raw} is only reachable when the raw RRULE string
+    // reaches this parser; via libical's parsed property an
+    // unparseable RRULE is already dropped upstream (X-LIC-ERROR).
+    if (parts.UNTIL) {
+        const [th, tm, ts] = parts.UNTIL.includes('T')
+            ? [Number(parts.UNTIL.slice(9, 11)), Number(parts.UNTIL.slice(11, 13)), Number(parts.UNTIL.slice(13, 15))]
+            : [0, 0, 0];
+        if (!GLib.DateTime.new_utc(
+            Number(parts.UNTIL.slice(0, 4)), Number(parts.UNTIL.slice(4, 6)),
+            Number(parts.UNTIL.slice(6, 8)), th, tm, ts))
             return {raw};
-        // A malformed UNTIL/INTERVAL falls back to {raw}, preserving
-        // the original rule untouched instead of re-emitting it
-        // corrupted. UNTIL's suffix after T, when present, must be a
-        // valid time (/^\d{6}Z?$/, e.g. '100000Z'); 'UNTIL=20240101TX'
-        // or 'INTERVAL=2x' are not - parseInt alone would tolerate
-        // the latter and silently change the rule.
-        if (parts.UNTIL && !/^\d{8}(T\d{6}Z?)?$/.test(parts.UNTIL))
-            return {raw};
-        // Shape alone is not enough: '20250230' and 'T246000Z' pass
-        // the regex above but are not real dates/times. GLib returns
-        // null for those (month 13, Feb 30, hour 24, min/sec 60), so
-        // reuse it as the semantic check - likewise {raw} below.
-        // Note: {raw} is only reachable when the raw RRULE string
-        // reaches this parser; via libical's parsed property an
-        // unparseable RRULE is already dropped upstream (X-LIC-ERROR).
-        if (parts.UNTIL) {
-            const [th, tm, ts] = parts.UNTIL.includes('T')
-                ? [Number(parts.UNTIL.slice(9, 11)), Number(parts.UNTIL.slice(11, 13)), Number(parts.UNTIL.slice(13, 15))]
-                : [0, 0, 0];
-            if (!GLib.DateTime.new_utc(
-                Number(parts.UNTIL.slice(0, 4)), Number(parts.UNTIL.slice(4, 6)),
-                Number(parts.UNTIL.slice(6, 8)), th, tm, ts))
-                return {raw};
-        }
-        let interval = 1;
-        if (parts.INTERVAL !== undefined) {
-            if (!/^\d+$/.test(parts.INTERVAL))
-                return {raw};
-            interval = parseInt(parts.INTERVAL, 10);
-            if (!Number.isFinite(interval) || interval < 1)
-                return {raw};
-        }
-
-        const until = parts.UNTIL
-            ? `${parts.UNTIL.slice(0, 4)}-${parts.UNTIL.slice(4, 6)}-${parts.UNTIL.slice(6, 8)}`
-            : null;
-        // Preserve UNTIL's time-of-day suffix (e.g. '100000Z') when
-        // the source rule has one: the UI's until picker only edits
-        // the date, and buildRRuleLine() re-emits this suffix with
-        // whatever date is current then. Date-only UNTILs stay
-        // suffix-less and keep the historical end-of-day behaviour
-        // there.
-        const tIdx = parts.UNTIL?.indexOf('T') ?? -1;
-        const untilTime = tIdx >= 0 && parts.UNTIL.slice(tIdx + 1)
-            ? parts.UNTIL.slice(tIdx + 1)
-            : null;
-        const rec = {freq: parts.FREQ, interval, until};
-        if (untilTime)
-            rec.untilTime = untilTime;
-        return rec;
-    } catch {
-        return {raw: prop.get_value_as_string() ?? ''};
     }
+    let interval = 1;
+    if (parts.INTERVAL !== undefined) {
+        if (!/^\d+$/.test(parts.INTERVAL))
+            return {raw};
+        interval = parseInt(parts.INTERVAL, 10);
+        if (!Number.isFinite(interval) || interval < 1)
+            return {raw};
+    }
+
+    const until = parts.UNTIL
+        ? `${parts.UNTIL.slice(0, 4)}-${parts.UNTIL.slice(4, 6)}-${parts.UNTIL.slice(6, 8)}`
+        : null;
+    // Preserve UNTIL's time-of-day suffix (e.g. '100000Z') when
+    // the source rule has one: the UI's until picker only edits
+    // the date, and buildRRuleLine() re-emits this suffix with
+    // whatever date is current then. Date-only UNTILs stay
+    // suffix-less and keep the historical end-of-day behaviour
+    // there.
+    const tIdx = parts.UNTIL?.indexOf('T') ?? -1;
+    const untilTime = tIdx >= 0 && parts.UNTIL.slice(tIdx + 1)
+        ? parts.UNTIL.slice(tIdx + 1)
+        : null;
+    const rec = {freq: parts.FREQ, interval, until};
+    if (untilTime)
+        rec.untilTime = untilTime;
+    return rec;
 }
 
 function allValarmBlocks(ICalGLib, ic) {
@@ -270,25 +269,21 @@ export function parseAlarm(ICalGLib, ic) {
         return {raw: allValarmBlocks(ICalGLib, ic)};
 
     const valarm = ic.get_first_component(ICalGLib.ComponentKind.VALARM_COMPONENT);
-    try {
-        const actionProp = valarm.get_first_property(ICalGLib.PropertyKind.ACTION_PROPERTY);
-        const action     = actionProp?.get_value_as_string() ?? '';
-        const trigProp = valarm.get_first_property(ICalGLib.PropertyKind.TRIGGER_PROPERTY);
-        if (!trigProp || action !== 'DISPLAY')
-            return {raw: allValarmBlocks(ICalGLib, ic)};
-
-        // A relative trigger's raw form is a DURATION ("-PT10M", "PT0S", ...);
-        // an absolute one is a DATE-TIME. dur.is_null_duration() can't tell
-        // "explicitly zero" from "unset", so classify by raw form instead.
-        const raw = trigProp.get_value_as_string() ?? '';
-        if (!/^[+-]?P/i.test(raw))
-            return {raw: allValarmBlocks(ICalGLib, ic)};
-
-        const dur = trigProp.get_trigger().get_duration();
-        return {minutesBefore: Math.round(-dur.as_int() / 60)};
-    } catch {
+    const actionProp = valarm.get_first_property(ICalGLib.PropertyKind.ACTION_PROPERTY);
+    const action     = actionProp?.get_value_as_string() ?? '';
+    const trigProp = valarm.get_first_property(ICalGLib.PropertyKind.TRIGGER_PROPERTY);
+    if (!trigProp || action !== 'DISPLAY')
         return {raw: allValarmBlocks(ICalGLib, ic)};
-    }
+
+    // A relative trigger's raw form is a DURATION ("-PT10M", "PT0S", ...);
+    // an absolute one is a DATE-TIME. dur.is_null_duration() can't tell
+    // "explicitly zero" from "unset", so classify by raw form instead.
+    const raw = trigProp.get_value_as_string() ?? '';
+    if (!/^[+-]?P/i.test(raw))
+        return {raw: allValarmBlocks(ICalGLib, ic)};
+
+    const dur = trigProp.get_trigger().get_duration();
+    return {minutesBefore: Math.round(-dur.as_int() / 60)};
 }
 
 // All-day DTEND;VALUE=DATE is exclusive: the last visible day is

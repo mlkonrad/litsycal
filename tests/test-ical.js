@@ -109,6 +109,10 @@ check('rrule UNTIL=20250230 preserved raw',
 check('rrule UNTIL=20240101T246000Z preserved raw',
     parseRecurrence(ICalGLib, fakeIc('FREQ=WEEKLY;UNTIL=20240101T246000Z')),
     {raw: 'FREQ=WEEKLY;UNTIL=20240101T246000Z'});
+// An empty RRULE value has no rule to keep: no recurrence, so an edit
+// never writes it back as "RRULE:FREQ=undefined".
+check('rrule empty value is no recurrence',
+    parseRecurrence(ICalGLib, veventWith(['DTSTART:20250101T100000Z', 'RRULE:'])), null);
 
 // --- VALARM: negative (after start) and positive triggers ---
 
@@ -124,6 +128,12 @@ for (const min of [10, -10, 0, 1500]) {
     const ical = buildICal('test-1', {...baseFields, alarm: {minutesBefore: min}});
     check(`valarm roundtrip ${min}`, parseAlarm(ICalGLib, parseIcal(ical))?.minutesBefore, min);
 }
+
+// An empty TRIGGER is not a relative duration: kept as the raw block.
+const emptyTrigger = parseAlarm(ICalGLib, veventWith([
+    'DTSTART:20250101T100000Z', 'BEGIN:VALARM', 'ACTION:DISPLAY', 'TRIGGER:', 'END:VALARM',
+]));
+check('valarm empty trigger kept raw', Array.isArray(emptyTrigger?.raw) && emptyTrigger.raw.length, 1);
 
 // --- SUMMARY escaping: ';', newline, comma, backslash ---
 
