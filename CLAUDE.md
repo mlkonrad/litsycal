@@ -372,8 +372,11 @@ new code should keep meeting these — checked clean as of 2026-09-07:
   upload is a zip of the whole repo rather than hand-picked files, exclude
   `.git`, `.github`, `CLAUDE.md`, `po/` (source `.po`/`.pot`/`LINGUAS`),
   `screenshot.png`, `package.json`/`package-lock.json` (dev-only, just the
-  `eslint` devDependency + lint script — no build/bundle step), and
-  `eslint.config.js` (lint config, also dev-only); keep only the compiled
+  `eslint` devDependency + lint/test scripts — no build/bundle step),
+  `eslint.config.js` (lint config, also dev-only), `CONTRIBUTING.md` and
+  `SECURITY.md` (contributor docs, from #15), `tests/` (the `gjs` unit
+  tests `npm test` runs), and `scripts/`/`.githooks/` (dev session,
+  pre-push checks); keep only the compiled
   `locale/pt_BR/LC_MESSAGES/*.mo`, which is what actually ships at runtime.
 - **Licensing**: `LICENSE` is MIT (Marlon Konrad, 2026), reproduces Itsycal's
   original MIT notice (Sanjay Madan, 2016 — litsycal ports/adapts parts of
