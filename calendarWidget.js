@@ -256,6 +256,8 @@ class LitsycalCalendar extends St.BoxLayout {
             this._endHandleDrag();
         this._settings.disconnectObject(this);
         this._iface.disconnectObject(this);
+        this._tooltipBox?.destroy();
+        this._tooltipBox = null;
         this._calManager.destroy();
         super.destroy();
     }
@@ -911,11 +913,33 @@ class LitsycalCalendar extends St.BoxLayout {
             GLib.source_remove(this._tooltipIdleId);
             this._tooltipIdleId = null;
         }
-        if (this._tooltipBox) {
-            Main.layoutManager.uiGroup.remove_child(this._tooltipBox);
-            this._tooltipBox.destroy();
-            this._tooltipBox = null;
+        this._tooltipBox?.hide();
+    }
+
+    // One tooltip actor for the widget's lifetime, emptied and re-shown per
+    // hover and only hidden in between. Removing it from uiGroup instead
+    // could land mid-relayout: Clutter's pass still holds the queued actor
+    // and allocates it anyway, logging "not in the stage" warnings.
+    _prepareTooltip(styleClass) {
+        if (!this._tooltipBox) {
+            this._tooltipBox = new St.BoxLayout({
+                orientation: Clutter.Orientation.VERTICAL,
+                visible: false,
+            });
+            Main.layoutManager.uiGroup.add_child(this._tooltipBox);
         }
+        const box = this._tooltipBox;
+        // Popups opened since the last hover (the menu itself, panels) were
+        // raised above it, so raise it back to the top of uiGroup each time.
+        Main.layoutManager.uiGroup.set_child_above_sibling(box, null);
+        box.destroy_all_children();
+        box.style_class = `popup-menu-content ${styleClass}`;
+        // Painted at its last position until the idle-positioning callback
+        // runs a frame later - stay invisible until then so it doesn't flash
+        // there first. Opacity, not `visible`, so it stays measurable.
+        box.opacity = 0;
+        box.show();
+        return box;
     }
 
     _showCellTooltip(ds, anchorBtn) {
@@ -926,15 +950,7 @@ class LitsycalCalendar extends St.BoxLayout {
         const date = GLib.DateTime.new_local(y, m, d, 0, 0, 0);
         const evs  = this._calManager.getEventsForDate(ds);
 
-        const box = new St.BoxLayout({
-            orientation: Clutter.Orientation.VERTICAL,
-            style_class: 'popup-menu-content litsycal-cell-tooltip',
-            // Painted at (0,0) until the idle-positioning callback below runs
-            // a frame later - stay invisible until then so it doesn't flash
-            // at the screen corner first. Opacity, not `visible`, so it stays
-            // mapped/measurable in the meantime.
-            opacity: 0,
-        });
+        const box = this._prepareTooltip('litsycal-cell-tooltip');
 
         const header = new St.BoxLayout({style_class: 'litsycal-agenda-header'});
         header.add_child(new St.Label({
@@ -970,9 +986,6 @@ class LitsycalCalendar extends St.BoxLayout {
             }
         }
 
-        Main.layoutManager.uiGroup.add_child(box);
-        this._tooltipBox = box;
-
         if (this._tooltipIdleId)
             GLib.source_remove(this._tooltipIdleId);
         this._tooltipIdleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
@@ -1003,7 +1016,7 @@ class LitsycalCalendar extends St.BoxLayout {
     // Footer button tooltip
     // The footer icons carry no visible label - only an accessible_name, which
     // reaches a screen reader and nothing else. This shows that same string on
-    // hover, reusing the day-cell tooltip's delay and its _tooltipBox slot
+    // hover, reusing the day-cell tooltip's delay and its _tooltipBox actor
     // above. _cancelTooltip() clears both pending timeouts, so the two can
     // never be up at once.
 
@@ -1020,17 +1033,10 @@ class LitsycalCalendar extends St.BoxLayout {
         if (!anchorBtn.hover)
             return; // pointer left before the delay elapsed
 
-        const box = new St.BoxLayout({
-            orientation: Clutter.Orientation.VERTICAL,
-            style_class: 'popup-menu-content litsycal-btn-tooltip',
-            opacity: 0, // see _showCellTooltip: invisible until positioned a frame later
-        });
+        const box = this._prepareTooltip('litsycal-btn-tooltip');
         const label = new St.Label({text, style_class: 'litsycal-btn-tooltip-label'});
         label.clutter_text.set_line_wrap(true);
         box.add_child(label);
-
-        Main.layoutManager.uiGroup.add_child(box);
-        this._tooltipBox = box;
 
         if (this._tooltipIdleId)
             GLib.source_remove(this._tooltipIdleId);

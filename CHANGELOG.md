@@ -14,6 +14,12 @@ longer carries a `version` key — see that file's history for why).
 
 - Support for GNOME 51.
 
+### Fixed
+
+- Hovering over a day or a footer button no longer occasionally logs
+  "not in the stage" warnings in GNOME Shell's log when the tooltip
+  closes.
+
 ## [9] - 2026-11-02
 
 ### Added
