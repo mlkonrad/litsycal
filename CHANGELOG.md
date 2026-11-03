@@ -10,15 +10,17 @@ longer carries a `version` key — see that file's history for why).
 
 ## [Unreleased]
 
-### Added
-
-- Support for GNOME 51.
-
 ### Fixed
 
 - Hovering over a day or a footer button no longer occasionally logs
   "not in the stage" warnings in GNOME Shell's log when the tooltip
   closes.
+
+## [10] - 2026-11-03
+
+### Added
+
+- Support for GNOME 51.
 
 ## [9] - 2026-11-02
 
@@ -588,7 +590,8 @@ longer carries a `version` key — see that file's history for why).
 - Internationalization via gettext, including a Brazilian Portuguese
   translation.
 
-[Unreleased]: https://github.com/mlkonrad/litsycal/compare/5c4d03d...HEAD
+[Unreleased]: https://github.com/mlkonrad/litsycal/compare/2907b47...HEAD
+[10]: https://github.com/mlkonrad/litsycal/compare/5c4d03d...2907b47
 [9]: https://github.com/mlkonrad/litsycal/compare/2693fdd...5c4d03d
 [8]: https://github.com/mlkonrad/litsycal/compare/9e7980e...2693fdd
 [7]: https://github.com/mlkonrad/litsycal/compare/6fd7207...9e7980e
