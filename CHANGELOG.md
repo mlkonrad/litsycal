@@ -10,6 +10,10 @@ longer carries a `version` key — see that file's history for why).
 
 ## [Unreleased]
 
+### Added
+
+- Support for GNOME 51.
+
 ## [9] - 2026-11-02
 
 ### Added
