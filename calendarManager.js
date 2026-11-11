@@ -718,8 +718,12 @@ export class CalendarManager {
             if (!tStart)
                 return null;
             const tEnd = instance ? instance.end : dtend?.get_value();
+            // An occurrence of a series written with DURATION instead of
+            // DTEND has no DTEND TZID; its generated end is in the start's zone.
+            const startTzid = dtstart?.get_tzid() ?? null;
+            const endTzid = dtend?.get_tzid() ?? (instance ? startTzid : null);
             const {date, time, endDate, allDay: isAllDay, originalTzid} =
-                this._timesFromIcal(tStart, dtstart?.get_tzid() ?? null, tEnd, dtend?.get_tzid() ?? null);
+                this._timesFromIcal(tStart, startTzid, tEnd, endTzid);
 
             let notes = null, url = null, location = null, recurrence = null, alarm = null,
                 recurrenceId = null, attendees = [];
