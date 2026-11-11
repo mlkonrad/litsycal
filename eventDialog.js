@@ -123,11 +123,6 @@ function alertLabel(value, allDay) {
 export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
     const doDelete = scope => {
         const recurrenceId = event.recurrenceId ?? null;
-        // A series master (a search hit, see CalendarManager.searchEvents)
-        // has no recurrence id and stands for the first occurrence, so
-        // "all future events" from it is the whole series.
-        if (scope === 'FUTURE' && !recurrenceId)
-            scope = 'ALL';
         calManager.deleteEvent(event.uid, event.clientUid, {scope, recurrenceId}, err => onDone?.(err));
     };
 
@@ -136,6 +131,12 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
     // it, like any other reminder.
     const isTask = event.kind === 'task';
     const isRecurring = !isTask && !!(event.recurrence || event.recurrenceId);
+    // "This and following" includes the clicked occurrence, so from the
+    // series' first occurrence it deletes exactly what "all" does - offering
+    // both there reads as if the first one would be kept. A series master
+    // (a search hit, see CalendarManager.searchEvents) has no recurrence id
+    // and stands for the first occurrence too.
+    const isFirstOccurrence = !event.recurrenceId || event.date === event.seriesDate;
     let title = _('Delete this event?');
     if (isRecurring)
         title = _('This is a repeating event.');
@@ -186,10 +187,10 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
     if (isRecurring) {
         overlay.add_child(mkBtn(_('Delete this event'), 'litsycal-confirm-btn litsycal-confirm-btn-danger',
             () => doDelete('THIS')));
-        // Offered on the first occurrence too, where it removes the same
-        // events as "Delete all events" - as Itsycal does.
-        overlay.add_child(mkBtn(_('Delete all future events'), 'litsycal-confirm-btn litsycal-confirm-btn-danger',
-            () => doDelete('FUTURE')));
+        if (!isFirstOccurrence) {
+            overlay.add_child(mkBtn(_('Delete this and following events'),
+                'litsycal-confirm-btn litsycal-confirm-btn-danger', () => doDelete('FUTURE')));
+        }
         overlay.add_child(mkBtn(_('Delete all events'), 'litsycal-confirm-btn litsycal-confirm-btn-danger',
             () => doDelete('ALL')));
     } else {

@@ -23,7 +23,8 @@ longer carries a `version` key — see that file's history for why).
   timer (with your recent durations one click away) that counts down in
   the top bar and plays a sound and shows a notification when time is up.
   A running timer survives restarts and suspend.
-- "Delete all future events" when deleting a repeating event.
+- "Delete this and following events" when deleting a repeating event
+  (offered from its second occurrence on).
 - "Copy Meeting Link" in an event's right-click menu, when the event has
   a video-call link.
 
