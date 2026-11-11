@@ -1277,7 +1277,10 @@ class LitsycalCalendar extends St.BoxLayout {
         const details = [];
         if (showDate) {
             const [y, m, d] = ev.date.split('-').map(Number);
-            details.push(`${capitalize(GLib.DateTime.new_local(y, m, d, 0, 0, 0).format('%b'))} ${d}`);
+            // An overdue reminder can be years old; without the year, one due
+            // Nov 12 two years ago reads as this year's Nov 12.
+            const yearSuffix = y === this._today.get_year() ? '' : `, ${y}`;
+            details.push(`${capitalize(GLib.DateTime.new_local(y, m, d, 0, 0, 0).format('%b'))} ${d}${yearSuffix}`);
         }
         if (ev.time)
             details.push(ev.time);
