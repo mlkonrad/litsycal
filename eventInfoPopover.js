@@ -224,7 +224,7 @@ export class EventInfoPopover {
 
         this._deleteBtn = new St.Button({
             style_class: 'litsycal-info-popover-delete-btn',
-            accessible_name: _('Delete event'),
+            accessible_name: ev.kind === 'task' ? _('Delete reminder') : _('Delete event'),
             child: new St.Icon({icon_name: 'edit-delete-symbolic', icon_size: 14}),
             y_align: Clutter.ActorAlign.START,
             can_focus: true,
@@ -252,6 +252,11 @@ export class EventInfoPopover {
             row.add_child(lbl);
             box.add_child(row);
         };
+
+        // A reminder's list. Its other event-only rows (location, attendees,
+        // links, notes) stay hidden, since _parseTask() leaves those empty.
+        if (ev.kind === 'task' && ev.listName)
+            addIconRow('view-list-symbolic', ev.listName);
 
         // Location / recurrence
         if (ev.location)

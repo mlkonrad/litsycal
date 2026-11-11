@@ -214,6 +214,18 @@
 
 .litsycal-agenda-title { font-size: 0.92em; }
 
+/* Reminder rows: a checkbox in place of the pill, and a done style */
+.litsycal-agenda-task-check {
+    border: none;
+    background: none;
+    padding: 0;
+    border-radius: 3px;
+}
+.litsycal-agenda-task-check:focus { background-color: rgba(128, 128, 128, 0.20); }
+.litsycal-agenda-task-check-icon { icon-size: 12px; }
+.litsycal-agenda-task-done { text-decoration: line-through; }
+.litsycal-agenda-task-time-row { padding-left: 20px; }
+
 /* Time row: indented below title */
 .litsycal-agenda-time-row {
     padding-left: 16px;
@@ -256,6 +268,9 @@
 .litsycal-theme-dark  .litsycal-agenda-time     { color: rgba(255,255,255,0.50); }
 .litsycal-theme-dark  .litsycal-agenda-location { color: rgba(255,255,255,0.50); }
 .litsycal-theme-dark  .litsycal-agenda-empty    { color: white; }
+/* After the title colors above, which it overrides at equal specificity */
+.litsycal-theme-light .litsycal-agenda-task-done { color: rgba(0,0,0,0.45); }
+.litsycal-theme-dark  .litsycal-agenda-task-done { color: rgba(255,255,255,0.45); }
 
 /* Footer (gear button) */
 .litsycal-gear-icon {

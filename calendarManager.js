@@ -3,7 +3,7 @@ import Gio  from 'gi://Gio';
 
 import {MAX_EXTRA_WEEK_ROWS} from './helpers.js';
 import {allDayEndDate, buildICal, parseAlarm, parseRecurrence} from './ical.js';
-import {collectOverrideKeys, expandRecurring, isDetached} from './recurrence.js';
+import {applyTaskCompletion, collectOverrideKeys, expandRecurring, isDetached} from './recurrence.js';
 
 // Evolution Data Server typelibs (EDataServer/ECal/ICalGLib) aren't
 // guaranteed to be installed - a static top-level import throws at module
@@ -53,7 +53,7 @@ export class CalendarManager {
     constructor(settings, onEventsChanged) {
         this._settings  = settings;
         this._onEventsChanged = onEventsChanged;
-        this._clients   = new Map();   // uid -> {client, color, name}
+        this._clients   = new Map();   // uid -> {client, color, name, kind: 'events'|'tasks'}
         this._views     = new Map();   // uid -> {view} (live change listener)
         this._viewTokens = new Map();  // uid -> latest view request; see _startView()
         this._cancellable = new Gio.Cancellable();
@@ -69,11 +69,29 @@ export class CalendarManager {
         this._searchToken = 0; // see searchEvents() - discards stale/out-of-order results
         this._fetchToken  = 0; // see fetchMonth() - discards a superseded batch's stale onDone
         this._disabled  = new Set(settings.get_strv('disabled-calendars'));
-        settings.connectObject('changed::disabled-calendars', () => {
-            this._disabled = new Set(settings.get_strv('disabled-calendars'));
+        this._readReminderSettings();
+        const reindex = () => {
             this._reindex();
             this._onEventsChanged(this._events);
-        }, this);
+        };
+        settings.connectObject(
+            'changed::disabled-calendars', () => {
+                this._disabled = new Set(settings.get_strv('disabled-calendars'));
+                reindex();
+            },
+            'changed::show-reminders', () => {
+                this._readReminderSettings();
+                reindex();
+            },
+            'changed::show-completed-reminders', () => {
+                this._readReminderSettings();
+                reindex();
+            },
+            'changed::show-overdue-reminders', () => {
+                this._readReminderSettings();
+                reindex();
+            },
+            this);
         // GNOME Shell doesn't disable extensions before it exits, so
         // destroy() never runs then. The registry is freed during GJS's own
         // teardown instead, and its dispose dispatches whatever it still has
@@ -81,6 +99,12 @@ export class CalendarManager {
         // while GJS is shutting down.
         global.connectObject('shutdown', () => this._registry?.disconnectObject(this), this);
         this._loadBackends();
+    }
+
+    _readReminderSettings() {
+        this._showReminders          = this._settings.get_boolean('show-reminders');
+        this._showCompletedReminders = this._settings.get_boolean('show-completed-reminders');
+        this._showOverdueReminders   = this._settings.get_boolean('show-overdue-reminders');
     }
 
     // Init
@@ -182,22 +206,37 @@ export class CalendarManager {
     _loadSources() {
         if (!this._registry)
             return;
-        const sources = this._registry.list_sources(EDataServer.SOURCE_EXTENSION_CALENDAR);
+        const sources = [
+            ...this._registry.list_sources(EDataServer.SOURCE_EXTENSION_CALENDAR),
+            ...this._registry.list_sources(EDataServer.SOURCE_EXTENSION_TASK_LIST),
+        ];
         for (const src of sources) {
             if (src.get_enabled() && !this._clients.has(src.get_uid()))
                 this._connectSource(src);
         }
     }
 
+    // Calendars give events, task lists give reminders. EDS keeps the two in
+    // separate sources; one that somehow carries both is read as a calendar,
+    // since clients are keyed by source uid.
     _connectSource(source) {
         if (!source.get_enabled())
             return;
-        if (!source.has_extension(EDataServer.SOURCE_EXTENSION_CALENDAR))
+        let kind, extName, sourceType;
+        if (source.has_extension(EDataServer.SOURCE_EXTENSION_CALENDAR)) {
+            kind = 'events';
+            extName = EDataServer.SOURCE_EXTENSION_CALENDAR;
+            sourceType = ECal.ClientSourceType.EVENTS;
+        } else if (source.has_extension(EDataServer.SOURCE_EXTENSION_TASK_LIST)) {
+            kind = 'tasks';
+            extName = EDataServer.SOURCE_EXTENSION_TASK_LIST;
+            sourceType = ECal.ClientSourceType.TASKS;
+        } else {
             return;
+        }
 
         const uid    = source.get_uid();
-        const calExt = source.get_extension(EDataServer.SOURCE_EXTENSION_CALENDAR);
-        const color  = normalizeColor(calExt.get_color());
+        const color  = normalizeColor(source.get_extension(extName).get_color());
         const name   = source.get_display_name();
 
         // A client dispatches everything (this callback included) on the
@@ -207,10 +246,10 @@ export class CalendarManager {
         // _initRegistry()), so the Shell's context is pushed explicitly.
         const shellContext = GLib.MainContext.default();
         shellContext.push_thread_default();
-        ECal.Client.connect(source, ECal.ClientSourceType.EVENTS, 10, this._cancellable, (_obj, res) => {
+        ECal.Client.connect(source, sourceType, 10, this._cancellable, (_obj, res) => {
             try {
                 const client = ECal.Client.connect_finish(res);
-                this._clients.set(uid, {client, color, name});
+                this._clients.set(uid, {client, color, name, kind});
                 if (this._year !== null) {
                     this._fetchFromClient(uid, this._year, this._month);
                     this._startView(uid, client);
@@ -240,7 +279,8 @@ export class CalendarManager {
     // replacing (and leaking) the view that should stay.
     _startView(uid, client) {
         const token = this._bumpViewToken(uid);
-        client.get_view(this._rangeSexp(this._year, this._month), this._cancellable, (_obj, res) => {
+        const sexp = this._sexpFor(this._clients.get(uid).kind, this._year, this._month);
+        client.get_view(sexp, this._cancellable, (_obj, res) => {
             try {
                 const [, view] = client.get_view_finish(res);
                 if (token !== this._viewTokens.get(uid))
@@ -368,7 +408,9 @@ export class CalendarManager {
         // Same disabled-calendar exclusion as getSources()/_reindex() - a
         // calendar the user hid shouldn't resurface through search, letting
         // a result navigate to and open an event from it anyway.
-        const uids = [...this._clients.keys()].filter(uid => !this._disabled.has(uid));
+        // Reminders aren't searched, as in Itsycal.
+        const uids = [...this._clients.keys()].filter(uid =>
+            !this._disabled.has(uid) && this._clients.get(uid).kind === 'events');
         if (!query || uids.length === 0) {
             callback([]);
             return;
@@ -455,6 +497,13 @@ export class CalendarManager {
                `(make-time "${this._stamp(end)}"))`;
     }
 
+    // A task list is read whole (#t) and filtered in JS: lists are small,
+    // and an overdue reminder is due before the fetched range, which
+    // occur-in-time-range? would leave out.
+    _sexpFor(kind, year, month) {
+        return kind === 'tasks' ? '#t' : this._rangeSexp(year, month);
+    }
+
     // onDone (optional) fires once this one client's fetch finishes, success
     // or failure - used by fetchMonth() above to know when every client in
     // one batch has responded. Every other caller (live-update refetch of
@@ -465,14 +514,17 @@ export class CalendarManager {
             onDone?.();
             return;
         }
-        const {client, color} = entry;
+        const {client, color, kind, name} = entry;
 
-        const sexp = this._rangeSexp(year, month);
+        const sexp = this._sexpFor(kind, year, month);
 
         client.get_object_list_as_comps(sexp, this._cancellable, (_obj, res) => {
             try {
                 const [, comps] = client.get_object_list_as_comps_finish(res);
-                this._ingestComps(comps ?? [], color, uid, year, month);
+                if (kind === 'tasks')
+                    this._ingestTasks(comps ?? [], color, uid, name);
+                else
+                    this._ingestComps(comps ?? [], color, uid, year, month);
             } catch (e) {
                 if (isCancelled(e))
                     return;
@@ -525,6 +577,44 @@ export class CalendarManager {
 
         this._reindex();
         this._onEventsChanged(this._events);
+    }
+
+    _ingestTasks(comps, color, clientUid, listName) {
+        this._events = this._events.filter(e => e.clientUid !== clientUid);
+        for (const comp of comps) {
+            const task = this._parseTask(comp, color, clientUid, listName);
+            if (task)
+                this._events.push(task);
+        }
+        this._reindex();
+        this._onEventsChanged(this._events);
+    }
+
+    // A reminder in the same shape as an event (so the grid, agenda and
+    // info popover take it as one), plus kind 'task', completed and
+    // listName. Dated by DUE: one without DUE is skipped, since only dated
+    // reminders are shown, as in Itsycal. A repeating one shows at its
+    // current DUE only (see recurrence.js).
+    _parseTask(comp, color, clientUid, listName) {
+        try {
+            const due = comp.get_due();
+            const tDue = due?.get_value();
+            if (!tDue)
+                return null;
+            const {date, time, allDay, originalTzid} = this._timesFromIcal(tDue, due.get_tzid(), null, null);
+            const ic = comp.get_icalcomponent();
+            const completed = ic.get_status() === ICalGLib.PropertyStatus.COMPLETED ||
+                !!ic.get_first_property(ICalGLib.PropertyKind.COMPLETED_PROPERTY);
+            return {
+                kind: 'task', date, title: comp.get_summary()?.get_value() ?? '', time, color, allDay,
+                endDate: null, uid: comp.get_uid(), clientUid, notes: null, url: null, originalTzid,
+                location: null, recurrence: parseRecurrence(ICalGLib, ic), alarm: null,
+                recurrenceId: null, attendees: [], completed, listName,
+            };
+        } catch (e) {
+            logError(e, `CalendarManager: failed to parse task ${comp.get_uid() ?? '?'}`);
+            return null;
+        }
     }
 
     // The system's local timezone as an ICalGLib.Timezone usable with
@@ -689,10 +779,18 @@ export class CalendarManager {
 
     // Index
 
+    _isShown(ev) {
+        if (this._disabled.has(ev.clientUid))
+            return false;
+        if (ev.kind !== 'task')
+            return true;
+        return this._showReminders && (this._showCompletedReminders || !ev.completed);
+    }
+
     _reindex() {
         this._byDate = new Map();
         for (const ev of this._events) {
-            if (this._disabled.has(ev.clientUid))
+            if (!this._isShown(ev))
                 continue;
             for (const ds of this.datesSpanned(ev)) {
                 let bucket = this._byDate.get(ds);
@@ -716,6 +814,15 @@ export class CalendarManager {
 
     getEventsForDate(ds) {
         return this._byDate.get(ds) ?? [];
+    }
+
+    // Incomplete reminders due before todayStr ('YYYY-MM-DD'), oldest first.
+    getOverdueTasks(todayStr) {
+        if (!this._showOverdueReminders)
+            return [];
+        return this._events
+            .filter(ev => ev.kind === 'task' && !ev.completed && ev.date < todayStr && this._isShown(ev))
+            .sort((a, b) => `${a.date} ${a.time ?? ''}`.localeCompare(`${b.date} ${b.time ?? ''}`));
     }
 
     // Dates (YYYY-MM-DD, inclusive) a multi-day event's dot/agenda entry
@@ -888,6 +995,44 @@ export class CalendarManager {
         });
     }
 
+    // Reminders
+
+    // Fetches the task, marks it done or not done in place (see
+    // applyTaskCompletion: a repeating one moves on to its next occurrence
+    // instead), and saves it. ECal.util_mark_task_complete_sync() would do
+    // the same, but with blocking timezone lookups on the Shell's thread.
+    setTaskCompleted(uid, clientUid, done, onDone) {
+        const entry = this._clients.get(clientUid);
+        if (!entry) {
+            onDone?.(new Error('Calendar not connected'));
+            return;
+        }
+
+        entry.client.get_object(uid, null, this._cancellable, (_obj, res) => {
+            let ical;
+            try {
+                [, ical] = entry.client.get_object_finish(res);
+                applyTaskCompletion(ICalGLib, ical, done,
+                    ICalGLib.Time.new_current_with_zone(ICalGLib.Timezone.get_utc_timezone()));
+            } catch (e) {
+                if (!isCancelled(e))
+                    onDone?.(e);
+                return;
+            }
+            entry.client.modify_object(ical, ECal.ObjModType.ALL, ECal.OperationFlags.NONE, this._cancellable, (_obj2, res2) => {
+                try {
+                    entry.client.modify_object_finish(res2);
+                    onDone?.(null);
+                    if (this._year !== null)
+                        this._fetchFromClient(clientUid, this._year, this._month);
+                } catch (e) {
+                    if (!isCancelled(e))
+                        onDone?.(e);
+                }
+            });
+        });
+    }
+
     // Delete
 
     // opts: {scope: 'ALL' | 'THIS' | 'FUTURE', recurrenceId}. scope defaults to
@@ -943,9 +1088,10 @@ export class CalendarManager {
         return this._events;
     }
 
+    // Calendars only: this backs the event form's calendar picker.
     getSources()  {
         return [...this._clients.entries()]
-            .filter(([uid]) => !this._disabled.has(uid))
+            .filter(([uid, {kind}]) => !this._disabled.has(uid) && kind === 'events')
             .map(([uid, {name, color}]) => ({uid, name, color}));
     }
 

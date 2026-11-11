@@ -4,6 +4,7 @@ import Gtk from 'gi://Gtk';
 import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
 
 // Every IANA time zone id available on this system, read from the same
 // tzdata tables GLib.TimeZone itself needs to resolve a zone id - so this
@@ -119,6 +120,29 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                 settings.set_int('agenda-days', AGENDA_DAYS_IDS[i]);
         });
         agendaGroup.add(agendaDaysRow);
+
+        // Reminders are the dated tasks of the task lists listed under
+        // Calendars above.
+        const showRemindersRow = new Adw.SwitchRow({
+            title:    _('Show reminders'),
+            subtitle: _('Dated tasks from your task lists, with a checkbox to complete them'),
+        });
+        settings.bind('show-reminders', showRemindersRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        agendaGroup.add(showRemindersRow);
+
+        const showCompletedRow = new Adw.SwitchRow({title: _('Show completed reminders')});
+        settings.bind('show-completed-reminders', showCompletedRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        agendaGroup.add(showCompletedRow);
+
+        const showOverdueRow = new Adw.SwitchRow({
+            title:    _('Show overdue reminders'),
+            subtitle: _('Listed first in the agenda when it starts today'),
+        });
+        settings.bind('show-overdue-reminders', showOverdueRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        agendaGroup.add(showOverdueRow);
+
+        for (const row of [showCompletedRow, showOverdueRow])
+            showRemindersRow.bind_property('active', row, 'sensitive', GObject.BindingFlags.SYNC_CREATE);
 
         // Keyboard shortcut group
         const kbGroup = new Adw.PreferencesGroup({title: _('Keyboard Shortcut')});
@@ -1033,26 +1057,34 @@ export default class LitsycalPrefs extends ExtensionPreferences {
                     return;
                 }
 
-                const sources = registry.list_sources(EDataServer.SOURCE_EXTENSION_CALENDAR)
-                    .filter(src => src.get_enabled());
+                // Calendars, then task lists (whose dated tasks show as
+                // reminders), matching CalendarManager._connectSource(): a
+                // source with both extensions counts as a calendar.
+                const enabled = ext => registry.list_sources(ext).filter(src => src.get_enabled());
+                const calendars = enabled(EDataServer.SOURCE_EXTENSION_CALENDAR);
+                const taskLists = enabled(EDataServer.SOURCE_EXTENSION_TASK_LIST)
+                    .filter(src => !src.has_extension(EDataServer.SOURCE_EXTENSION_CALENDAR));
 
                 group.remove(loadingRow);
 
-                if (sources.length === 0) {
+                if (calendars.length === 0)
                     group.add(this._buildNoCalendarsRow());
-                    return;
-                }
 
-                for (const src of sources) {
+                const sources = [
+                    ...calendars.map(src => [src, EDataServer.SOURCE_EXTENSION_CALENDAR]),
+                    ...taskLists.map(src => [src, EDataServer.SOURCE_EXTENSION_TASK_LIST]),
+                ];
+                for (const [src, extName] of sources) {
                     const uid    = src.get_uid();
-                    const calExt = src.get_extension(EDataServer.SOURCE_EXTENSION_CALENDAR);
-                    const color  = calExt.get_color();
+                    const color  = src.get_extension(extName).get_color();
                     const name   = src.get_display_name();
 
                     const row = new Adw.SwitchRow({
                         title:  GLib.markup_escape_text(name, -1),
                         active: !disabled.has(uid),
                     });
+                    if (extName === EDataServer.SOURCE_EXTENSION_TASK_LIST)
+                        row.set_subtitle(_('Reminders'));
 
                     // Backends report colour in whatever format they like (hex,
                     // "rgb(...)", named, ...); Gdk.RGBA.parse() accepts all of them.

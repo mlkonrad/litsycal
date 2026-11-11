@@ -131,7 +131,16 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
         calManager.deleteEvent(event.uid, event.clientUid, {scope, recurrenceId}, err => onDone?.(err));
     };
 
-    const isRecurring = !!(event.recurrence || event.recurrenceId);
+    // A repeating reminder is a single task whose DUE moves on (see
+    // recurrence.js), with no occurrences to pick from: deleting it deletes
+    // it, like any other reminder.
+    const isTask = event.kind === 'task';
+    const isRecurring = !isTask && !!(event.recurrence || event.recurrenceId);
+    let title = _('Delete this event?');
+    if (isRecurring)
+        title = _('This is a repeating event.');
+    else if (isTask)
+        title = _('Delete this reminder?');
 
     const overlay = new St.BoxLayout({
         orientation: Clutter.Orientation.VERTICAL,
@@ -143,7 +152,7 @@ export function confirmDeleteEvent(calManager, event, onDone, onOverlayChange) {
         opacity: 0,
     });
     overlay.add_child(new St.Label({
-        text: isRecurring ? _('This is a repeating event.') : _('Delete this event?'),
+        text: title,
         style_class: 'litsycal-confirm-title',
     }));
 

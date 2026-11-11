@@ -745,7 +745,7 @@ class LitsycalCalendar extends St.BoxLayout {
         const dotRow = new St.BoxLayout({style_class: 'litsycal-dot-row', x_expand: true});
         dotRow.set_x_align(Clutter.ActorAlign.CENTER);
         if (this._showEventDots) {
-            for (const ev of this._calManager.getEventsForDate(ds).slice(0, 3)) {
+            for (const ev of this._dotEvents(ds).slice(0, 3)) {
                 const dot = new St.Widget({style_class: 'litsycal-event-dot'});
                 if (this._dotColorMode === 'mono') {
                     dot.add_style_class_name('litsycal-event-dot-mono');
@@ -812,7 +812,7 @@ class LitsycalCalendar extends St.BoxLayout {
         const dotRow = new St.BoxLayout({style_class: 'litsycal-dot-row', x_expand: true});
         dotRow.set_x_align(Clutter.ActorAlign.CENTER);
         if (this._showEventDots) {
-            for (const ev of this._calManager.getEventsForDate(ds).slice(0, 3)) {
+            for (const ev of this._dotEvents(ds).slice(0, 3)) {
                 const dot = new St.Widget({style_class: 'litsycal-event-dot'});
                 if (this._dotColorMode === 'mono')
                     dot.add_style_class_name('litsycal-event-dot-mono');
@@ -863,6 +863,12 @@ class LitsycalCalendar extends St.BoxLayout {
         for (const btn of this._rangeHighlightedCells)
             btn.remove_style_class_name('litsycal-day-btn-range-highlight');
         this._rangeHighlightedCells = [];
+    }
+
+    // A completed reminder (shown only with show-completed-reminders on)
+    // doesn't earn its day a dot.
+    _dotEvents(ds) {
+        return this._calManager.getEventsForDate(ds).filter(ev => !ev.completed);
     }
 
     _cellAccessibleName(ds, day, isToday) {
@@ -1094,6 +1100,18 @@ class LitsycalCalendar extends St.BoxLayout {
                 groups.push({day, ds, evs, i});
         }
 
+        // Reminders due before today, listed first when the agenda starts
+        // today, as in Itsycal.
+        const overdue = dateStr(start) === todayStr ? this._calManager.getOverdueTasks(todayStr) : [];
+        if (overdue.length > 0) {
+            const header = new St.BoxLayout({style_class: 'litsycal-agenda-header'});
+            header.add_child(new St.Label({text: _('Overdue'), style_class: 'litsycal-agenda-day-name'}));
+            this._agendaBox.add_child(header);
+            for (const task of overdue)
+                this._agendaBox.add_child(this._buildTaskRow(task, true));
+            this._agendaBox.add_child(new St.Widget({style_class: 'litsycal-agenda-sep'}));
+        }
+
         groups.forEach(({day, ds, evs}, g) => {
             let dayLabel;
             if (ds === todayStr)
@@ -1120,6 +1138,10 @@ class LitsycalCalendar extends St.BoxLayout {
                 );
             } else {
                 for (const ev of evs) {
+                    if (ev.kind === 'task') {
+                        this._agendaBox.add_child(this._buildTaskRow(ev, false));
+                        continue;
+                    }
                     const evtBtn = new St.Button({
                         style_class: 'litsycal-agenda-event-btn', x_expand: true,
                     });
@@ -1215,6 +1237,72 @@ class LitsycalCalendar extends St.BoxLayout {
             // Separator between groups - not after last
             if (g < groups.length - 1)
                 this._agendaBox.add_child(new St.Widget({style_class: 'litsycal-agenda-sep'}));
+        });
+    }
+
+    // A reminder's agenda row: a checkbox tinted with its list's color in
+    // place of an event's color pill, then the title. Below it, the due time
+    // when there is one, and in the Overdue group (showDate) the due date.
+    // Clicking the checkbox completes or reopens the reminder; clicking the
+    // row opens the info popover, as for an event.
+    _buildTaskRow(ev, showDate) {
+        const rowBtn = new St.Button({style_class: 'litsycal-agenda-event-btn', x_expand: true});
+        // See _eventButtonAt().
+        rowBtn._litsycalEvent = ev;
+        const box = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
+
+        const row1 = new St.BoxLayout({style_class: 'litsycal-agenda-row'});
+        const checkIcon = new St.Icon({
+            icon_name: ev.completed ? 'checkbox-checked-symbolic' : 'checkbox-symbolic',
+            style_class: 'litsycal-agenda-task-check-icon',
+        });
+        checkIcon.style = `color: ${ev.color};`;
+        const checkBtn = new St.Button({
+            style_class: 'litsycal-agenda-task-check', child: checkIcon, can_focus: true,
+            accessible_name: ev.completed ? _('Mark as not done') : _('Mark as done'),
+            y_align: Clutter.ActorAlign.START,
+        });
+        checkBtn.connectObject('clicked', () => this._setTaskCompleted(ev, !ev.completed), this);
+        row1.add_child(checkBtn);
+        const titleLbl = new St.Label({
+            text: ev.title, style_class: 'litsycal-agenda-title', x_expand: true,
+        });
+        if (ev.completed)
+            titleLbl.add_style_class_name('litsycal-agenda-task-done');
+        titleLbl.clutter_text.set_line_wrap(false);
+        titleLbl.clutter_text.set_ellipsize(Pango.EllipsizeMode.END);
+        row1.add_child(titleLbl);
+        box.add_child(row1);
+
+        const details = [];
+        if (showDate) {
+            const [y, m, d] = ev.date.split('-').map(Number);
+            details.push(`${capitalize(GLib.DateTime.new_local(y, m, d, 0, 0, 0).format('%b'))} ${d}`);
+        }
+        if (ev.time)
+            details.push(ev.time);
+        if (details.length > 0) {
+            const row2 = new St.BoxLayout({style_class: 'litsycal-agenda-time-row litsycal-agenda-task-time-row'});
+            row2.add_child(new St.Label({text: details.join(', '), style_class: 'litsycal-agenda-time'}));
+            box.add_child(row2);
+        }
+
+        rowBtn.set_child(box);
+        rowBtn.accessible_name = [ev.title, ...details].join(', ');
+        rowBtn.connectObject('clicked', () => this._openEventInfoPopover(rowBtn, ev), this);
+        rowBtn.connectObject('button-press-event', (actor, event) => {
+            if (event.get_button() !== Clutter.BUTTON_SECONDARY)
+                return Clutter.EVENT_PROPAGATE;
+            this._openEventContextMenu(rowBtn, ev);
+            return Clutter.EVENT_STOP;
+        }, this);
+        return rowBtn;
+    }
+
+    _setTaskCompleted(ev, done) {
+        this._calManager.setTaskCompleted(ev.uid, ev.clientUid, done, err => {
+            if (err)
+                Main.notifyError(_('Litsycal'), err.message);
         });
     }
 
@@ -1514,6 +1602,21 @@ class LitsycalCalendar extends St.BoxLayout {
     _openEventContextMenu(anchorActor, ev) {
         this._eventContextMenu?.close();
         this._eventInfoPopover?.close();
+        // Reminders can't be edited here, and the calendar app doesn't show
+        // them, so their menu is Copy and Delete... only, as in Itsycal.
+        if (ev.kind === 'task') {
+            this._eventContextMenu = new SettingsMenuPanel(anchorActor, [
+                {
+                    label: _('Copy'), icon: 'edit-copy-symbolic',
+                    action: () => this._copyEventToClipboard(ev),
+                },
+                {
+                    label: _('Delete…'), icon: 'edit-delete-symbolic',
+                    action: () => this._deleteEventFromAgenda(ev),
+                },
+            ]);
+            return;
+        }
         const meetingUrl = findMeetingUrl(ev);
         this._eventContextMenu = new SettingsMenuPanel(anchorActor, [
             {

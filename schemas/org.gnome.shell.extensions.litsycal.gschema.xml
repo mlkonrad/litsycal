@@ -90,6 +90,18 @@
       <default>false</default>
       <summary>Show every day in the agenda range, including ones with no events</summary>
     </key>
+    <key name="show-reminders" type="b">
+      <default>true</default>
+      <summary>Show dated reminders from task lists in the grid and agenda</summary>
+    </key>
+    <key name="show-completed-reminders" type="b">
+      <default>false</default>
+      <summary>Show completed reminders too, crossed out</summary>
+    </key>
+    <key name="show-overdue-reminders" type="b">
+      <default>true</default>
+      <summary>List incomplete reminders due before today at the top of today's agenda</summary>
+    </key>
     <key name="dot-color-mode" type="s">
       <choices>
         <choice value="calendar"/>

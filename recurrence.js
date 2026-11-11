@@ -11,6 +11,10 @@
 // occurrence that was edited on its own arrives as a separate "detached"
 // component carrying RECURRENCE-ID; it is shown as its own event, and the
 // generated occurrence it replaces is skipped.
+//
+// Repeating reminders (VTODO) aren't expanded: like Evolution and Itsycal,
+// a reminder shows at its current DUE only, and completing it moves that
+// DUE on to the next occurrence (see applyTaskCompletion).
 
 import GLib from 'gi://GLib';
 
@@ -165,4 +169,105 @@ export function shiftFieldsToSeries(fields, occurrenceDate, seriesDate) {
     const delta = dayNumber(seriesDate) - dayNumber(occurrenceDate);
     const shift = ds => ds ? fromDayNumber(dayNumber(ds) + delta) : ds;
     return {...fields, date: shift(fields.date), endDate: shift(fields.endDate)};
+}
+
+// Plenty for a daily series started decades ago; a guard, not a limit any
+// real reminder reaches.
+const MAX_TASK_ITERATIONS = 100000;
+
+/**
+ * The occurrence a repeating reminder moves to when it's completed: the
+ * first one after its current start (DTSTART, or DUE without one), skipping
+ * EXDATEs. DUE keeps its distance from DTSTART. A COUNT in the rule shrinks
+ * by the occurrences passed over, since the series restarts from the new
+ * start. Computed with libical's RecurIterator alone: tasks aren't expanded
+ * into instances like events are, and this needs no ECal or D-Bus call.
+ *
+ * @param {object} ICalGLib the libical typelib, passed in (see header)
+ * @param {ICalGLib.Component} ic the VTODO
+ * @returns {{dtstart: ICalGLib.Time|null, due: ICalGLib.Time, count: number|null}|null}
+ *   the next start/due and new COUNT, or null when the series has ended or
+ *   the task doesn't repeat
+ */
+export function nextTaskOccurrence(ICalGLib, ic) {
+    const rruleProp = ic.get_first_property(ICalGLib.PropertyKind.RRULE_PROPERTY);
+    const dueProp   = ic.get_first_property(ICalGLib.PropertyKind.DUE_PROPERTY);
+    if (!rruleProp || !dueProp)
+        return null;
+    const due = dueProp.get_due();
+    const dtstartProp = ic.get_first_property(ICalGLib.PropertyKind.DTSTART_PROPERTY);
+    const dtstart = dtstartProp?.get_dtstart() ?? null;
+    const seed = dtstart ?? due;
+
+    const exdates = new Set();
+    let ex = ic.get_first_property(ICalGLib.PropertyKind.EXDATE_PROPERTY);
+    while (ex) {
+        exdates.add(ex.get_exdate().as_ical_string());
+        ex = ic.get_next_property(ICalGLib.PropertyKind.EXDATE_PROPERTY);
+    }
+
+    const rule = rruleProp.get_rrule();
+    const it = ICalGLib.RecurIterator.new(rule, seed);
+    for (let passed = 0; passed < MAX_TASK_ITERATIONS; passed++) {
+        const occ = it.next();
+        if (!occ || occ.is_null_time())
+            return null;
+        if (occ.compare(seed) <= 0 || exdates.has(occ.as_ical_string()))
+            continue;
+        let nextDue = occ;
+        if (dtstart) {
+            const seconds = due.subtract(dtstart).as_int();
+            nextDue = occ.clone();
+            if (nextDue.is_date())
+                nextDue.adjust(Math.round(seconds / 86400), 0, 0, 0);
+            else
+                nextDue.adjust(0, 0, 0, seconds);
+        }
+        const count = rule.get_count();
+        return {dtstart: dtstart ? occ : null, due: nextDue, count: count > 0 ? count - passed : null};
+    }
+    return null;
+}
+
+function replaceProperty(ic, kind, prop) {
+    let old = ic.get_first_property(kind);
+    while (old) {
+        ic.remove_property(old);
+        old = ic.get_first_property(kind);
+    }
+    if (prop)
+        ic.add_property(prop);
+}
+
+/**
+ * Marks a reminder done or not done, in place. Done sets STATUS COMPLETED,
+ * PERCENT-COMPLETE 100 and COMPLETED; not done reverses all three. A
+ * repeating reminder isn't completed at all: it moves on to its next
+ * occurrence (see nextTaskOccurrence) and stays to do, as in Evolution and
+ * Itsycal. Only once its series has ended is it completed for real.
+ *
+ * @param {object} ICalGLib the libical typelib, passed in (see header)
+ * @param {ICalGLib.Component} ic the VTODO
+ * @param {boolean} done whether the reminder is being completed
+ * @param {ICalGLib.Time} now the completion time, in UTC
+ */
+export function applyTaskCompletion(ICalGLib, ic, done, now) {
+    const next = done ? nextTaskOccurrence(ICalGLib, ic) : null;
+    if (next) {
+        ic.get_first_property(ICalGLib.PropertyKind.DUE_PROPERTY).set_due(next.due);
+        if (next.dtstart)
+            ic.get_first_property(ICalGLib.PropertyKind.DTSTART_PROPERTY).set_dtstart(next.dtstart);
+        if (next.count !== null) {
+            const rruleProp = ic.get_first_property(ICalGLib.PropertyKind.RRULE_PROPERTY);
+            const rule = rruleProp.get_rrule();
+            rule.set_count(next.count);
+            rruleProp.set_rrule(rule);
+        }
+        done = false;
+    }
+    ic.set_status(done ? ICalGLib.PropertyStatus.COMPLETED : ICalGLib.PropertyStatus.NEEDSACTION);
+    replaceProperty(ic, ICalGLib.PropertyKind.PERCENTCOMPLETE_PROPERTY,
+        ICalGLib.Property.new_percentcomplete(done ? 100 : 0));
+    replaceProperty(ic, ICalGLib.PropertyKind.COMPLETED_PROPERTY,
+        done ? ICalGLib.Property.new_completed(now) : null);
 }

@@ -259,7 +259,9 @@ export function formatEventWhen(ev) {
         const [ey, em, ed] = ev.endDate.split('-').map(Number);
         when += ` – ${capitalize(GLib.DateTime.new_local(ey, em, ed, 0, 0, 0).format('%A, %B %-d, %Y'))}`;
     }
-    when += `, ${ev.time ?? _('All day')}`;
+    // A reminder without a due time is just due that day, not "all day".
+    if (ev.time || ev.kind !== 'task')
+        when += `, ${ev.time ?? _('All day')}`;
     return when;
 }
 

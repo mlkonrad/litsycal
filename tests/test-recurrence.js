@@ -1,9 +1,10 @@
-// Pure-gjs tests for the recurring-event expansion in recurrence.js.
+// Pure-gjs tests for the recurring-event expansion and the reminder
+// completion logic in recurrence.js.
 // Run from the repo root with:
 //   gjs -m tests/test-recurrence.js      (or: npm test)
 // Prints PASS/FAIL per check and exits non-zero if any check fails.
 //
-// The override matching and date shifting need only ICalGLib. The
+// The override matching, date shifting and reminder logic need only ICalGLib. The
 // expansion itself needs the ECal typelib, which CI doesn't install: when
 // gi://ECal is missing, those checks print a SKIP line instead of failing.
 
@@ -11,8 +12,8 @@ import System from 'system';
 import ICalGLib from 'gi://ICalGLib';
 
 import {
-    collectOverrideKeys, expandRecurring, instantKey, isDetached,
-    makeTzResolver, shiftFieldsToSeries,
+    applyTaskCompletion, collectOverrideKeys, expandRecurring, instantKey, isDetached,
+    makeTzResolver, nextTaskOccurrence, shiftFieldsToSeries,
 } from '../recurrence.js';
 
 let ECal = null;
@@ -94,6 +95,55 @@ check('a date moved by one day moves the series by one day, across a month',
     {...fields, date: '2026-11-04', endDate: '2026-11-05'});
 check('a null endDate stays null',
     shiftFieldsToSeries({...fields, endDate: null}, '2026-11-25', '2026-11-04').endDate, null);
+
+// --- Completing reminders ---
+
+const vtodo = lines => ICalGLib.Component.new_from_string(['BEGIN:VTODO', 'UID:t', ...lines, 'END:VTODO'].join('\r\n'));
+const propStr = (ic, kind) => ic.get_first_property(kind)?.as_ical_string().trim() ?? null;
+const K = ICalGLib.PropertyKind;
+const now = time('20261111T120000Z');
+
+const plain = vtodo(['SUMMARY:Plain', 'DUE;VALUE=DATE:20261110', 'STATUS:NEEDS-ACTION']);
+check('a non-repeating task has no next occurrence', nextTaskOccurrence(ICalGLib, plain), null);
+applyTaskCompletion(ICalGLib, plain, true, now);
+check('done sets STATUS COMPLETED', propStr(plain, K.STATUS_PROPERTY), 'STATUS:COMPLETED');
+check('done sets PERCENT-COMPLETE 100', propStr(plain, K.PERCENTCOMPLETE_PROPERTY), 'PERCENT-COMPLETE:100');
+check('done sets COMPLETED to now', propStr(plain, K.COMPLETED_PROPERTY), 'COMPLETED:20261111T120000Z');
+check('done keeps DUE', propStr(plain, K.DUE_PROPERTY), 'DUE;VALUE=DATE:20261110');
+applyTaskCompletion(ICalGLib, plain, true, now);
+check('completing twice keeps one COMPLETED',
+    plain.count_properties(K.COMPLETED_PROPERTY) + plain.count_properties(K.PERCENTCOMPLETE_PROPERTY), 2);
+applyTaskCompletion(ICalGLib, plain, false, now);
+check('undone sets NEEDS-ACTION', propStr(plain, K.STATUS_PROPERTY), 'STATUS:NEEDS-ACTION');
+check('undone removes COMPLETED', propStr(plain, K.COMPLETED_PROPERTY), null);
+check('undone sets PERCENT-COMPLETE 0', propStr(plain, K.PERCENTCOMPLETE_PROPERTY), 'PERCENT-COMPLETE:0');
+
+const weekly = vtodo([
+    'SUMMARY:Weekly', 'DTSTART;TZID=Europe/Berlin:20261104T090000', 'DUE;TZID=Europe/Berlin:20261104T100000',
+    'RRULE:FREQ=WEEKLY;COUNT=5', 'EXDATE;TZID=Europe/Berlin:20261111T090000', 'STATUS:NEEDS-ACTION',
+]);
+applyTaskCompletion(ICalGLib, weekly, true, now);
+check('a repeating task advances DTSTART past the EXDATE, keeping its TZID',
+    propStr(weekly, K.DTSTART_PROPERTY), 'DTSTART;TZID=Europe/Berlin:20261118T090000');
+check('DUE keeps its distance from DTSTART', propStr(weekly, K.DUE_PROPERTY), 'DUE;TZID=Europe/Berlin:20261118T100000');
+check('COUNT shrinks by the occurrences passed over', propStr(weekly, K.RRULE_PROPERTY), 'RRULE:FREQ=WEEKLY;COUNT=3');
+check('an advanced task stays to do', propStr(weekly, K.STATUS_PROPERTY), 'STATUS:NEEDS-ACTION');
+check('an advanced task has no COMPLETED', propStr(weekly, K.COMPLETED_PROPERTY), null);
+
+const dueOnly = vtodo(['SUMMARY:Monthly', 'DUE;VALUE=DATE:20260131', 'RRULE:FREQ=MONTHLY;INTERVAL=2']);
+applyTaskCompletion(ICalGLib, dueOnly, true, now);
+check('a task without DTSTART advances DUE itself', propStr(dueOnly, K.DUE_PROPERTY), 'DUE;VALUE=DATE:20260331');
+check('a rule without COUNT stays without one', propStr(dueOnly, K.RRULE_PROPERTY), 'RRULE:FREQ=MONTHLY;INTERVAL=2');
+
+const last = vtodo(['SUMMARY:Last', 'DUE;VALUE=DATE:20261110', 'RRULE:FREQ=DAILY;UNTIL=20261110']);
+check('a series with no further occurrence has no next', nextTaskOccurrence(ICalGLib, last), null);
+applyTaskCompletion(ICalGLib, last, true, now);
+check('completing its last occurrence completes it for real', propStr(last, K.STATUS_PROPERTY), 'STATUS:COMPLETED');
+
+const old = vtodo(['SUMMARY:Daily', 'DUE;VALUE=DATE:19850120', 'RRULE:FREQ=DAILY']);
+applyTaskCompletion(ICalGLib, old, true, now);
+check('an old daily task moves to the day after its DUE, not to today',
+    propStr(old, K.DUE_PROPERTY), 'DUE;VALUE=DATE:19850121');
 
 // --- Expansion (needs ECal) ---
 
