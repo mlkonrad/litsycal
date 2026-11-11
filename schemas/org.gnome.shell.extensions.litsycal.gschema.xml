@@ -21,6 +21,21 @@
       <summary>Custom sound file path for the hourly beep</summary>
       <description>Empty string means use the system theme's default bell sound.</description>
     </key>
+    <key name="timer-end-time" type="x">
+      <default>0</default>
+      <summary>Countdown timer end time (Unix seconds)</summary>
+      <description>0 means no timer is running. Stored as a wall-clock end time so a running timer survives a restart or suspend.</description>
+    </key>
+    <key name="timer-recent-durations" type="ai">
+      <default>[]</default>
+      <summary>Recently used countdown timer durations, in minutes</summary>
+      <description>Most recent first, at most 5 entries.</description>
+    </key>
+    <key name="timer-sound-file" type="s">
+      <default>''</default>
+      <summary>Custom sound file path for the countdown timer</summary>
+      <description>Empty string means use the system theme's alarm sound.</description>
+    </key>
     <key name="disabled-calendars" type="as">
       <default>[]</default>
       <summary>UIDs of calendar sources hidden from the grid and agenda</summary>

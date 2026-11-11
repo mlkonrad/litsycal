@@ -637,6 +637,20 @@
     padding: 6px 2px;
 }
 
+/* Countdown timer panel (menuTimer.js TimerPanel). Fixed width so the
+   minutes label changing from "9 min" to "10 min" doesn't resize it. */
+.litsycal-timer-panel {
+    padding: 12px;
+    spacing: 8px;
+    width: 260px;
+    border-radius: 10px;
+}
+.litsycal-timer-minutes {
+    min-width: 52px;
+    text-align: right;
+    font-feature-settings: "tnum";
+}
+
 .litsycal-goto-title {
     font-size: 0.95em;
     font-weight: bold;

@@ -13,9 +13,10 @@ import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js'
 import {LitsycalCalendar}  from './calendarWidget.js';
 import {SettingsMenuPanel} from './settingsMenuPanel.js';
 import {GoToDatePanel}     from './eventDialog.js';
+import {MenuTimer, TimerPanel, formatTimerRemaining} from './menuTimer.js';
 import {
     capitalize, formatPattern, dateStr, findMeetingUrl, meetingIsJoinable, eventTimeRange,
-    SIZE_MIN_WIDTHS,
+    playSound, SIZE_MIN_WIDTHS,
 } from './helpers.js';
 
 // Panel indicator
@@ -82,6 +83,14 @@ class LitsycalIndicator extends PanelMenu.Button {
             style_class: 'litsycal-meeting-glyph', visible: false,
         });
         this._box.add_child(this._meetingGlyph);
+
+        // Countdown timer (see menuTimer.js). Shown in _countdownBox, taking
+        // precedence over the meeting countdown while it runs.
+        this._timerLeft = null;
+        this._menuTimer = new MenuTimer(settings, left => {
+            this._timerLeft = left;
+            this._updateBadge();
+        });
 
         this._updateBadge();
 
@@ -221,6 +230,10 @@ class LitsycalIndicator extends PanelMenu.Button {
                 label: _('Go to date…'), icon: 'go-jump-symbolic',
                 action: () => this._openGoToDateDialog(anchorActor),
             },
+            {
+                label: _('Timer…'), icon: 'alarm-symbolic',
+                action: () => this._openTimerPanel(anchorActor),
+            },
             null,
             {
                 label: _('Settings'), icon: 'preferences-system-symbolic',
@@ -282,6 +295,18 @@ class LitsycalIndicator extends PanelMenu.Button {
         });
     }
 
+    // Same floating-in-front behavior as the Go to date panel above.
+    _openTimerPanel(anchorActor) {
+        this._timerPanel?.close();
+        this._timerPanel = new TimerPanel(anchorActor, this._menuTimer.recentDurations(), this._timerLeft !== null, result => {
+            this._timerPanel = null;
+            if (result?.cancel)
+                this._menuTimer.cancel();
+            else if (result)
+                this._menuTimer.start(result.minutes);
+        });
+    }
+
     vfunc_event(event) {
         if (event.type() === Clutter.EventType.BUTTON_PRESS &&
             event.get_button() === Clutter.BUTTON_SECONDARY) {
@@ -332,8 +357,15 @@ class LitsycalIndicator extends PanelMenu.Button {
         const now        = GLib.DateTime.new_now_local();
         const normalText = pattern ? formatPattern(now, pattern) : this._defaultText();
 
-        const countdown = this._settings.get_boolean('show-countdown-in-badge')
-            ? this._nextMeetingCountdownText() : null;
+        // A running timer is something the user started on purpose, so it
+        // shows even with the meeting countdown setting off.
+        const timerOn = this._timerLeft !== null;
+        let countdown = null;
+        if (timerOn)
+            countdown = formatTimerRemaining(this._timerLeft);
+        else if (this._settings.get_boolean('show-countdown-in-badge'))
+            countdown = this._nextMeetingCountdownText();
+        this._countdownIcon.icon_name = timerOn ? 'alarm-symbolic' : 'camera-video-symbolic';
 
         // The logo style shows the logo instead of the date text, so the
         // text options (month, weekday, time, pattern) don't apply to it.
@@ -456,16 +488,8 @@ class LitsycalIndicator extends PanelMenu.Button {
         const h   = now.get_hour();
         if (h !== this._lastHour) {
             this._lastHour = h;
-            if (this._settings.get_boolean('beep-on-hour')) {
-                const customFile = this._settings.get_string('hour-sound-file');
-                const player = global.display.get_sound_player();
-                // Custom file gone (deleted/moved) -> theme bell.
-                const file = customFile ? Gio.File.new_for_path(customFile) : null;
-                if (file?.query_exists(null))
-                    player.play_from_file(file, 'Hour bell', null);
-                else
-                    player.play_from_theme('bell', 'Hour bell', null);
-            }
+            if (this._settings.get_boolean('beep-on-hour'))
+                playSound(this._settings.get_string('hour-sound-file'), 'bell', 'Hour bell');
         }
     }
 
@@ -552,12 +576,16 @@ class LitsycalIndicator extends PanelMenu.Button {
         this._goToDatePanel = null;
         this._settingsMenuPanel?.close();
         this._settingsMenuPanel = null;
+        this._timerPanel?.close();
+        this._timerPanel = null;
         // Destroyed explicitly: as a child actor it would otherwise go down
         // with the menu (or the floating box) from C code, which skips its
         // JS destroy() and leaves its settings handlers and calendar
         // connections running after disable.
         this._calWidget.destroy();
         this._calWidget = null;
+        this._menuTimer.destroy();
+        this._menuTimer = null;
         if (this._floatingBox) {
             Main.layoutManager.uiGroup.remove_child(this._floatingBox);
             this._floatingBox.destroy();

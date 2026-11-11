@@ -1,4 +1,5 @@
 import GLib    from 'gi://GLib';
+import Gio     from 'gi://Gio';
 import St      from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Pango   from 'gi://Pango';
@@ -373,4 +374,21 @@ export function makeTzRow(city, time, relOffset) {
     row.add_child(leader);
     row.add_child(timeBox);
     return row;
+}
+
+/**
+ * Plays a custom sound file, or the theme sound when no file is set or the
+ * file is gone (deleted/moved). Shared by the hourly beep and the timer.
+ *
+ * @param {string} customPath file path from settings, or '' for none
+ * @param {string} themeId freedesktop sound theme id to fall back to
+ * @param {string} description event description passed to the sound player
+ */
+export function playSound(customPath, themeId, description) {
+    const player = global.display.get_sound_player();
+    const file   = customPath ? Gio.File.new_for_path(customPath) : null;
+    if (file?.query_exists(null))
+        player.play_from_file(file, description, null);
+    else
+        player.play_from_theme(themeId, description, null);
 }
