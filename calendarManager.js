@@ -518,29 +518,64 @@ export class CalendarManager {
 
         const sexp = this._sexpFor(kind, year, month);
 
+        // occur-in-time-range? returns a repeating series' master but not
+        // its detached occurrences (ones edited on their own, which carry
+        // RECURRENCE-ID), even when they fall inside the range. Without them
+        // an edited occurrence would show unedited, at its original time. So
+        // every series the range query found is fetched again by uid, which
+        // returns the master together with all of its detached occurrences.
+        this._listComps(client, sexp, uid, comps => {
+            if (!comps) {
+                onDone?.();
+                return;
+            }
+            if (kind === 'tasks') {
+                this._ingestTasks(comps, color, uid, name);
+                onDone?.();
+                return;
+            }
+            const seriesUids = new Set(comps.filter(c => c.has_recurrences()).map(c => c.get_uid()));
+            if (seriesUids.size === 0) {
+                this._ingestComps(comps, color, uid, year, month);
+                onDone?.();
+                return;
+            }
+            const uidSexp = `(or ${[...seriesUids].map(u => `(uid? "${this._escapeSexpString(u)}")`).join(' ')})`;
+            this._listComps(client, uidSexp, uid, seriesComps => {
+                // If this second query fails, the masters alone still show.
+                const merged = seriesComps
+                    ? [...comps.filter(c => !seriesUids.has(c.get_uid())), ...seriesComps]
+                    : comps;
+                this._ingestComps(merged, color, uid, year, month);
+                onDone?.();
+            });
+        });
+    }
+
+    // onComps(comps) gets the matching components, or null after a failure
+    // (logged, and the current events re-sent so the UI isn't left waiting).
+    // A cancelled call (see destroy()) calls nothing.
+    _listComps(client, sexp, uid, onComps) {
         client.get_object_list_as_comps(sexp, this._cancellable, (_obj, res) => {
+            let comps;
             try {
-                const [, comps] = client.get_object_list_as_comps_finish(res);
-                if (kind === 'tasks')
-                    this._ingestTasks(comps ?? [], color, uid, name);
-                else
-                    this._ingestComps(comps ?? [], color, uid, year, month);
+                [, comps] = client.get_object_list_as_comps_finish(res);
             } catch (e) {
                 if (isCancelled(e))
                     return;
                 logError(e, `CalendarManager: failed to fetch events for source ${uid}`);
                 this._onEventsChanged(this._events);
+                onComps(null);
+                return;
             }
-            onDone?.();
+            onComps(comps ?? []);
         });
     }
 
     // A recurring master is expanded into one event per occurrence in the
     // fetched range (see recurrence.js), over the same range the query
-    // itself used. A detached occurrence that was moved out of that range
-    // isn't returned by the query, so the slot it left still shows the
-    // generated occurrence until the series is fetched for a range that
-    // includes the moved one.
+    // itself used. Its detached occurrences arrive alongside it (see
+    // _fetchFromClient()), each replacing the occurrence it was edited from.
     _ingestComps(comps, color, clientUid, year, month) {
         this._events = this._events.filter(e => e.clientUid !== clientUid);
 
