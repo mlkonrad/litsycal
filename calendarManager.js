@@ -3,6 +3,7 @@ import Gio  from 'gi://Gio';
 
 import {MAX_EXTRA_WEEK_ROWS} from './helpers.js';
 import {allDayEndDate, buildICal, parseAlarm, parseRecurrence} from './ical.js';
+import {collectOverrideKeys, expandRecurring, isDetached} from './recurrence.js';
 
 // Evolution Data Server typelibs (EDataServer/ECal/ICalGLib) aren't
 // guaranteed to be installed - a static top-level import throws at module
@@ -10,7 +11,8 @@ import {allDayEndDate, buildICal, parseAlarm, parseRecurrence} from './ical.js';
 // _loadBackends() below (same pattern as Geoclue/GWeather in prefs.js).
 // Every use below only runs once these are non-null (see _loadBackends()).
 // The static ical.js import above is safe on such a system: it imports
-// only GLib and receives ICalGLib as a function parameter instead.
+// only GLib and receives ICalGLib as a function parameter instead, and so
+// does recurrence.js (which receives ECal too).
 let EDataServer = null;
 let ECal = null;
 let ICalGLib = null;
@@ -356,6 +358,10 @@ export class CalendarManager {
     // sorted by date/time. Stale results - a slower-to-respond earlier
     // search finishing after a newer one already has - are silently
     // discarded via _searchToken rather than clobbering fresher results.
+    //
+    // A repeating series is one hit, dated at its first occurrence: search
+    // returns the master components as-is, without the expansion
+    // _ingestComps() does for the month view.
     searchEvents(text, callback) {
         const token = ++this._searchToken;
         const query = (text ?? '').trim();
@@ -431,16 +437,22 @@ export class CalendarManager {
     // dragged-in extra weeks (see calendarWidget.js's resize handle).
     // Fetching only makes sense in whole-day units, so this pads a bit past
     // the exact worst case rather than tracking it to the day.
-    _rangeSexp(year, month) {
+    _rangeBounds(year, month) {
         const LEADING_OVERFLOW_DAYS  = 7;
         const TRAILING_OVERFLOW_DAYS = 7 + MAX_EXTRA_WEEK_ROWS * 7;
 
         const monthStart = GLib.DateTime.new_local(year, month, 1, 0, 0, 0);
-        const rangeStart = monthStart.add_days(-LEADING_OVERFLOW_DAYS);
-        const rangeEnd   = monthStart.add_months(1).add_days(TRAILING_OVERFLOW_DAYS);
+        return {
+            start: monthStart.add_days(-LEADING_OVERFLOW_DAYS),
+            end:   monthStart.add_months(1).add_days(TRAILING_OVERFLOW_DAYS),
+        };
+    }
+
+    _rangeSexp(year, month) {
+        const {start, end} = this._rangeBounds(year, month);
         return '(occur-in-time-range? ' +
-               `(make-time "${this._stamp(rangeStart)}") ` +
-               `(make-time "${this._stamp(rangeEnd)}"))`;
+               `(make-time "${this._stamp(start)}") ` +
+               `(make-time "${this._stamp(end)}"))`;
     }
 
     // onDone (optional) fires once this one client's fetch finishes, success
@@ -460,7 +472,7 @@ export class CalendarManager {
         client.get_object_list_as_comps(sexp, this._cancellable, (_obj, res) => {
             try {
                 const [, comps] = client.get_object_list_as_comps_finish(res);
-                this._ingestComps(comps ?? [], color, uid);
+                this._ingestComps(comps ?? [], color, uid, year, month);
             } catch (e) {
                 if (isCancelled(e))
                     return;
@@ -471,13 +483,44 @@ export class CalendarManager {
         });
     }
 
-    _ingestComps(comps, color, clientUid) {
+    // A recurring master is expanded into one event per occurrence in the
+    // fetched range (see recurrence.js), over the same range the query
+    // itself used. A detached occurrence that was moved out of that range
+    // isn't returned by the query, so the slot it left still shows the
+    // generated occurrence until the series is fetched for a range that
+    // includes the moved one.
+    _ingestComps(comps, color, clientUid, year, month) {
         this._events = this._events.filter(e => e.clientUid !== clientUid);
 
+        const {start, end} = this._rangeBounds(year, month);
+        const rangeStart = ICalGLib.Time.new_from_string(this._stamp(start));
+        const rangeEnd   = ICalGLib.Time.new_from_string(this._stamp(end));
+        const ics = comps.map(c => c.get_icalcomponent()).filter(Boolean);
+        const overrides = collectOverrideKeys(ICalGLib, ics);
+        const localTz = this._resolveLocalTimezone();
+
         for (const comp of comps) {
-            const ev = this._parseComp(comp, color, clientUid);
-            if (ev)
-                this._events.push(ev);
+            const ic = comp.get_icalcomponent();
+            if (!ic || !comp.has_recurrences() || isDetached(ICalGLib, ic)) {
+                const ev = this._parseComp(comp, color, clientUid);
+                if (ev)
+                    this._events.push(ev);
+                continue;
+            }
+            let instances;
+            try {
+                instances = expandRecurring(ECal, ICalGLib, ic, rangeStart, rangeEnd, localTz,
+                    overrides.get(comp.get_uid()));
+            } catch (e) {
+                logError(e, `CalendarManager: failed to expand recurring event ${comp.get_uid() ?? '?'}`);
+                continue;
+            }
+            const master = this._parseComp(comp, color, clientUid);
+            for (const instance of instances) {
+                const ev = this._parseComp(comp, color, clientUid, instance);
+                if (ev)
+                    this._events.push({...ev, seriesDate: master?.date ?? null});
+            }
         }
 
         this._reindex();
@@ -513,85 +556,80 @@ export class CalendarManager {
         return tObj.convert_to_zone(localTz);
     }
 
+    // DTSTART/DTEND from EDS carry the event's original TZID (or are
+    // UTC/floating); converted to local wall-clock time here so every
+    // consumer of the returned `date`/`time` fields gets a correct time for
+    // free, instead of the organizer's raw digits silently mislabeled as the
+    // viewer's local time. tStart/tEnd are modified in place.
+    _timesFromIcal(tStart, tzid, tEnd, eTzid) {
+        const isAllDay = tStart.is_date();
+        let originalTzid = null;
+        let localTz = null;
+        if (!isAllDay && (tzid || tStart.is_utc())) {
+            localTz = this._resolveLocalTimezone();
+            const converted = this._convertToLocal(tStart, tzid, localTz);
+            // Only report an originalTzid (and only display the converted
+            // digits) when conversion actually succeeded - otherwise
+            // tStart still holds the raw, unconverted digits and labeling
+            // them as "originally scheduled in <tzid>" would misrepresent a
+            // conversion that never happened. Plain UTC times (a trailing
+            // Z) get no originalTzid: many CalDAV/ICS feeds store every
+            // event that way, so it says nothing about the zone it was
+            // planned in.
+            if (converted) {
+                if (!tStart.is_utc())
+                    originalTzid = tzid;
+                tStart = converted;
+            }
+        }
+
+        const pad = n => String(n).padStart(2, '0');
+        const dateOf = t => `${t.get_year()}-${pad(t.get_month())}-${pad(t.get_day())}`;
+        const date = dateOf(tStart);
+
+        let time = null;
+        let endDate = null;
+        if (!isAllDay) {
+            const startStr = `${pad(tStart.get_hour())}:${pad(tStart.get_minute())}`;
+            if (tEnd && !tEnd.is_date() && (eTzid || tEnd.is_utc())) {
+                localTz ??= this._resolveLocalTimezone();
+                tEnd = this._convertToLocal(tEnd, eTzid, localTz) ?? tEnd;
+            }
+            const endStr = tEnd && !tEnd.is_date()
+                ? `${pad(tEnd.get_hour())}:${pad(tEnd.get_minute())}`
+                : null;
+            time = endStr ? `${startStr} - ${endStr}` : startStr;
+
+            if (tEnd && dateOf(tEnd) !== date)
+                endDate = dateOf(tEnd);
+        } else {
+            // All-day DTEND;VALUE=DATE is exclusive (see allDayEndDate in
+            // ical.js): the last visible day is DTEND - 1, and only a span
+            // past the start day earns an endDate.
+            endDate = allDayEndDate(tEnd, date);
+        }
+        return {date, time, endDate, allDay: isAllDay, originalTzid};
+    }
+
     // Shared by _ingestComps (month cache) and searchEvents (a separate,
     // one-off query - see below) so both build the exact same event shape
-    // from a raw ECal component. Returns null (logging) rather than
+    // from a raw ECal component. `instance` ({start, end, rid} from
+    // expandRecurring) dates one occurrence of a recurring master in place
+    // of its DTSTART/DTEND; its times are still in the master's zones, so
+    // the master's TZIDs apply to them. Returns null (logging) rather than
     // throwing on a single malformed component, so one bad event never
     // takes down a whole batch.
-    _parseComp(comp, color, clientUid) {
+    _parseComp(comp, color, clientUid, instance = null) {
         try {
             const title = comp.get_summary()?.get_value() ?? '';
             const dtstart = comp.get_dtstart();
-            let tObj = dtstart?.get_value();
-            if (!tObj)
+            const dtend = comp.get_dtend();
+            const tStart = instance?.start ?? dtstart?.get_value();
+            if (!tStart)
                 return null;
-
-            const isAllDay = tObj.is_date();
-
-            // DTSTART/DTEND from EDS carry the event's original TZID (or
-            // are UTC/floating); convert to local wall-clock time here so
-            // every consumer of the returned `date`/`time` fields gets a
-            // correct time for free, instead of the organizer's raw digits
-            // silently mislabeled as the viewer's local time.
-            let originalTzid = null;
-            let localTz = null;
-            if (!isAllDay) {
-                const tzid = dtstart.get_tzid();
-                if (tzid || tObj.is_utc()) {
-                    localTz = this._resolveLocalTimezone();
-                    const converted = this._convertToLocal(tObj, tzid, localTz);
-                    // Only report an originalTzid (and only display the
-                    // converted digits) when conversion actually succeeded -
-                    // otherwise tObj still holds the raw, unconverted digits
-                    // and labeling them as "originally scheduled in <tzid>"
-                    // would misrepresent a conversion that never happened.
-                    // Plain UTC times (a trailing Z) get no originalTzid:
-                    // many CalDAV/ICS feeds store every event that way, so
-                    // it says nothing about the zone it was planned in.
-                    if (converted) {
-                        if (!tObj.is_utc())
-                            originalTzid = tzid;
-                        tObj = converted;
-                    }
-                }
-            }
-
-            const y = tObj.get_year();
-            const m = tObj.get_month();
-            const d = tObj.get_day();
-            const date = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-
-            let time = null;
-            let endDate = null;
-            if (!isAllDay) {
-                const pad = n => String(n).padStart(2, '0');
-                const startStr = `${pad(tObj.get_hour())}:${pad(tObj.get_minute())}`;
-                const dtend = comp.get_dtend();
-                let eObj = dtend?.get_value();
-                if (eObj && !eObj.is_date()) {
-                    const eTzid = dtend.get_tzid();
-                    if (eTzid || eObj.is_utc()) {
-                        localTz ??= this._resolveLocalTimezone();
-                        eObj = this._convertToLocal(eObj, eTzid, localTz) ?? eObj;
-                    }
-                }
-                const endStr = eObj && !eObj.is_date()
-                    ? `${pad(eObj.get_hour())}:${pad(eObj.get_minute())}`
-                    : null;
-                time = endStr ? `${startStr} - ${endStr}` : startStr;
-
-                if (eObj) {
-                    const eDate = `${eObj.get_year()}-${String(eObj.get_month()).padStart(2, '0')}-${String(eObj.get_day()).padStart(2, '0')}`;
-                    if (eDate !== date)
-                        endDate = eDate;
-                }
-            } else {
-                // All-day DTEND;VALUE=DATE is exclusive (see
-                // allDayEndDate in ical.js): the last visible day
-                // is DTEND - 1, and only a span past the start day
-                // earns an endDate.
-                endDate = allDayEndDate(comp.get_dtend()?.get_value(), date);
-            }
+            const tEnd = instance ? instance.end : dtend?.get_value();
+            const {date, time, endDate, allDay: isAllDay, originalTzid} =
+                this._timesFromIcal(tStart, dtstart?.get_tzid() ?? null, tEnd, dtend?.get_tzid() ?? null);
 
             let notes = null, url = null, location = null, recurrence = null, alarm = null,
                 recurrenceId = null, attendees = [];
@@ -612,11 +650,12 @@ export class CalendarManager {
                 alarm      = parseAlarm(ICalGLib, ic);
                 attendees  = this._parseAttendees(ic);
 
-                // Present only on one occurrence of a recurring series (never
-                // on the master) - identifies which occurrence this is, so a
-                // "delete this event only" can target it specifically.
+                // Identifies which occurrence of a recurring series this is,
+                // so a "delete this event only" can target it specifically:
+                // a detached occurrence's own RECURRENCE-ID, or a generated
+                // occurrence's start (see expandRecurring). Null on a master.
                 const ridProp = ic.get_first_property(ICalGLib.PropertyKind.RECURRENCEID_PROPERTY);
-                recurrenceId = ridProp ? ridProp.get_value_as_string() || null : null;
+                recurrenceId = instance?.rid ?? (ridProp ? ridProp.get_value_as_string() || null : null);
             }
 
             return {
@@ -873,12 +912,18 @@ export class CalendarManager {
         }[scope] ?? ECal.ObjModType.ALL;
         const rid = scope === 'ALL' ? null : recurrenceId;
 
+        // FUTURE also drops the series' later occurrences, by date; the live
+        // view's refetch then corrects anything this local guess got wrong.
+        const sameSeries = e => e.uid === uid && e.clientUid === clientUid;
+        const fromDate = this._events.find(e => sameSeries(e) && e.recurrenceId === rid)?.date ?? null;
+        const isRemoved = e => sameSeries(e) && (rid == null || e.recurrenceId === rid ||
+            (scope === 'FUTURE' && fromDate !== null && e.date >= fromDate));
+
         entry.client.remove_object(uid, rid, modType, ECal.OperationFlags.NONE, this._cancellable, (_obj, res) => {
             try {
                 entry.client.remove_object_finish(res);
                 onDone?.(null);
-                this._events = this._events.filter(e => !(e.uid === uid && e.clientUid === clientUid &&
-                    (rid == null || e.recurrenceId === rid)));
+                this._events = this._events.filter(e => !isRemoved(e));
                 this._reindex();
                 this._onEventsChanged(this._events);
             } catch (e) {

@@ -11,6 +11,7 @@ import {gettext as _, ngettext} from 'resource:///org/gnome/shell/extensions/ext
 import {parseQuickAdd}    from './quickAddParser.js';
 import {formatTime, formatTimeRange, fromHHMM, parseTimeInput, toHHMM} from './timeInput.js';
 import {FloatingModalPanel} from './floatingPanel.js';
+import {shiftFieldsToSeries} from './recurrence.js';
 import {
     capitalize, dateStr, daysInMonth, displayYear, formatRelativeOffset, isLikelyUrl, makeTzRow,
 } from './helpers.js';
@@ -1792,7 +1793,8 @@ export class EventPanel {
         };
 
         if (this._event) {
-            this._calManager.updateEvent(this._event.uid, this._event.clientUid, fields, done);
+            this._calManager.updateEvent(this._event.uid, this._event.clientUid,
+                shiftFieldsToSeries(fields, this._event.date, this._event.seriesDate), done);
         } else {
             this._calManager.createEvent(fields, this._selSource.uid, err => {
                 if (!err)
