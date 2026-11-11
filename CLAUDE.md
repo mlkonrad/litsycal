@@ -147,10 +147,16 @@ real session's. Hit for real click-testing the timer (2026-11-11):
   from the real session read back the old values, as if ignored. One
   `dconf write` to the key made the real service catch up, and resets
   stuck after that.
-- A nested session's `dconf-service` can outlive its bus as an orphan.
-  Find it via `DBUS_SESSION_BUS_ADDRESS` in `/proc/<pid>/environ` (a
-  `/tmp/dbus-...` bus that no longer exists) and kill it. Never kill the
-  one on `/run/user/1000/bus`.
+- A nested session's `dconf-service` (and every other bus-activated
+  service: portals, gvfs, goa, EDS) can outlive its bus as an orphan if the
+  session is killed rather than exiting cleanly. 2026-11-11: an orphaned
+  `xdg-desktop-portal` spun a full CPU core for ~4 h that way. Since then
+  `dev-session.sh` has an EXIT/INT/TERM/HUP trap that kills every process
+  carrying the nested bus address, then the bus daemon (verified: 37
+  processes before SIGTERM, 0 after). A `kill -9` of the script still skips
+  the trap: then find orphans via `DBUS_SESSION_BUS_ADDRESS` in
+  `/proc/<pid>/environ` (a `/tmp/dbus-...` bus that no longer exists) and
+  kill them. Never kill anything on `/run/user/1000/bus`.
 
 So: test anything that must persist across a teardown with
 `gnome-extensions disable`/`enable` on the nested bus (the same path as a
