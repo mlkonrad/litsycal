@@ -125,6 +125,41 @@ restart the nested session (kill + re-run `dev-session.sh`) — a fresh
 launch's EDS process reads the on-disk backend data fresh, same as the
 "JS can't be unloaded" restart above but for data instead of code.
 
+Calendar data written from the nested session goes to the same on-disk
+files your real calendars use, so create test events in a throwaway local
+source (registry `commit_source_sync()` with `set_parent('local-stub')`
+and backend `local`) and remove it afterwards, rather than writing to a
+real calendar or task list. Removing the source leaves its data folder
+under `~/.local/share/evolution/{calendar,tasks}/<uid>/`; delete that too.
+
+### The nested session also has its own dconf-service
+
+Same mechanism as EDS above: the nested bus activates its own
+`dconf-service`, which writes the same `~/.config/dconf/user` file as the
+real session's. Hit for real click-testing the timer (2026-11-11):
+
+- Every litsycal key written *inside* the nested session (the timer's
+  `timer-end-time`/`timer-recent-durations`, `show-completed-reminders`
+  set in Preferences) was wiped around a nested restart (kill + re-run).
+  No litsycal code did it. A "timer survives a restart" test failed for
+  this reason alone, which looked like a litsycal bug.
+- Right after the nested shell was killed, `gsettings reset`/`dconf reset`
+  from the real session read back the old values, as if ignored. One
+  `dconf write` to the key made the real service catch up, and resets
+  stuck after that.
+- A nested session's `dconf-service` can outlive its bus as an orphan.
+  Find it via `DBUS_SESSION_BUS_ADDRESS` in `/proc/<pid>/environ` (a
+  `/tmp/dbus-...` bus that no longer exists) and kill it. Never kill the
+  one on `/run/user/1000/bus`.
+
+So: test anything that must persist across a teardown with
+`gnome-extensions disable`/`enable` on the nested bus (the same path as a
+screen lock, without restarting the session), not by restarting the
+nested session. After a test run, stop the nested session and any orphan
+`dconf-service`, then reset the keys you changed and read them back to
+check they stuck. Settings changed in the real session while a nested
+session is running can be lost the same way.
+
 ## Negative CSS margin corrupts St layout on this Shell version
 
 Hit for real fixing the event info popover, 2026-09-12 (see CHANGELOG's
