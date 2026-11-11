@@ -10,6 +10,8 @@ longer carries a `version` key — see that file's history for why).
 
 ## [Unreleased]
 
+## [11] - 2026-11-11
+
 ### Added
 
 - Reminders: dated tasks from your Evolution Data Server task lists
@@ -616,7 +618,8 @@ longer carries a `version` key — see that file's history for why).
 - Internationalization via gettext, including a Brazilian Portuguese
   translation.
 
-[Unreleased]: https://github.com/mlkonrad/litsycal/compare/2907b47...HEAD
+[Unreleased]: https://github.com/mlkonrad/litsycal/compare/3d910ea...HEAD
+[11]: https://github.com/mlkonrad/litsycal/compare/2907b47...3d910ea
 [10]: https://github.com/mlkonrad/litsycal/compare/5c4d03d...2907b47
 [9]: https://github.com/mlkonrad/litsycal/compare/2693fdd...5c4d03d
 [8]: https://github.com/mlkonrad/litsycal/compare/9e7980e...2693fdd
