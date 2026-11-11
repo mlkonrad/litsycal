@@ -1506,13 +1506,16 @@ class LitsycalCalendar extends St.BoxLayout {
     //
     // Same {label, icon, action} SettingsMenuPanel used for the panel icon/gear
     // menu. Open Calendar/Copy/Delete... mirror itsycal's own agenda context-menu
-    // trio (menuNeedsUpdate in itsycal's AgendaViewController.m); Edit... is a
-    // litsycal-only addition - itsycal has no in-app event editing at all - since
-    // clicking a row now opens the read-only info popover instead of this dialog.
+    // trio (menuNeedsUpdate in itsycal's AgendaViewController.m), and so does
+    // Copy Meeting Link, which itsycal adds only when the event has a meeting
+    // URL; Edit... is a litsycal-only addition - itsycal has no in-app event
+    // editing at all - since clicking a row now opens the read-only info
+    // popover instead of this dialog.
 
     _openEventContextMenu(anchorActor, ev) {
         this._eventContextMenu?.close();
         this._eventInfoPopover?.close();
+        const meetingUrl = findMeetingUrl(ev);
         this._eventContextMenu = new SettingsMenuPanel(anchorActor, [
             {
                 label: _('Edit…'), icon: 'document-edit-symbolic',
@@ -1527,6 +1530,10 @@ class LitsycalCalendar extends St.BoxLayout {
                 label: _('Copy'), icon: 'edit-copy-symbolic',
                 action: () => this._copyEventToClipboard(ev),
             },
+            ...meetingUrl ? [{
+                label: _('Copy Meeting Link'), icon: 'edit-copy-symbolic',
+                action: () => St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, meetingUrl),
+            }] : [],
             {
                 label: _('Delete…'), icon: 'edit-delete-symbolic',
                 action: () => this._deleteEventFromAgenda(ev),
