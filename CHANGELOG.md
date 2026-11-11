@@ -10,8 +10,33 @@ longer carries a `version` key — see that file's history for why).
 
 ## [Unreleased]
 
+### Added
+
+- Reminders: dated tasks from your Evolution Data Server task lists
+  (GNOME To Do, Evolution, online accounts) show in the grid and agenda
+  with a checkbox to mark them done. Overdue reminders are listed first
+  when the agenda starts today. Completing a repeating reminder moves it
+  to its next occurrence. Preferences > General > Agenda has switches for
+  reminders, completed reminders and overdue reminders, and task lists can
+  be hidden under Calendars like any calendar.
+- A countdown timer: "Timer…" in the settings menu sets a 1–60 minute
+  timer (with your recent durations one click away) that counts down in
+  the top bar and plays a sound and shows a notification when time is up.
+  A running timer survives restarts and suspend.
+- "Delete all future events" when deleting a repeating event.
+- "Copy Meeting Link" in an event's right-click menu, when the event has
+  a video-call link.
+
+### Changed
+
+- The footer's Open Calendar button and `Ctrl + O` open your default
+  calendar app, and GNOME Calendar now opens at the selected date instead
+  of today.
+
 ### Fixed
 
+- Repeating events now show on every day they occur, not only on the day
+  the series started, and "Delete this event" on one occurrence works.
 - Hovering over a day or a footer button no longer occasionally logs
   "not in the stage" warnings in GNOME Shell's log when the tooltip
   closes.
