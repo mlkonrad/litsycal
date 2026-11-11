@@ -38,7 +38,7 @@ Linux):
 | `W` | Show/hide calendar week numbers |
 | `.` | Show/hide event locations in the agenda |
 | `Ctrl + ,` | Open Settings |
-| `Ctrl + O` | Open the default calendar app |
+| `Ctrl + O` | Open your default calendar app at the selected date |
 | `Ctrl + F` | Search events across every connected calendar, roughly a year back and forward |
 | `Ctrl + Shift + J` | Open the first active virtual meeting in the agenda |
 | `Ctrl + N` | Create a new event |

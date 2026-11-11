@@ -3,7 +3,6 @@ import GLib    from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Clutter from 'gi://Clutter';
 import Gio     from 'gi://Gio';
-import Shell   from 'gi://Shell';
 
 import * as Main      from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
@@ -171,11 +170,6 @@ class LitsycalIndicator extends PanelMenu.Button {
         const cal = new LitsycalCalendar(
             settings,
             anchor => this._openSettingsMenu(anchor),
-            () => {
-                const app = Shell.AppSystem.get_default().lookup_app('org.gnome.Calendar.desktop');
-                if (app)
-                    app.activate();
-            },
             pinned => {
                 if (pinned)
                     this._pinCalendar(); else

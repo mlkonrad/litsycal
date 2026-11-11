@@ -1097,6 +1097,8 @@ export default class LitsycalPrefs extends ExtensionPreferences {
             subtitle_lines: 2,
         });
 
+        // GNOME Calendar specifically, not the default text/calendar app:
+        // this row is about creating the first EDS calendar, which only it does.
         const calendarAppInfo = Gio.DesktopAppInfo.new('org.gnome.Calendar.desktop');
         if (calendarAppInfo) {
             const openCalBtn = new Gtk.Button({label: _('Open Calendar'), valign: Gtk.Align.CENTER});

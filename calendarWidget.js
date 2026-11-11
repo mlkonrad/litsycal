@@ -29,12 +29,11 @@ import {
 
 export const LitsycalCalendar = GObject.registerClass(
 class LitsycalCalendar extends St.BoxLayout {
-    _init(settings, openSettingsMenu, openCalendar, onPinToggle, onDataChanged, openGoToDate, quit) {
+    _init(settings, openSettingsMenu, onPinToggle, onDataChanged, openGoToDate, quit) {
         super._init({orientation: Clutter.Orientation.VERTICAL, style_class: 'litsycal-calendar'});
 
         this._settings         = settings;
         this._openSettingsMenu = openSettingsMenu;
-        this._openCalendar     = openCalendar;
         this._onPinToggle      = onPinToggle;
         this._openGoToDate     = openGoToDate;
         this._quit             = quit;
@@ -1268,7 +1267,7 @@ class LitsycalCalendar extends St.BoxLayout {
         }, this);
 
         const calBtn = makeIconBtn('x-office-calendar-symbolic', _('Open Calendar app'));
-        calBtn.connectObject('clicked', () => this._openCalendar(), this);
+        calBtn.connectObject('clicked', () => this._openCalendarAt(this._selected ?? this._today), this);
 
         const gear = makeIconBtn('preferences-system-symbolic', _('Settings menu'));
         gear.connectObject('clicked', () => this._openSettingsMenu(gear), this);
@@ -1524,7 +1523,7 @@ class LitsycalCalendar extends St.BoxLayout {
             null,
             {
                 label: _('Open Calendar'), icon: 'x-office-calendar-symbolic',
-                action: () => this._openCalendarAppAtEventDate(ev),
+                action: () => this._openCalendarAt(GLib.DateTime.new_local(...ev.date.split('-').map(Number), 0, 0, 0)),
             },
             {
                 label: _('Copy'), icon: 'edit-copy-symbolic',
@@ -1542,23 +1541,32 @@ class LitsycalCalendar extends St.BoxLayout {
     }
 
     // itsycal's showCalendarAppAtDate navigates the system calendar app
-    // straight to the clicked event's date rather than just launching it.
-    // gnome-calendar's own --date flag is the closest GNOME equivalent to
-    // that AppleScript/URL-scheme navigation; fall back to a plain launch
-    // (same as the footer's Open Calendar button) if that's not the
-    // installed calendar app.
+    // straight to a date rather than just launching it; the footer button,
+    // Ctrl+O and the agenda row's Open Calendar all come through here. The
+    // app is the user's default text/calendar handler. gnome-calendar's own
+    // --date flag is the closest GNOME equivalent to itsycal's
+    // AppleScript/URL-scheme navigation; any other default handler has no
+    // common "open at date" argument, so it is launched plainly. If neither
+    // launch works, fall back to activating GNOME Calendar through the Shell.
     //
     // gnome-calendar parses --date with evolution-data-server's
     // e_time_parse_date_and_time(), which tries strptime("%x", ...) against
     // the locale's own short-date order (MM/DD/YYYY for en_US, DD/MM/YYYY
-    // elsewhere, ...) - it does NOT accept the ISO "YYYY-MM-DD" ev.date is
-    // stored in. Reformat with GLib's own "%x" so it matches whatever order
-    // strptime("%x") expects on this system; passing ev.date as-is silently
+    // elsewhere, ...) - it does NOT accept the ISO "YYYY-MM-DD" form litsycal
+    // stores dates in. Reformat with GLib's own "%x" so it matches whatever order
+    // strptime("%x") expects on this system; passing an ISO date silently
     // fails (gnome-calendar logs "Date ... is invalid" and opens on today).
-    _openCalendarAppAtEventDate(ev) {
+    //
+    // Both launches sit in try/catch because launching an external app can
+    // genuinely fail (not installed, broken .desktop file).
+    _openCalendarAt(dateTime) {
+        const appInfo = Gio.AppInfo.get_default_for_type('text/calendar', false);
         try {
-            const [y, m, d] = ev.date.split('-').map(Number);
-            const dateArg = GLib.DateTime.new_local(y, m, d, 0, 0, 0).format('%x');
+            if (appInfo && appInfo.get_id() !== 'org.gnome.Calendar.desktop') {
+                appInfo.launch([], null);
+                return;
+            }
+            const dateArg = dateTime.format('%x');
             Gio.Subprocess.new(['gnome-calendar', '--date', dateArg], Gio.SubprocessFlags.NONE);
         } catch {
             const app = Shell.AppSystem.get_default().lookup_app('org.gnome.Calendar.desktop');
@@ -1804,7 +1812,7 @@ class LitsycalCalendar extends St.BoxLayout {
         case Clutter.KEY_o:
         case Clutter.KEY_O: // Ctrl+O (Itsycal's Cmd+O): open the default calendar app
             if (ctrl) {
-                this._openCalendar();
+                this._openCalendarAt(this._selected ?? this._today);
                 return true;
             }
             return false;
